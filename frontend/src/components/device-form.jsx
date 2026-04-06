@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { deviceImageUrl } from '../api/device-api';
 
 export default function DeviceForm({ initialData, onSubmit, submitLabel = 'Save' }) {
@@ -7,6 +7,13 @@ export default function DeviceForm({ initialData, onSubmit, submitLabel = 'Save'
   const [imagePreview, setImagePreview] = useState(
     initialData?.id && initialData?.image_mime ? deviceImageUrl(initialData.id) : null
   );
+  // Revoke blob URL on unmount to prevent memory leak (M5 fix)
+  useEffect(() => {
+    return () => {
+      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import axios from 'axios';
+import { getPublicDevice } from '../api/device-api';
 
 export default function PublicDevicePage() {
   const { id } = useParams();
@@ -8,8 +8,8 @@ export default function PublicDevicePage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    axios.get(`/api/public/device/${id}`)
-      .then(r => setDevice(r.data))
+    getPublicDevice(id)
+      .then(setDevice)
       .catch(() => setError('Device not found'));
   }, [id]);
 
