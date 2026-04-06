@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getDevices } from '../api/device-api';
 import DeviceCard from '../components/device-card';
+import DeviceListRow from '../components/device-list-row';
+import ViewToggle from '../components/view-toggle';
 
 export default function DeviceListPage() {
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [view, setView] = useState(() => localStorage.getItem('deviceView') || 'grid');
 
   useEffect(() => {
     getDevices()
@@ -15,17 +18,25 @@ export default function DeviceListPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const handleViewChange = (newView) => {
+    setView(newView);
+    localStorage.setItem('deviceView', newView);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold text-gray-800">Devices</h1>
-          <Link
-            to="/devices/new"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            + Add Device
-          </Link>
+          <div className="flex items-center gap-3">
+            <ViewToggle view={view} onChange={handleViewChange} />
+            <Link
+              to="/devices/new"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              + Add Device
+            </Link>
+          </div>
         </div>
 
         {loading && <p className="text-gray-500">Loading...</p>}
@@ -38,10 +49,18 @@ export default function DeviceListPage() {
           </div>
         )}
 
-        {!loading && devices.length > 0 && (
+        {!loading && devices.length > 0 && view === 'grid' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {devices.map((device) => (
               <DeviceCard key={device.id} device={device} />
+            ))}
+          </div>
+        )}
+
+        {!loading && devices.length > 0 && view === 'list' && (
+          <div className="flex flex-col gap-3">
+            {devices.map((device) => (
+              <DeviceListRow key={device.id} device={device} />
             ))}
           </div>
         )}
