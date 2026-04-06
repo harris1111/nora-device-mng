@@ -15,7 +15,7 @@ RUN apk add --no-cache python3 make g++
 
 # Install backend dependencies
 COPY backend/package*.json ./
-RUN npm ci --production && apk del python3 make g++
+RUN npm ci --production && apk del python3 make g++ && apk add --no-cache libstdc++
 
 # Copy backend source
 COPY backend/src ./src

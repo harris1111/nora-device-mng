@@ -20,8 +20,12 @@ export default function DeviceDetailPage() {
 
   const handleDelete = async () => {
     if (!window.confirm(`Delete "${device.name}"?`)) return;
-    await deleteDevice(id);
-    navigate('/devices');
+    try {
+      await deleteDevice(id);
+      navigate('/devices');
+    } catch {
+      setError('Failed to delete device');
+    }
   };
 
   if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-gray-500">Loading...</p></div>;

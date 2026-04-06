@@ -10,3 +10,4 @@ export const deleteDevice = (id) => api.delete(`/devices/${id}`);
 
 export const deviceImageUrl = (id) => `/api/devices/${id}/image`;
 export const deviceQrcodeUrl = (id) => `/api/devices/${id}/qrcode`;
+export const getPublicDevice = (id) => api.get(`/public/device/${id}`).then(r => r.data);

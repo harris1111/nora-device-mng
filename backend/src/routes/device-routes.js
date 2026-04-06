@@ -14,15 +14,18 @@ import { generateQrCode } from '../utils/qrcode-generator.js';
 
 const router = Router();
 
-// Multer config — memory storage, 5MB limit, images only
+// Allowed image MIME types (C3 fix — reject SVG and other risky types)
+const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+// Multer config — memory storage, 5MB limit, allowlisted image types
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    if (ALLOWED_MIMES.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files allowed'), false);
+      cb(new Error('Only JPEG, PNG, WebP, and GIF images are allowed'), false);
     }
   },
 });
@@ -44,6 +47,7 @@ router.post('/', upload.single('image'), async (req, res) => {
   try {
     const { name } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
+    if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
 
     const id = uuidv4();
     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
@@ -61,7 +65,8 @@ router.post('/', upload.single('image'), async (req, res) => {
     const device = getDeviceById(id);
     res.status(201).json(device);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Create device error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -94,6 +99,7 @@ router.get('/:id/image', (req, res) => {
   const data = getDeviceImage(req.params.id);
   if (!data?.image) return res.status(404).json({ error: 'Image not found' });
   res.set('Content-Type', data.image_mime);
+  res.set('X-Content-Type-Options', 'nosniff');
   res.send(data.image);
 });
 
@@ -102,6 +108,7 @@ router.get('/:id/qrcode', (req, res) => {
   const data = getDeviceQrcode(req.params.id);
   if (!data?.qrcode) return res.status(404).json({ error: 'QR code not found' });
   res.set('Content-Type', 'image/png');
+  res.set('X-Content-Type-Options', 'nosniff');
   res.send(data.qrcode);
 });
 

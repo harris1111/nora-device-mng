@@ -15,8 +15,9 @@ const PORT = process.env.PORT || 3000;
 // Initialize SQLite database
 initDatabase();
 
-app.use(cors());
-app.use(express.json());
+// Restrict CORS to app origin (C1 fix)
+app.use(cors({ origin: process.env.BASE_URL || 'http://localhost:3000' }));
+app.use(express.json({ limit: '100kb' }));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -32,8 +33,11 @@ if (process.env.NODE_ENV === 'production') {
   const frontendPath = path.join(__dirname, '..', 'frontend-dist');
   app.use(express.static(frontendPath));
 
-  // SPA fallback — all non-API routes serve index.html
+  // SPA fallback — exclude /api/* routes (H3 fix)
   app.get('*', (req, res) => {
+    if (req.path.startsWith('/api/')) {
+      return res.status(404).json({ error: 'Not found' });
+    }
     res.sendFile(path.join(frontendPath, 'index.html'));
   });
 }
@@ -50,6 +54,12 @@ app.use((err, req, res, next) => {
     return res.status(400).json({ error: err.message });
   }
   next(err);
+});
+
+// Catch-all error handler (H4 fix)
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 app.listen(PORT, () => {
