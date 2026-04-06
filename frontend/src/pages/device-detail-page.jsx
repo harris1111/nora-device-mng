@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getDevice, deleteDevice, deviceImageUrl } from '../api/device-api';
+import QrcodeDisplay from '../components/qrcode-display';
+import PrintQrcodeButton from '../components/print-qrcode-button';
 
 export default function DeviceDetailPage() {
   const { id } = useParams();
@@ -47,8 +49,21 @@ export default function DeviceDetailPage() {
             Created: {new Date(device.created_at + 'Z').toLocaleString()}
           </p>
 
-          {/* QR code section — will be enhanced in Phase 5 */}
-          <div className="mt-6 pt-6 border-t" id="qr-section"></div>
+          {/* QR code section */}
+          <div className="mt-6 pt-6 border-t">
+            <h2 className="text-lg font-semibold text-gray-700 mb-3">QR Code</h2>
+            <QrcodeDisplay deviceId={device.id} className="w-48 h-48" />
+            <div className="mt-3">
+              <PrintQrcodeButton />
+            </div>
+          </div>
+
+          {/* Print area — hidden on screen, visible on print */}
+          <div id="print-area">
+            <QrcodeDisplay deviceId={device.id} className="w-48 h-48 mx-auto" />
+            <p className="mt-2 text-lg font-bold">{device.name}</p>
+            <p className="text-sm text-gray-600">ID: {device.id}</p>
+          </div>
 
           <div className="mt-6 flex gap-3">
             <Link

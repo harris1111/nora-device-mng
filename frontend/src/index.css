@@ -1,1 +1,29 @@
 @import "tailwindcss";
+
+/* Print area hidden on screen */
+#print-area {
+  display: none;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #print-area,
+  #print-area * {
+    visibility: visible;
+    display: block;
+  }
+  #print-area {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  #print-area img {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+  }
+}
