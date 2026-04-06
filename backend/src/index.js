@@ -1,9 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { initDatabase } from './database.js';
 import deviceRoutes from './routes/device-routes.js';
 import publicRoutes from './routes/public-routes.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,6 +26,17 @@ app.get('/api/health', (req, res) => {
 // API routes
 app.use('/api/devices', deviceRoutes);
 app.use('/api/public', publicRoutes);
+
+// Serve frontend in production
+if (process.env.NODE_ENV === 'production') {
+  const frontendPath = path.join(__dirname, '..', 'frontend-dist');
+  app.use(express.static(frontendPath));
+
+  // SPA fallback — all non-API routes serve index.html
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  });
+}
 
 // Multer error handler
 app.use((err, req, res, next) => {

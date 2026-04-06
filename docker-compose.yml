@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - BASE_URL=${BASE_URL:-http://localhost:3000}
+    volumes:
+      - device-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  device-data:
