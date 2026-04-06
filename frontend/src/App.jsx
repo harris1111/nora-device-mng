@@ -3,6 +3,7 @@ import DeviceListPage from './pages/device-list-page';
 import DeviceCreatePage from './pages/device-create-page';
 import DeviceDetailPage from './pages/device-detail-page';
 import DeviceEditPage from './pages/device-edit-page';
+import PublicDevicePage from './pages/public-device-page';
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <Route path="/devices/new" element={<DeviceCreatePage />} />
         <Route path="/devices/:id" element={<DeviceDetailPage />} />
         <Route path="/devices/:id/edit" element={<DeviceEditPage />} />
+        <Route path="/public/device/:id" element={<PublicDevicePage />} />
       </Routes>
     </BrowserRouter>
   );
