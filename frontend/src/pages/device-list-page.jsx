@@ -58,10 +58,22 @@ export default function DeviceListPage() {
         )}
 
         {!loading && devices.length > 0 && view === 'list' && (
-          <div className="flex flex-col gap-3">
-            {devices.map((device) => (
-              <DeviceListRow key={device.id} device={device} />
-            ))}
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <table className="w-full text-left">
+              <thead className="bg-gray-100 border-b">
+                <tr>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Image</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase">UUID</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Store ID</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase">Name</th>
+                </tr>
+              </thead>
+              <tbody>
+                {devices.map((device) => (
+                  <DeviceListRow key={device.id} device={device} />
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
