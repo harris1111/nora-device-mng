@@ -16,6 +16,7 @@ export function initDatabase() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS devices (
       id TEXT PRIMARY KEY,
+      store_id TEXT NOT NULL,
       name TEXT NOT NULL,
       image BLOB,
       image_mime TEXT,
@@ -23,6 +24,12 @@ export function initDatabase() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  // Migration: add store_id column if missing (existing DBs)
+  const columns = db.prepare("PRAGMA table_info(devices)").all();
+  if (!columns.find(c => c.name === 'store_id')) {
+    db.exec("ALTER TABLE devices ADD COLUMN store_id TEXT NOT NULL DEFAULT ''");
+  }
 
   return db;
 }
@@ -35,14 +42,14 @@ export function getDatabase() {
 // List all devices (excludes BLOBs for performance)
 export function getAllDevices() {
   return db.prepare(
-    'SELECT id, name, image_mime, created_at FROM devices ORDER BY created_at DESC'
+    'SELECT id, store_id, name, image_mime, created_at FROM devices ORDER BY created_at DESC'
   ).all();
 }
 
 // Get device metadata by ID (excludes BLOBs)
 export function getDeviceById(id) {
   return db.prepare(
-    'SELECT id, name, image_mime, created_at FROM devices WHERE id = ?'
+    'SELECT id, store_id, name, image_mime, created_at FROM devices WHERE id = ?'
   ).get(id);
 }
 
@@ -61,22 +68,22 @@ export function getDeviceQrcode(id) {
 }
 
 // Insert new device with image and QR code BLOBs
-export function createDevice({ id, name, image, imageMime, qrcode }) {
+export function createDevice({ id, storeId, name, image, imageMime, qrcode }) {
   return db.prepare(
-    'INSERT INTO devices (id, name, image, image_mime, qrcode) VALUES (?, ?, ?, ?, ?)'
-  ).run(id, name, image, imageMime, qrcode);
+    'INSERT INTO devices (id, store_id, name, image, image_mime, qrcode) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(id, storeId, name, image, imageMime, qrcode);
 }
 
-// Update device — conditionally updates image if provided
-export function updateDevice(id, { name, image, imageMime }) {
+// Update device — conditionally updates image if provided, regenerates QR
+export function updateDevice(id, { storeId, name, image, imageMime, qrcode }) {
   if (image) {
     return db.prepare(
-      'UPDATE devices SET name = ?, image = ?, image_mime = ? WHERE id = ?'
-    ).run(name, image, imageMime, id);
+      'UPDATE devices SET store_id = ?, name = ?, image = ?, image_mime = ?, qrcode = ? WHERE id = ?'
+    ).run(storeId, name, image, imageMime, qrcode, id);
   }
   return db.prepare(
-    'UPDATE devices SET name = ? WHERE id = ?'
-  ).run(name, id);
+    'UPDATE devices SET store_id = ?, name = ?, qrcode = ? WHERE id = ?'
+  ).run(storeId, name, qrcode, id);
 }
 
 // Delete device by ID

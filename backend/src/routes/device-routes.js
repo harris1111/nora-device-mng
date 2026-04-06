@@ -45,17 +45,19 @@ router.get('/:id', (req, res) => {
 // POST /api/devices — create device with image upload
 router.post('/', upload.single('image'), async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, store_id } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
+    if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
 
     const id = uuidv4();
-    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
-    const publicUrl = `${baseUrl}/public/device/${id}`;
-    const qrcode = await generateQrCode(publicUrl);
+    // QR encodes device name + store ID as plain text
+    const qrText = `${name.trim()}\nID: ${store_id.trim()}`;
+    const qrcode = await generateQrCode(qrText);
 
     createDevice({
       id,
+      storeId: store_id.trim(),
       name: name.trim(),
       image: req.file?.buffer || null,
       imageMime: req.file?.mimetype || null,
@@ -70,21 +72,34 @@ router.post('/', upload.single('image'), async (req, res) => {
   }
 });
 
-// PUT /api/devices/:id — update device
-router.put('/:id', upload.single('image'), (req, res) => {
-  const existing = getDeviceById(req.params.id);
-  if (!existing) return res.status(404).json({ error: 'Device not found' });
+// PUT /api/devices/:id — update device (regenerates QR with new name/store_id)
+router.put('/:id', upload.single('image'), async (req, res) => {
+  try {
+    const existing = getDeviceById(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Device not found' });
 
-  const { name } = req.body;
-  if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
+    const { name, store_id } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
+    if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
+    if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
 
-  updateDevice(req.params.id, {
-    name: name.trim(),
-    image: req.file?.buffer || null,
-    imageMime: req.file?.mimetype || null,
-  });
+    // Regenerate QR with updated name/store_id
+    const qrText = `${name.trim()}\nID: ${store_id.trim()}`;
+    const qrcode = await generateQrCode(qrText);
 
-  res.json(getDeviceById(req.params.id));
+    updateDevice(req.params.id, {
+      storeId: store_id.trim(),
+      name: name.trim(),
+      image: req.file?.buffer || null,
+      imageMime: req.file?.mimetype || null,
+      qrcode,
+    });
+
+    res.json(getDeviceById(req.params.id));
+  } catch (err) {
+    console.error('Update device error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // DELETE /api/devices/:id — delete device

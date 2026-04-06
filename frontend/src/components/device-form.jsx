@@ -3,6 +3,7 @@ import { deviceImageUrl } from '../api/device-api';
 
 export default function DeviceForm({ initialData, onSubmit, submitLabel = 'Save' }) {
   const [name, setName] = useState(initialData?.name || '');
+  const [storeId, setStoreId] = useState(initialData?.store_id || '');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(
     initialData?.id && initialData?.image_mime ? deviceImageUrl(initialData.id) : null
@@ -29,12 +30,14 @@ export default function DeviceForm({ initialData, onSubmit, submitLabel = 'Save'
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!storeId.trim()) { setError('Store ID is required'); return; }
     if (!name.trim()) { setError('Name is required'); return; }
 
     setSubmitting(true);
     setError(null);
     try {
       const formData = new FormData();
+      formData.append('store_id', storeId.trim());
       formData.append('name', name.trim());
       if (imageFile) formData.append('image', imageFile);
       await onSubmit(formData);
@@ -49,6 +52,21 @@ export default function DeviceForm({ initialData, onSubmit, submitLabel = 'Save'
       {error && (
         <div className="bg-red-50 text-red-600 p-3 rounded">{error}</div>
       )}
+
+      <div>
+        <label htmlFor="store_id" className="block text-sm font-medium text-gray-700 mb-1">
+          Store ID *
+        </label>
+        <input
+          id="store_id"
+          type="text"
+          value={storeId}
+          onChange={(e) => setStoreId(e.target.value)}
+          required
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Enter store device ID"
+        />
+      </div>
 
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">

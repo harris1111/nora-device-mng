@@ -7,7 +7,7 @@ const router = Router();
 router.get('/device/:id', (req, res) => {
   const device = getDeviceById(req.params.id);
   if (!device) return res.status(404).json({ error: 'Device not found' });
-  res.json({ id: device.id, name: device.name });
+  res.json({ id: device.id, store_id: device.store_id, name: device.name });
 });
 
 export default router;
