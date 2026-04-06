@@ -24,7 +24,7 @@ export default function DeviceListRow({ device }) {
         <h3 className="font-semibold text-gray-800 truncate">{device.name}</h3>
         <p className="text-sm text-gray-500">{new Date(device.created_at + 'Z').toLocaleDateString()}</p>
       </div>
-      <p className="text-xs text-gray-400 font-mono hidden sm:block">{device.id.slice(0, 8)}...</p>
+      <p className="text-xs text-gray-400 font-mono hidden sm:block">{device.store_id}</p>
     </Link>
   );
 }

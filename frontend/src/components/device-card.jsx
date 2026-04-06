@@ -22,6 +22,7 @@ export default function DeviceCard({ device }) {
       </div>
       <div className="p-4">
         <h3 className="font-semibold text-gray-800 truncate">{device.name}</h3>
+        <p className="text-xs text-gray-400 font-mono mt-0.5">{device.store_id}</p>
         <p className="text-sm text-gray-500 mt-1">
           {new Date(device.created_at + 'Z').toLocaleDateString()}
         </p>

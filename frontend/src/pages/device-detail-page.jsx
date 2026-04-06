@@ -48,7 +48,7 @@ export default function DeviceDetailPage() {
           )}
 
           <h1 className="text-2xl font-bold text-gray-800">{device.name}</h1>
-          <p className="text-sm text-gray-500 mt-2">ID: <span className="font-mono">{device.id}</span></p>
+          <p className="text-sm text-gray-500 mt-2">Store ID: <span className="font-mono font-semibold text-gray-700">{device.store_id}</span></p>
           <p className="text-sm text-gray-500 mt-1">
             Created: {new Date(device.created_at + 'Z').toLocaleString()}
           </p>
@@ -66,7 +66,7 @@ export default function DeviceDetailPage() {
           <div id="print-area">
             <QrcodeDisplay deviceId={device.id} className="w-48 h-48 mx-auto" />
             <p className="mt-2 text-lg font-bold">{device.name}</p>
-            <p className="text-sm text-gray-600">ID: {device.id}</p>
+            <p className="text-sm text-gray-600">ID: {device.store_id}</p>
           </div>
 
           <div className="mt-6 flex gap-3">
