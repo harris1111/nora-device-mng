@@ -11,3 +11,9 @@ export const deleteDevice = (id) => api.delete(`/devices/${id}`);
 export const deviceImageUrl = (id) => `/api/devices/${id}/image`;
 export const deviceQrcodeUrl = (id) => `/api/devices/${id}/qrcode`;
 export const getPublicDevice = (id) => api.get(`/public/device/${id}`).then(r => r.data);
+
+// Location API
+export const getLocations = () => api.get('/locations').then(r => r.data);
+export const createLocation = (data) => api.post('/locations', data).then(r => r.data);
+export const updateLocationApi = (id, data) => api.put(`/locations/${id}`, data).then(r => r.data);
+export const deleteLocationApi = (id) => api.delete(`/locations/${id}`);
