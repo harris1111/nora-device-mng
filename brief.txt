@@ -1,0 +1,6 @@
+quản lý thiết bị + qrcode
+- Chức năng: CRUD thiết bị
+- Tạo thiết bị gồm: hình ảnh thiết bị, tên thiết bị, id thiết bị, thời gian tạo. 
+- Sau khi tạo sẽ tạo mã qrcode và lưu lại. Khi quét QRCode sẽ hiển thị tên thiết bị + id thiết bị
+- Có kèm theo nút print mã qrcode theo từng sản phẩm
+- Có gồm 1 trang list thiết bị, khi bấm vào thiết bị sẽ có hiển thị chi tiết thiết bị có kèm hình.
