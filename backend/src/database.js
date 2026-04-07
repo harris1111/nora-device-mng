@@ -32,7 +32,7 @@ export function initDatabase() {
       id TEXT PRIMARY KEY,
       store_id TEXT NOT NULL,
       name TEXT NOT NULL,
-      location_id TEXT NOT NULL REFERENCES locations(id),
+      location_id TEXT REFERENCES locations(id),
       image BLOB,
       image_mime TEXT,
       qrcode BLOB,

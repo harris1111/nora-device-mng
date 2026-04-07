@@ -20,7 +20,7 @@ export default function DeviceForm({ initialData, onSubmit, submitLabel = 'Lưu'
   useEffect(() => {
     getLocations()
       .then(setLocations)
-      .catch(() => {});
+      .catch(() => setError('Không thể tải danh sách vị trí. Vui lòng thử lại.'));
   }, []);
 
   const [submitting, setSubmitting] = useState(false);

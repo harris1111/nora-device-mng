@@ -10,6 +10,7 @@ export default function DeviceListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [view, setView] = useState(() => localStorage.getItem('deviceView') || 'grid');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     getDevices()
@@ -23,6 +24,12 @@ export default function DeviceListPage() {
     localStorage.setItem('deviceView', newView);
   };
 
+  const filteredDevices = devices.filter((d) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return d.name?.toLowerCase().includes(q) || d.store_id?.toLowerCase().includes(q) || d.location_name?.toLowerCase().includes(q);
+  });
+
   return (
     <div className="space-y-6">
       {/* Desktop Hidden Header (moved to layout), Custom Floating Action Bar for Mobile/Desktop */}
@@ -35,6 +42,8 @@ export default function DeviceListPage() {
           </div>
           <input
             type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             className="block w-full pl-10 pr-3 py-2.5 bg-slate-50 border-0 text-slate-800 rounded-xl focus:ring-2 focus:ring-indigo-500 transition-shadow sm:text-sm"
             placeholder="Tìm kiếm thiết bị..."
           />
@@ -64,7 +73,7 @@ export default function DeviceListPage() {
         </div>
       )}
 
-      {!loading && !error && devices.length === 0 && (
+      {!loading && !error && filteredDevices.length === 0 && (
         <div className="text-center py-20 bg-white rounded-3xl border border-slate-100 border-dashed shadow-sm flex flex-col items-center">
           <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-500 mb-4">
              <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -77,10 +86,10 @@ export default function DeviceListPage() {
       )}
 
       {/* Grid View */}
-      {!loading && devices.length > 0 && view === 'grid' && (
+      {!loading && filteredDevices.length > 0 && view === 'grid' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {devices.map((device, index) => (
-            <div key={device.id} className="animate-slide-up" style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}>
+          {filteredDevices.map((device, index) => (
+            <div key={device.id} className="animate-slide-up" style={{ animationDelay: `${Math.min(index * 50, 500)}ms`, animationFillMode: 'both' }}>
                <DeviceCard device={device} />
             </div>
           ))}
@@ -88,7 +97,7 @@ export default function DeviceListPage() {
       )}
 
       {/* List View */}
-      {!loading && devices.length > 0 && view === 'list' && (
+      {!loading && filteredDevices.length > 0 && view === 'list' && (
         <div className="card-glass bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
           <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead className="bg-slate-50/50">
@@ -101,7 +110,7 @@ export default function DeviceListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {devices.map((device, index) => (
+              {filteredDevices.map((device) => (
                  <DeviceListRow key={device.id} device={device} />
               ))}
             </tbody>

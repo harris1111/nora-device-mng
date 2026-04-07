@@ -59,12 +59,16 @@ export default function PrintQrcodeButton({ deviceId, storeId }) {
 </head>
 <body>
 <div class="label">
-  <img id="qr" src="${qrSrc}" alt="QR">
-  <span>${storeId}</span>
+  <img id="qr" alt="QR">
+  <span id="store-label"></span>
 </div>
 </body>
 </html>`);
     doc.close();
+
+    // Set content safely via DOM APIs to prevent XSS
+    doc.getElementById('qr').src = qrSrc;
+    doc.getElementById('store-label').textContent = storeId;
 
     const img = doc.getElementById('qr');
     const doPrint = () => {
