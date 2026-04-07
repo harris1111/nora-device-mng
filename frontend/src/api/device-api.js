@@ -12,6 +12,10 @@ export const deviceImageUrl = (id) => `/api/devices/${id}/image`;
 export const deviceQrcodeUrl = (id) => `/api/devices/${id}/qrcode`;
 export const getPublicDevice = (id) => api.get(`/public/device/${id}`).then(r => r.data);
 
+// Transfer API
+export const transferDevice = (id, data) => api.post(`/devices/${id}/transfer`, data).then(r => r.data);
+export const getDeviceTransfers = (id) => api.get(`/devices/${id}/transfers`).then(r => r.data);
+
 // Location API
 export const getLocations = () => api.get('/locations').then(r => r.data);
 export const createLocation = (data) => api.post('/locations', data).then(r => r.data);

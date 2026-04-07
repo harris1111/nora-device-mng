@@ -10,6 +10,8 @@ import {
   updateDevice,
   deleteDevice,
   getLocationById,
+  createTransfer,
+  getTransfersByDeviceId,
 } from '../database.js';
 import { generateQrCode } from '../utils/qrcode-generator.js';
 
@@ -46,7 +48,7 @@ router.get('/:id', (req, res) => {
 // POST /api/devices — create device with image upload
 router.post('/', upload.single('image'), async (req, res) => {
   try {
-    const { name, store_id, location_id } = req.body;
+    const { name, store_id, location_id, managed_by, owned_by, serial_number, model, manufacturer, description } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
@@ -57,7 +59,6 @@ router.post('/', upload.single('image'), async (req, res) => {
     if (!location) return res.status(400).json({ error: 'Invalid location selected' });
 
     const id = uuidv4();
-    // QR encodes device name + store ID + location as plain text
     const qrText = `${name.trim()}\nMã: ${store_id.trim()}\nVị trí: ${location.name}`;
     const qrcode = await generateQrCode(qrText);
 
@@ -66,6 +67,12 @@ router.post('/', upload.single('image'), async (req, res) => {
       storeId: store_id.trim(),
       name: name.trim(),
       locationId: location_id.trim(),
+      managedBy: managed_by?.trim(),
+      ownedBy: owned_by?.trim(),
+      serialNumber: serial_number?.trim(),
+      model: model?.trim(),
+      manufacturer: manufacturer?.trim(),
+      description: description?.trim(),
       image: req.file?.buffer || null,
       imageMime: req.file?.mimetype || null,
       qrcode,
@@ -85,7 +92,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
     const existing = getDeviceById(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Device not found' });
 
-    const { name, store_id, location_id } = req.body;
+    const { name, store_id, location_id, managed_by, owned_by, serial_number, model, manufacturer, description } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
@@ -95,7 +102,6 @@ router.put('/:id', upload.single('image'), async (req, res) => {
     const location = getLocationById(location_id.trim());
     if (!location) return res.status(400).json({ error: 'Invalid location selected' });
 
-    // Regenerate QR with updated name/store_id/location
     const qrText = `${name.trim()}\nMã: ${store_id.trim()}\nVị trí: ${location.name}`;
     const qrcode = await generateQrCode(qrText);
 
@@ -103,6 +109,12 @@ router.put('/:id', upload.single('image'), async (req, res) => {
       storeId: store_id.trim(),
       name: name.trim(),
       locationId: location_id.trim(),
+      managedBy: managed_by?.trim(),
+      ownedBy: owned_by?.trim(),
+      serialNumber: serial_number?.trim(),
+      model: model?.trim(),
+      manufacturer: manufacturer?.trim(),
+      description: description?.trim(),
       image: req.file?.buffer || null,
       imageMime: req.file?.mimetype || null,
       qrcode,
@@ -120,6 +132,39 @@ router.delete('/:id', (req, res) => {
   const result = deleteDevice(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Device not found' });
   res.status(204).send();
+});
+
+// POST /api/devices/:id/transfer — transfer device ownership
+router.post('/:id/transfer', (req, res) => {
+  try {
+    const device = getDeviceById(req.params.id);
+    if (!device) return res.status(404).json({ error: 'Device not found' });
+
+    const { to_owner, note, transferred_by } = req.body;
+    if (!to_owner?.trim()) return res.status(400).json({ error: 'Người nhận là bắt buộc' });
+
+    const id = uuidv4();
+    createTransfer({
+      id,
+      deviceId: req.params.id,
+      fromOwner: device.owned_by || '',
+      toOwner: to_owner.trim(),
+      transferredBy: transferred_by?.trim() || '',
+      note: note?.trim() || '',
+    });
+
+    res.status(201).json(getDeviceById(req.params.id));
+  } catch (err) {
+    console.error('Transfer error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/devices/:id/transfers — get transfer history
+router.get('/:id/transfers', (req, res) => {
+  const device = getDeviceById(req.params.id);
+  if (!device) return res.status(404).json({ error: 'Device not found' });
+  res.json(getTransfersByDeviceId(req.params.id));
 });
 
 // GET /api/devices/:id/image — serve device image binary
