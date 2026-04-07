@@ -9,6 +9,7 @@ import {
   createDevice,
   updateDevice,
   deleteDevice,
+  getLocationById,
 } from '../database.js';
 import { generateQrCode } from '../utils/qrcode-generator.js';
 
@@ -45,20 +46,26 @@ router.get('/:id', (req, res) => {
 // POST /api/devices — create device with image upload
 router.post('/', upload.single('image'), async (req, res) => {
   try {
-    const { name, store_id } = req.body;
+    const { name, store_id, location_id } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
+    if (!location_id?.trim()) return res.status(400).json({ error: 'Location is required' });
+
+    // Validate location exists
+    const location = getLocationById(location_id.trim());
+    if (!location) return res.status(400).json({ error: 'Invalid location selected' });
 
     const id = uuidv4();
-    // QR encodes device name + store ID as plain text
-    const qrText = `${name.trim()}\nID: ${store_id.trim()}`;
+    // QR encodes device name + store ID + location as plain text
+    const qrText = `${name.trim()}\nMã: ${store_id.trim()}\nVị trí: ${location.name}`;
     const qrcode = await generateQrCode(qrText);
 
     createDevice({
       id,
       storeId: store_id.trim(),
       name: name.trim(),
+      locationId: location_id.trim(),
       image: req.file?.buffer || null,
       imageMime: req.file?.mimetype || null,
       qrcode,
@@ -72,24 +79,30 @@ router.post('/', upload.single('image'), async (req, res) => {
   }
 });
 
-// PUT /api/devices/:id — update device (regenerates QR with new name/store_id)
+// PUT /api/devices/:id — update device (regenerates QR with new name/store_id/location)
 router.put('/:id', upload.single('image'), async (req, res) => {
   try {
     const existing = getDeviceById(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Device not found' });
 
-    const { name, store_id } = req.body;
+    const { name, store_id, location_id } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
+    if (!location_id?.trim()) return res.status(400).json({ error: 'Location is required' });
 
-    // Regenerate QR with updated name/store_id
-    const qrText = `${name.trim()}\nID: ${store_id.trim()}`;
+    // Validate location exists
+    const location = getLocationById(location_id.trim());
+    if (!location) return res.status(400).json({ error: 'Invalid location selected' });
+
+    // Regenerate QR with updated name/store_id/location
+    const qrText = `${name.trim()}\nMã: ${store_id.trim()}\nVị trí: ${location.name}`;
     const qrcode = await generateQrCode(qrText);
 
     updateDevice(req.params.id, {
       storeId: store_id.trim(),
       name: name.trim(),
+      locationId: location_id.trim(),
       image: req.file?.buffer || null,
       imageMime: req.file?.mimetype || null,
       qrcode,

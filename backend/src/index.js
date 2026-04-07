@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { initDatabase } from './database.js';
 import deviceRoutes from './routes/device-routes.js';
+import locationRoutes from './routes/location-routes.js';
 import publicRoutes from './routes/public-routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -26,6 +27,7 @@ app.get('/api/health', (req, res) => {
 
 // API routes
 app.use('/api/devices', deviceRoutes);
+app.use('/api/locations', locationRoutes);
 app.use('/api/public', publicRoutes);
 
 // Serve frontend in production
