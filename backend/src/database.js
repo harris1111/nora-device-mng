@@ -33,6 +33,12 @@ export function initDatabase() {
       store_id TEXT NOT NULL,
       name TEXT NOT NULL,
       location_id TEXT REFERENCES locations(id),
+      managed_by TEXT NOT NULL DEFAULT '',
+      owned_by TEXT NOT NULL DEFAULT '',
+      serial_number TEXT NOT NULL DEFAULT '',
+      model TEXT NOT NULL DEFAULT '',
+      manufacturer TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
       image BLOB,
       image_mime TEXT,
       qrcode BLOB,
@@ -40,16 +46,34 @@ export function initDatabase() {
     );
   `);
 
-  // Migration: add store_id column if missing (existing DBs)
+  // Migrations for existing DBs
   const columns = db.prepare("PRAGMA table_info(devices)").all();
-  if (!columns.find(c => c.name === 'store_id')) {
-    db.exec("ALTER TABLE devices ADD COLUMN store_id TEXT NOT NULL DEFAULT ''");
-  }
+  const addCol = (name, def) => {
+    if (!columns.find(c => c.name === name)) {
+      db.exec(`ALTER TABLE devices ADD COLUMN ${name} ${def}`);
+    }
+  };
+  addCol('store_id', "TEXT NOT NULL DEFAULT ''");
+  addCol('location_id', 'TEXT REFERENCES locations(id)');
+  addCol('managed_by', "TEXT NOT NULL DEFAULT ''");
+  addCol('owned_by', "TEXT NOT NULL DEFAULT ''");
+  addCol('serial_number', "TEXT NOT NULL DEFAULT ''");
+  addCol('model', "TEXT NOT NULL DEFAULT ''");
+  addCol('manufacturer', "TEXT NOT NULL DEFAULT ''");
+  addCol('description', "TEXT NOT NULL DEFAULT ''");
 
-  // Migration: add location_id column if missing (existing DBs)
-  if (!columns.find(c => c.name === 'location_id')) {
-    db.exec("ALTER TABLE devices ADD COLUMN location_id TEXT REFERENCES locations(id)");
-  }
+  // Transfer history table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS device_transfers (
+      id TEXT PRIMARY KEY,
+      device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+      from_owner TEXT NOT NULL DEFAULT '',
+      to_owner TEXT NOT NULL,
+      transferred_by TEXT NOT NULL DEFAULT '',
+      note TEXT NOT NULL DEFAULT '',
+      transferred_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
 
   return db;
 }
@@ -95,7 +119,8 @@ export function deleteLocation(id) {
 export function getAllDevices() {
   return db.prepare(
     `SELECT d.id, d.store_id, d.name, d.location_id, l.name AS location_name,
-            d.image_mime, d.created_at
+            d.managed_by, d.owned_by, d.serial_number, d.model, d.manufacturer,
+            d.description, d.image_mime, d.created_at
      FROM devices d
      LEFT JOIN locations l ON d.location_id = l.id
      ORDER BY d.created_at DESC`
@@ -106,7 +131,8 @@ export function getAllDevices() {
 export function getDeviceById(id) {
   return db.prepare(
     `SELECT d.id, d.store_id, d.name, d.location_id, l.name AS location_name,
-            d.image_mime, d.created_at
+            d.managed_by, d.owned_by, d.serial_number, d.model, d.manufacturer,
+            d.description, d.image_mime, d.created_at
      FROM devices d
      LEFT JOIN locations l ON d.location_id = l.id
      WHERE d.id = ?`
@@ -128,25 +154,49 @@ export function getDeviceQrcode(id) {
 }
 
 // Insert new device with image and QR code BLOBs
-export function createDevice({ id, storeId, name, locationId, image, imageMime, qrcode }) {
+export function createDevice({ id, storeId, name, locationId, managedBy, ownedBy, serialNumber, model, manufacturer, description, image, imageMime, qrcode }) {
   return db.prepare(
-    'INSERT INTO devices (id, store_id, name, location_id, image, image_mime, qrcode) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(id, storeId, name, locationId, image, imageMime, qrcode);
+    `INSERT INTO devices (id, store_id, name, location_id, managed_by, owned_by, serial_number, model, manufacturer, description, image, image_mime, qrcode)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, storeId, name, locationId, managedBy || '', ownedBy || '', serialNumber || '', model || '', manufacturer || '', description || '', image, imageMime, qrcode);
 }
 
 // Update device — conditionally updates image if provided, regenerates QR
-export function updateDevice(id, { storeId, name, locationId, image, imageMime, qrcode }) {
+export function updateDevice(id, { storeId, name, locationId, managedBy, ownedBy, serialNumber, model, manufacturer, description, image, imageMime, qrcode }) {
   if (image) {
     return db.prepare(
-      'UPDATE devices SET store_id = ?, name = ?, location_id = ?, image = ?, image_mime = ?, qrcode = ? WHERE id = ?'
-    ).run(storeId, name, locationId, image, imageMime, qrcode, id);
+      `UPDATE devices SET store_id = ?, name = ?, location_id = ?, managed_by = ?, owned_by = ?,
+       serial_number = ?, model = ?, manufacturer = ?, description = ?,
+       image = ?, image_mime = ?, qrcode = ? WHERE id = ?`
+    ).run(storeId, name, locationId, managedBy || '', ownedBy || '', serialNumber || '', model || '', manufacturer || '', description || '', image, imageMime, qrcode, id);
   }
   return db.prepare(
-    'UPDATE devices SET store_id = ?, name = ?, location_id = ?, qrcode = ? WHERE id = ?'
-  ).run(storeId, name, locationId, qrcode, id);
+    `UPDATE devices SET store_id = ?, name = ?, location_id = ?, managed_by = ?, owned_by = ?,
+     serial_number = ?, model = ?, manufacturer = ?, description = ?, qrcode = ? WHERE id = ?`
+  ).run(storeId, name, locationId, managedBy || '', ownedBy || '', serialNumber || '', model || '', manufacturer || '', description || '', qrcode, id);
 }
 
 // Delete device by ID
 export function deleteDevice(id) {
   return db.prepare('DELETE FROM devices WHERE id = ?').run(id);
+}
+
+// ─── Transfer CRUD ───────────────────────────────────────────────
+
+export function createTransfer({ id, deviceId, fromOwner, toOwner, transferredBy, note }) {
+  const txn = db.transaction(() => {
+    db.prepare(
+      `INSERT INTO device_transfers (id, device_id, from_owner, to_owner, transferred_by, note)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).run(id, deviceId, fromOwner || '', toOwner, transferredBy || '', note || '');
+    db.prepare('UPDATE devices SET owned_by = ? WHERE id = ?').run(toOwner, deviceId);
+  });
+  txn();
+}
+
+export function getTransfersByDeviceId(deviceId) {
+  return db.prepare(
+    `SELECT id, device_id, from_owner, to_owner, transferred_by, note, transferred_at
+     FROM device_transfers WHERE device_id = ? ORDER BY transferred_at DESC`
+  ).all(deviceId);
 }
