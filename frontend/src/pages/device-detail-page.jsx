@@ -61,8 +61,7 @@ export default function DeviceDetailPage() {
   }
 
   const infoFields = [
-    { label: 'Quản lý bởi', value: device.managed_by },
-    { label: 'Đang sử dụng bởi', value: device.owned_by },
+    { label: 'Đang sử dụng bởi', value: device.owned_by ? `${device.location_name ? device.location_name + ' → ' : ''}${device.owned_by}` : null },
     { label: 'Số serial', value: device.serial_number },
     { label: 'Nhà sản xuất', value: device.manufacturer },
     { label: 'Model', value: device.model },

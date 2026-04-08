@@ -6,7 +6,6 @@ export default function DeviceForm({ initialData, onSubmit, submitLabel = 'Lưu'
   const [name, setName] = useState(initialData?.name || '');
   const [storeId, setStoreId] = useState(initialData?.store_id || '');
   const [locationId, setLocationId] = useState(initialData?.location_id || '');
-  const [managedBy, setManagedBy] = useState(initialData?.managed_by || '');
   const [ownedBy, setOwnedBy] = useState(initialData?.owned_by || '');
   const [serialNumber, setSerialNumber] = useState(initialData?.serial_number || '');
   const [model, setModel] = useState(initialData?.model || '');
@@ -48,8 +47,7 @@ export default function DeviceForm({ initialData, onSubmit, submitLabel = 'Lưu'
       fd.append('store_id', storeId.trim());
       fd.append('name', name.trim());
       fd.append('location_id', locationId);
-      fd.append('managed_by', managedBy.trim());
-      fd.append('owned_by', ownedBy.trim());
+      fd.append('owned_by', ownedBy);
       fd.append('serial_number', serialNumber.trim());
       fd.append('model', model.trim());
       fd.append('manufacturer', manufacturer.trim());
@@ -96,8 +94,21 @@ export default function DeviceForm({ initialData, onSubmit, submitLabel = 'Lưu'
               </div>
             </div>
 
-            <FormTextInput id="managed_by" label="Quản lý bởi" value={managedBy} onChange={setManagedBy} placeholder="Ví dụ: IT, Kỹ thuật" />
-            <FormTextInput id="owned_by" label="Đang sử dụng bởi" value={ownedBy} onChange={setOwnedBy} placeholder="Ví dụ: ME, Phòng sản xuất" />
+
+            {/* Owned By dropdown */}
+            <div className="space-y-1.5 focus-within:text-indigo-600 transition-all">
+              <label htmlFor="owned_by" className="block text-sm text-slate-700 font-semibold mb-1">Đang sử dụng bởi</label>
+              <div className="relative">
+                <select id="owned_by" value={ownedBy} onChange={(e) => setOwnedBy(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all appearance-none cursor-pointer">
+                  <option value="">-- Chọn bộ phận --</option>
+                  {locations.map((loc) => <option key={loc.id} value={loc.name}>{loc.name}</option>)}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </div>
+            </div>
             <FormTextInput id="serial_number" label="Số serial" value={serialNumber} onChange={setSerialNumber} mono placeholder="Ví dụ: SN-2024-001" />
             <FormTextInput id="manufacturer" label="Nhà sản xuất" value={manufacturer} onChange={setManufacturer} placeholder="Ví dụ: Dell, HP, Mitsubishi" />
             <FormTextInput id="model" label="Model" value={model} onChange={setModel} colSpan2 placeholder="Ví dụ: Latitude 5540, LaserJet Pro" />
