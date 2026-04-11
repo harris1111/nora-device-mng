@@ -83,24 +83,58 @@ docker compose up --build -d               # Production on :13000
 
 ## API Endpoints
 
+### Devices
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/devices` | List all devices |
 | GET | `/api/devices/:id` | Get device detail |
-| POST | `/api/devices` | Create device (multipart) |
-| PUT | `/api/devices/:id` | Update device (multipart) |
+| POST | `/api/devices` | Create device (multipart, snake_case fields) |
+| PUT | `/api/devices/:id` | Update device (multipart, snake_case fields) |
 | DELETE | `/api/devices/:id` | Delete device |
-| GET | `/api/devices/:id/image` | Serve device image |
 | GET | `/api/devices/:id/qrcode` | Serve QR code PNG |
-| GET | `/api/public/device/:id` | Public device info |
+
+### Locations
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/locations` | List all locations |
+| POST | `/api/locations` | Create location |
+| PUT | `/api/locations/:id` | Update location |
+| DELETE | `/api/locations/:id` | Delete location |
+
+### Attachments (S3)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/devices/:deviceId/attachments` | List device attachments |
+| POST | `/api/devices/:deviceId/attachments` | Upload attachments (multipart, max 10/device) |
+| GET | `/api/attachments/:id/file` | Stream file from S3 |
+| PUT | `/api/attachments/:id/primary` | Set attachment as primary |
+| DELETE | `/api/attachments/:id` | Delete attachment |
+
+### Maintenance Records
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/devices/:deviceId/maintenance` | List maintenance records |
+| POST | `/api/devices/:deviceId/maintenance` | Create record (multipart) |
+| DELETE | `/api/maintenance/:id` | Delete record |
+
+### Other
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/public/device/:id` | Public device info (QR target) |
 | GET | `/api/health` | Health check |
 
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `DATABASE_URL` | `postgresql://nora:nora@postgres:5432/nora_devices` | PostgreSQL connection string |
 | `PORT` | `3000` (container), `13000` (host) | Server port |
 | `BASE_URL` | `http://localhost:13000` | Base URL for QR codes |
+| `S3_ENDPOINT` | — | S3-compatible endpoint URL |
+| `S3_ACCESS_KEY` | — | S3 access key ID |
+| `S3_SECRET_KEY` | — | S3 secret access key |
+| `S3_BUCKET` | `nora-devices` | S3 bucket name |
+| `S3_REGION` | `us-east-1` | S3 region code |
 
 ## Code Style Guidelines
 
@@ -128,6 +162,57 @@ Commit messages use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`,
 - **YAGNI**: Don't add features until needed
 - **KISS**: Simplest solution that works
 - **DRY**: Extract shared logic into utilities/components
+
+## Deployment
+
+### Docker Compose (Production)
+
+```bash
+# 1. Create .env from example
+cp .env.example .env
+# 2. Fill in S3 credentials and adjust BASE_URL
+# 3. Build and start
+docker compose up --build -d
+# App available at http://localhost:13000
+```
+
+The Dockerfile uses a multi-stage build:
+- **Stage 1**: Builds frontend with Vite (pnpm@9 on Alpine)
+- **Stage 2**: Installs backend deps, generates Prisma client, strips `@ts-nocheck` from generated files, runs as non-root user
+- **CMD**: `prisma db push --skip-generate` (auto-creates/syncs tables) → `tsx src/index.ts`
+
+### Key Deployment Notes
+
+- `.dockerignore` must include `**/node_modules` (not just `node_modules`) to prevent platform-specific native binaries from being copied into the Alpine container
+- Prisma 7 uses `prisma db push` instead of `prisma migrate deploy` because this project has no migration files — schema is pushed directly
+- The S3 bucket must be pre-created; the app does not auto-create it
+- PostgreSQL data is persisted via the `pg-data` Docker volume
+
+## Known Pitfalls & Troubleshooting
+
+Lessons learned from development and deployment sessions:
+
+### Prisma 7
+- **`@ts-nocheck` in generated files**: Prisma 7 generates TypeScript files with `@ts-nocheck` which breaks type inference for `include` relations. After every `prisma generate`, strip it: `find src/generated -name '*.ts' -exec sed -i '/@ts-nocheck/d' {} +` (Dockerfile does this automatically)
+- **Adapter required**: Prisma 7 `prisma-client` generator does NOT auto-read `DATABASE_URL`. You must use an explicit adapter (`@prisma/adapter-pg`) in `prisma-client.ts`
+- **No migration files**: This project uses `prisma db push` instead of migrations. If you see `TableDoesNotExist` errors, run `npx prisma db push` inside the container
+- **PrismaClient constructor typing**: May need `// @ts-expect-error` for constructor options in strict mode
+
+### Docker / Alpine
+- **pnpm lockfile cross-platform**: Windows `pnpm-lock.yaml` locks platform-specific optional deps (e.g., `@rollup/rollup-win32-x64-msvc`). Alpine needs `@rollup/rollup-linux-x64-musl`. Use `pnpm install` (not `--frozen-lockfile`) in Dockerfile, and ensure `**/node_modules` is in `.dockerignore`
+- **pnpm version**: Pinned to pnpm@9 in Dockerfile to avoid pnpm@10 `approve-builds` requirement for native optional deps
+
+### TypeScript
+- **Express 5 types**: `@types/express@5` returns `string | string[]` for `req.params.*`. Cast with `as string` in all route handlers
+- **uuid types**: `uuid@10` has no built-in types; `@types/uuid@11` is a stub. Custom declaration in `src/types/uuid.d.ts`
+- **multer fileFilter callback**: Typing `cb(new Error(...), false)` requires `as unknown as null` cast
+- **Backend ESM imports**: Must use `.js` extension in imports even for `.ts` files (required by ESM + tsx/bundler resolution)
+
+### S3 Storage
+- **Bucket must exist**: App does not create the bucket. Pre-create it in your S3 provider console
+- **Bucket name**: Verify the exact bucket name in your S3 provider — check with `ListBucketsCommand` if getting `AccessDenied`
+- **`forcePathStyle: true`**: Required for most S3-compatible providers (iDrive e2, MinIO, etc.)
+- **Allowed file types**: Attachments restricted to `image/jpeg`, `image/png`, `image/webp`, `image/gif`, `application/pdf`
 
 ## Sync Rule
 

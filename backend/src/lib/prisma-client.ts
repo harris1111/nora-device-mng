@@ -1,6 +1,7 @@
 import { PrismaClient } from '../generated/prisma/client.js';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-// @ts-expect-error Prisma 7 constructor typing issue
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env['DATABASE_URL']! });
+const prisma = new PrismaClient({ adapter });
 
 export default prisma;
