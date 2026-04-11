@@ -61,7 +61,16 @@ export default function DeviceDetailPage() {
   }
 
   const infoFields = [
-    { label: 'Đang sử dụng bởi', value: device.owned_by ? `${device.location_name ? device.location_name + ' → ' : ''}${device.owned_by}` : null },
+    {
+      label: 'Đang sử dụng bởi',
+      value: (() => {
+        if (!device.owned_by) return null;
+        if (device.owned_by !== device.location_name) {
+          return device.location_name ? `${device.location_name} → ${device.owned_by}` : device.owned_by;
+        }
+        return device.owned_by;
+      })(),
+    },
     { label: 'Số serial', value: device.serial_number },
     { label: 'Nhà sản xuất', value: device.manufacturer },
     { label: 'Model', value: device.model },
