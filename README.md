@@ -12,8 +12,8 @@ Device management web app with QR code generation and printing.
 
 ## Tech Stack
 
-- **Backend**: Node.js + Express + better-sqlite3
-- **Frontend**: React + Vite + Tailwind CSS v4
+- **Backend**: Node.js + Express + Prisma 7 + PostgreSQL (TypeScript)
+- **Frontend**: React 18 + Vite + Tailwind CSS v4 (TypeScript)
 - **Deployment**: Docker Compose
 
 ## Quick Start (Docker)
@@ -41,10 +41,10 @@ BASE_URL=https://devices.example.com docker compose up --build -d
 
 ```bash
 # Backend
-cd backend && npm install && npm run dev
+cd backend && pnpm install && pnpm run dev
 
 # Frontend (separate terminal)
-cd frontend && npm install && npm run dev
+cd frontend && pnpm install && pnpm run dev
 ```
 
 Frontend dev server runs on `:5173` with proxy to backend `:3000`.

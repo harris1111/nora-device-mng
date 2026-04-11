@@ -1,0 +1,16 @@
+- Toàn bộ các thiết bị sẽ có nhiều file pdf và hình ảnh đính kèm.
+- Bây giờ không cần lưu lại phần lịch sử chuyển giao nữa, chỉ còn lại là chuyển giao đến đâu và thời gian chuyển giao thôi
+- Chuyển QRCode sang link thiết bị
+
+- Chia thành 2 loại thiết bị: Tài sản - công cụ dụng cụ
+- Tài sản lớn gồm:
++ Cập nhật thêm lịch sử sửa chữa, bảo trì cho thiết bị đó. (chỉ dành cho tài sản) 
+
+- Công cụ dụng cụ: 
++ Thêm ngày báo huỷ/ ngày báo mất.
+
+- Phát triển sau khi hoàn thành các bước trên
+- Xuất file excel theo list thiết bị (phần này làm sau)
+- Phân loại tài lieu (phần này làm sau)
+
+- CHuyển từ SQLite -> Postgres + viết migration + seedfile dung Prisma

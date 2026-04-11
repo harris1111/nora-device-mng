@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -f data/devices.db data/devices.db-wal data/devices.db-shm)",
+      "Bash(timeout 5 node src/index.js)",
+      "Bash(curl -s -X POST http://localhost:3000/api/devices -F \"name=Router A\" -F \"store_id=NR-001\")",
+      "Bash(curl -s http://localhost:3000/api/devices)",
+      "Bash(kill %1)",
+      "Bash(pkill -f \"node src/index.js\")",
+      "Bash(npx vite:*)"
+    ]
+  }
+}

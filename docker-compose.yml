@@ -1,4 +1,14 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: nora
+      POSTGRES_PASSWORD: nora
+      POSTGRES_DB: nora_devices
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
   app:
     build: .
     ports:
@@ -7,9 +17,15 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - BASE_URL=${BASE_URL:-http://localhost:13000}
-    volumes:
-      - device-data:/app/data
+      - DATABASE_URL=postgresql://nora:nora@postgres:5432/nora_devices
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_BUCKET=${S3_BUCKET:-nora-devices}
+      - S3_REGION=${S3_REGION:-us-east-1}
+    depends_on:
+      - postgres
     restart: unless-stopped
 
 volumes:
-  device-data:
+  pg-data:

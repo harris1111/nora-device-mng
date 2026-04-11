@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Location {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  devices   Device[]
+
+  @@map("locations")
+}
+
+model Device {
+  id           String   @id @default(uuid())
+  storeId      String   @map("store_id")
+  name         String
+  locationId   String?  @map("location_id")
+  location     Location? @relation(fields: [locationId], references: [id])
+  managedBy    String   @default("") @map("managed_by")
+  ownedBy      String   @default("") @map("owned_by")
+  serialNumber String   @default("") @map("serial_number")
+  model        String   @default("")
+  manufacturer String   @default("")
+  description  String   @default("")
+  image        Bytes?
+  imageMime    String?  @map("image_mime")
+  qrcode       Bytes?
+  type         String   @default("tai_san")
+  status       String   @default("active")
+  disposalDate DateTime? @map("disposal_date")
+  lossDate     DateTime? @map("loss_date")
+  transferTo   String?  @map("transfer_to")
+  transferDate DateTime? @map("transfer_date")
+  createdAt    DateTime @default(now()) @map("created_at")
+  attachments        Attachment[]
+  maintenanceRecords MaintenanceRecord[]
+
+  @@map("devices")
+}
+
+model Attachment {
+  id        String   @id @default(uuid())
+  deviceId  String   @map("device_id")
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  fileKey   String   @map("file_key")
+  fileName  String   @map("file_name")
+  fileType  String   @map("file_type")
+  fileSize  Int      @map("file_size")
+  isPrimary Boolean  @default(false) @map("is_primary")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("attachments")
+}
+
+model MaintenanceRecord {
+  id          String   @id @default(uuid())
+  deviceId    String   @map("device_id")
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  date        DateTime
+  description String
+  technician  String   @default("")
+  status      String   @default("pending")
+  createdAt   DateTime @default(now()) @map("created_at")
+  attachments MaintenanceAttachment[]
+
+  @@map("maintenance_records")
+}
+
+model MaintenanceAttachment {
+  id              String            @id @default(uuid())
+  maintenanceId   String            @map("maintenance_id")
+  maintenance     MaintenanceRecord @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+  fileKey         String            @map("file_key")
+  fileName        String            @map("file_name")
+  fileType        String            @map("file_type")
+  fileSize        Int               @map("file_size")
+  createdAt       DateTime          @default(now()) @map("created_at")
+
+  @@map("maintenance_attachments")
+}
