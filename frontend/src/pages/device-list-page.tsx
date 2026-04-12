@@ -124,7 +124,7 @@ export default function DeviceListPage() {
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Tên thiết bị</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Trạng thái</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Vị trí</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Đang sử dụng bởi</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Chuyển giao</th>
                 <th className="px-6 py-4 border-b border-slate-100"></th>
               </tr>
             </thead>

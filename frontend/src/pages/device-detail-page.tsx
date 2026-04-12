@@ -68,20 +68,11 @@ export default function DeviceDetailPage() {
 
   const infoFields = [
     { label: 'Loại', value: getTypeName(device.type) },
-    {
-      label: 'Đang sử dụng bởi',
-      value: (() => {
-        if (!device.owned_by) return null;
-        if (device.owned_by !== device.location_name) {
-          return device.location_name ? `${device.location_name} → ${device.owned_by}` : device.owned_by;
-        }
-        return device.owned_by;
-      })(),
-    },
     { label: 'Số serial', value: device.serial_number },
     { label: 'Nhà sản xuất', value: device.manufacturer },
     { label: 'Model', value: device.model },
-    { label: 'Chuyển giao cho', value: device.transfer_to },
+    { label: 'Chuyển giao cho', value: device.owned_by },
+    { label: 'Người nhận', value: device.transfer_to },
     { label: 'Ngày chuyển giao', value: device.transfer_date ? new Date(device.transfer_date).toLocaleDateString('vi-VN') : null },
     { label: 'Ngày xử lý', value: device.disposal_date ? new Date(device.disposal_date).toLocaleDateString('vi-VN') : null },
     { label: 'Ngày mất', value: device.loss_date ? new Date(device.loss_date).toLocaleDateString('vi-VN') : null },

@@ -64,12 +64,6 @@ export default function PublicDevicePage() {
                 <p className="font-semibold text-slate-700">{device.location_name}</p>
               </div>
             )}
-            {device.owned_by && (
-              <div>
-                <p className="text-xs text-slate-400 font-medium uppercase">Đang sử dụng</p>
-                <p className="font-semibold text-slate-700">{device.owned_by}</p>
-              </div>
-            )}
             {device.serial_number && (
               <div>
                 <p className="text-xs text-slate-400 font-medium uppercase">Số serial</p>
@@ -88,9 +82,15 @@ export default function PublicDevicePage() {
                 <p className="font-semibold text-slate-700">{device.model}</p>
               </div>
             )}
-            {device.transfer_to && (
+            {device.owned_by && (
               <div>
                 <p className="text-xs text-slate-400 font-medium uppercase">Chuyển giao cho</p>
+                <p className="font-semibold text-slate-700">{device.owned_by}</p>
+              </div>
+            )}
+            {device.transfer_to && (
+              <div>
+                <p className="text-xs text-slate-400 font-medium uppercase">Người nhận</p>
                 <p className="font-semibold text-slate-700">{device.transfer_to}</p>
               </div>
             )}

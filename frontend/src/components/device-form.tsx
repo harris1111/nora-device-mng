@@ -132,20 +132,6 @@ export default function DeviceForm({ initialData, onSubmit, submitLabel = 'Lưu'
               </div>
             </div>
 
-            {/* Owned By dropdown */}
-            <div className="space-y-1.5 focus-within:text-indigo-600 transition-all">
-              <label htmlFor="owned_by" className="block text-sm text-slate-700 font-semibold mb-1">Đang sử dụng bởi</label>
-              <div className="relative">
-                <select id="owned_by" value={ownedBy} onChange={(e) => setOwnedBy(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all appearance-none cursor-pointer">
-                  <option value="">-- Chọn bộ phận --</option>
-                  {locations.map((loc) => <option key={loc.id} value={loc.name}>{loc.name}</option>)}
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                </div>
-              </div>
-            </div>
             <FormTextInput id="serial_number" label="Số serial" value={serialNumber} onChange={setSerialNumber} mono placeholder="Ví dụ: SN-2024-001" />
             <FormTextInput id="manufacturer" label="Nhà sản xuất" value={manufacturer} onChange={setManufacturer} placeholder="Ví dụ: Dell, HP, Mitsubishi" />
             <FormTextInput id="model" label="Model" value={model} onChange={setModel} colSpan2 placeholder="Ví dụ: Latitude 5540, LaserJet Pro" />
@@ -153,8 +139,21 @@ export default function DeviceForm({ initialData, onSubmit, submitLabel = 'Lưu'
             {/* Transfer fields */}
             <div className="md:col-span-2 pt-4 border-t border-slate-100 mt-2">
               <p className="text-sm font-semibold text-slate-700 mb-3">Thông tin chuyển giao (tùy chọn)</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormTextInput id="transfer_to" label="Chuyển giao cho" value={transferTo} onChange={setTransferTo} placeholder="Tên người/bộ phận nhận" />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1.5 focus-within:text-indigo-600 transition-all">
+                  <label htmlFor="owned_by" className="block text-sm text-slate-700 font-semibold mb-1">Chuyển giao cho</label>
+                  <div className="relative">
+                    <select id="owned_by" value={ownedBy} onChange={(e) => setOwnedBy(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all appearance-none cursor-pointer">
+                      <option value="">-- Chọn bộ phận --</option>
+                      {locations.map((loc) => <option key={loc.id} value={loc.name}>{loc.name}</option>)}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </div>
+                  </div>
+                </div>
+                <FormTextInput id="transfer_to" label="Người nhận" value={transferTo} onChange={setTransferTo} placeholder="Tên người nhận" />
                 <div className="space-y-1.5">
                   <label htmlFor="transfer_date" className="block text-sm text-slate-700 font-semibold mb-1">Ngày chuyển giao</label>
                   <input id="transfer_date" type="date" value={transferDate} onChange={e => setTransferDate(e.target.value)}
