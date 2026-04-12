@@ -96,7 +96,7 @@ export const uploadMaintenanceAttachment = (recordId: string, files: File[]) => 
   files.forEach(f => fd.append('files', f));
   return api.post(`/maintenance/${recordId}/attachments`, fd).then(r => r.data);
 };
-export const maintenanceAttachmentUrl = (id: string): string => `/api/maintenance/attachments/${id}/file`;
+export const maintenanceAttachmentUrl = (id: string): string => `/api/maintenance-attachments/${id}/file`;
 
 // Location API
 export const getLocations = (): Promise<Location[]> => api.get('/locations').then(r => r.data);

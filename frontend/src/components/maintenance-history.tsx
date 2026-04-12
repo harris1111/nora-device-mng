@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { createMaintenanceRecord, deleteMaintenanceRecord, updateMaintenanceRecord, MaintenanceRecord, maintenanceAttachmentUrl } from '../api/device-api';
-import AttachmentList from './attachment-list';
+import { createMaintenanceRecord, deleteMaintenanceRecord, updateMaintenanceRecord, MaintenanceRecord, MaintenanceAttachmentItem, maintenanceAttachmentUrl } from '../api/device-api';
+import PdfViewerModal from './pdf-viewer-modal';
 
 interface FormState {
   date: string;
@@ -21,6 +21,16 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pdfModal, setPdfModal] = useState<{ url: string; name: string } | null>(null);
+
+  const handleViewAttachment = (a: MaintenanceAttachmentItem) => {
+    const url = maintenanceAttachmentUrl(a.id);
+    if (a.file_type === 'application/pdf') {
+      setPdfModal({ url, name: a.file_name });
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   const resetForm = () => {
     setFormData({ date: '', description: '', technician: '' });
@@ -85,6 +95,7 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
 
   return (
     <div className="space-y-4">
+      {pdfModal && <PdfViewerModal url={pdfModal.url} fileName={pdfModal.name} onClose={() => setPdfModal(null)} />}
       {error && (
         <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100">{error}</div>
       )}
@@ -112,8 +123,22 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
                       {r.technician && <span>bởi {r.technician}</span>}
                     </div>
                     {r.attachments?.length > 0 && (
-                      <div className="mt-2">
-                        <AttachmentList attachments={r.attachments} maintenanceMode />
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {r.attachments.map(a => (
+                          <button key={a.id} onClick={() => handleViewAttachment(a)}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                              a.file_type === 'application/pdf'
+                                ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                            }`} title={a.file_name}>
+                            {a.file_type === 'application/pdf' ? (
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h6v6h6v10H6z"/><path d="M8 12h8v2H8zm0 3h8v2H8z"/></svg>
+                            ) : (
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            )}
+                            <span className="truncate max-w-[120px]">{a.file_name}</span>
+                          </button>
+                        ))}
                       </div>
                     )}
                   </div>
