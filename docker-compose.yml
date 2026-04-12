@@ -7,6 +7,8 @@ services:
       POSTGRES_DB: nora_devices
     volumes:
       - pg-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     restart: unless-stopped
 
   app:

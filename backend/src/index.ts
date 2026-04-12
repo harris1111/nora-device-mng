@@ -4,6 +4,7 @@ import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 import prisma from './lib/prisma-client.js';
 import { validateS3Config } from './utils/s3-config-validator.js';
 import deviceRoutes from './routes/device-routes.js';
@@ -13,6 +14,8 @@ import attachmentRoutes from './routes/attachment-routes.js';
 import maintenanceRoutes from './routes/maintenance-routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Load root .env for S3 vars (without overriding backend/.env values like DATABASE_URL)
+dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: false });
 
 const app = express();
 const PORT = process.env.PORT || 3000;

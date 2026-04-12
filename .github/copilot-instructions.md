@@ -26,14 +26,16 @@ backend/
       prisma-client.ts     # Prisma client singleton
       s3-client.ts         # S3 file operations
     routes/
-      device-routes.ts     # CRUD /api/devices
+      device-routes.ts     # CRUD /api/devices (multipart: primary_image + attachments)
       location-routes.ts   # Location endpoints
       public-routes.ts     # Public device info
       attachment-routes.ts # File attachment endpoints
-      maintenance-routes.ts # Maintenance record endpoints
+      maintenance-routes.ts # Maintenance records (multipart file upload support)
+    scripts/
+      migrate-images-to-s3.ts # One-time migration: DB images → S3 (April 2026)
     utils/
       qrcode-generator.ts  # QR code generation
-      response-mapper.ts   # Prisma → API response mapping
+      response-mapper.ts   # Prisma → API response mapping (removed image_mime)
       device-status-rules.ts # Status validation logic
       s3-config-validator.ts # S3 config validation
     types/
@@ -46,8 +48,13 @@ frontend/
     main.tsx               # React entry point
     App.tsx                # Router config
     api/
-      device-api.ts        # Axios API client with typed interfaces
-    components/            # Reusable UI components (.tsx)
+      device-api.ts        # Axios API client with typed interfaces (MaintenanceAttachmentItem added)
+    components/
+      attachment-list.tsx  # Reusable attachment table UI (ADDED April 2026)
+      pdf-viewer-modal.tsx # Inline PDF viewer modal (ADDED April 2026)
+      device-form.tsx      # Device form with primary_image + attachments pickers
+      maintenance-history.tsx # Maintenance records table (technician replaces performed_by)
+      other components/    # Other reusable UI components (.tsx)
     pages/                 # Route pages (.tsx)
 docker-compose.yml
 Dockerfile
@@ -114,7 +121,7 @@ docker compose up --build -d               # Production on :13000
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/devices/:deviceId/maintenance` | List maintenance records |
-| POST | `/api/devices/:deviceId/maintenance` | Create record (multipart) |
+| POST | `/api/devices/:deviceId/maintenance` | Create record (multipart: date, description, technician, status, files[]) |
 | DELETE | `/api/maintenance/:id` | Delete record |
 
 ### Other
@@ -157,6 +164,24 @@ When implementing a plan, feature, or fix:
 
 Commit messages use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`
 
+## Attachment System (April 2026 Overhaul)
+
+### Schema Changes
+- **Removed** from Device: `image Bytes?`, `imageMime String?`
+- **New** Attachment model: Stores S3 references with `isPrimary` flag (one per device)
+- **New** MaintenanceAttachment model: Stores file metadata for maintenance records
+
+### File Upload Pattern
+- **Device create/update**: `multer.fields([{name: 'primary_image', maxCount: 1}, {name: 'attachments', maxCount: 9}])`
+- **Maintenance create**: `multer.array('files', 5)`
+- **S3 paths**: `devices/{deviceId}/{attachmentId}{ext}` | `maintenance/{recordId}/{attachmentId}{ext}`
+- **Migration**: Run `backend/src/scripts/migrate-images-to-s3.ts` to migrate legacy DB images
+
+### Frontend Components
+- **AttachmentList**: Reusable table component for device/maintenance attachments with view/download/delete actions
+- **PdfViewerModal**: Embedded PDF viewer using iframe (presigned URL)
+- **Removed**: `attachment-gallery.tsx` (deprecated, replaced by AttachmentList)
+
 ## Principles
 
 - **YAGNI**: Don't add features until needed
@@ -197,16 +222,19 @@ Lessons learned from development and deployment sessions:
 - **Adapter required**: Prisma 7 `prisma-client` generator does NOT auto-read `DATABASE_URL`. You must use an explicit adapter (`@prisma/adapter-pg`) in `prisma-client.ts`
 - **No migration files**: This project uses `prisma db push` instead of migrations. If you see `TableDoesNotExist` errors, run `npx prisma db push` inside the container
 - **PrismaClient constructor typing**: May need `// @ts-expect-error` for constructor options in strict mode
+- **Regenerate after schema push**: After `prisma db push` changes columns, you MUST run `prisma generate` + strip `@ts-nocheck`. Otherwise the generated client queries stale columns (e.g., `ColumnNotFound` errors)
 
 ### Docker / Alpine
 - **pnpm lockfile cross-platform**: Windows `pnpm-lock.yaml` locks platform-specific optional deps (e.g., `@rollup/rollup-win32-x64-msvc`). Alpine needs `@rollup/rollup-linux-x64-musl`. Use `pnpm install` (not `--frozen-lockfile`) in Dockerfile, and ensure `**/node_modules` is in `.dockerignore`
 - **pnpm version**: Pinned to pnpm@9 in Dockerfile to avoid pnpm@10 `approve-builds` requirement for native optional deps
+- **Postgres port mapping**: For local dev, `docker-compose.yml` exposes `5432:5432` so the backend running outside Docker can reach the DB. Without this mapping, `localhost:5432` connections fail with `ECONNREFUSED`
 
 ### TypeScript
 - **Express 5 types**: `@types/express@5` returns `string | string[]` for `req.params.*`. Cast with `as string` in all route handlers
 - **uuid types**: `uuid@10` has no built-in types; `@types/uuid@11` is a stub. Custom declaration in `src/types/uuid.d.ts`
 - **multer fileFilter callback**: Typing `cb(new Error(...), false)` requires `as unknown as null` cast
 - **Backend ESM imports**: Must use `.js` extension in imports even for `.ts` files (required by ESM + tsx/bundler resolution)
+- **Dual `.env` loading**: Backend uses `import 'dotenv/config'` (loads `backend/.env` at import time for `DATABASE_URL`) then `dotenv.config({ path: '../../.env', override: false })` at runtime (loads root `.env` for S3 vars). ESM hoists all `import` statements before module-level code, so `DATABASE_URL` must be in `backend/.env`
 
 ### S3 Storage
 - **Bucket must exist**: App does not create the bucket. Pre-create it in your S3 provider console
@@ -217,3 +245,62 @@ Lessons learned from development and deployment sessions:
 ## Sync Rule
 
 **`.github/copilot-instructions.md`** and **`CLAUDE.md`** must stay in sync. When you modify one, apply the same changes to the other. They share the same project context — only agent-specific sections may differ.
+
+## GitNexus Code Intelligence
+
+[GitNexus](https://github.com/abhigyanpatwari/GitNexus) indexes the codebase into a knowledge graph (dependencies, call chains, clusters, execution flows) and exposes it via MCP tools so AI agents deeply understand the code.
+
+### Setup
+
+```bash
+# Index the repo (run from repo root)
+npx gitnexus analyze
+
+# Force full re-index after major changes
+npx gitnexus analyze --force
+
+# Check index status
+npx gitnexus status
+```
+
+MCP config (`.mcp.json` or global):
+
+```json
+{
+  "mcpServers": {
+    "gitnexus": {
+      "command": "npx",
+      "args": ["-y", "gitnexus@latest", "mcp"]
+    }
+  }
+}
+```
+
+### When to Use
+
+- **Before refactoring**: Run `impact` to check blast radius of changes
+- **Before editing shared code**: Run `context` to see all callers/dependents of a symbol
+- **Debugging call chains**: Use `query` to trace execution flows across files
+- **Pre-commit safety**: Run `detect_changes` to map changed lines to affected processes
+- **Multi-file renames**: Use `rename` for graph-aware coordinated renames
+- **Architecture exploration**: Use `cypher` for raw graph queries
+
+### Key MCP Tools
+
+| Tool | Purpose |
+|------|--------|
+| `query` | Process-grouped hybrid search (BM25 + semantic) |
+| `context` | 360-degree symbol view — callers, callees, processes |
+| `impact` | Blast radius analysis with depth grouping and confidence |
+| `detect_changes` | Git-diff → affected processes and risk level |
+| `rename` | Multi-file coordinated rename via graph + text search |
+| `cypher` | Raw Cypher graph queries against the knowledge graph |
+| `list_repos` | Discover all indexed repositories |
+
+### Rules
+
+- **Re-index after schema changes**: Run `npx gitnexus analyze` after modifying `schema.prisma` or adding new route files
+- **Use `impact` before editing shared utilities**: Files like `response-mapper.ts`, `prisma-client.ts`, and `device-api.ts` are high-fan-out — always check blast radius
+- **Prefer `context` over grep for symbol lookups**: GitNexus resolves actual call relationships, not just text matches
+- **Index is stored in `.gitnexus/`** (gitignored) — never commit it
+- **One MCP server serves all indexed repos** — no per-project config needed after initial setup
