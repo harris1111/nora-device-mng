@@ -168,6 +168,10 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" />
                 </div>
               </div>
+              <p className="text-xs text-slate-400 mt-2">
+                Tệp chuyển giao được quản lý trong block riêng ở trang chi tiết sau khi lưu thiết bị.
+                {initialData?.transfer_record?.attachments?.length ? ` Hiện có ${initialData.transfer_record.attachments.length} tệp.` : ''}
+              </p>
             </div>
 
             {/* CCDC-specific date fields */}

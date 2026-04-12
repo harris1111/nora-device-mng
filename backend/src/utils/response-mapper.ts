@@ -1,9 +1,40 @@
-import type { Device, Location, Attachment } from '../generated/prisma/client.js';
+import type { Device, Location, Attachment, TransferAttachment, TransferRecord } from '../generated/prisma/client.js';
 
 type DeviceWithRelations = Device & {
   location?: { name: string } | null;
   attachments?: Pick<Attachment, 'id' | 'isPrimary'>[];
+  transferRecord?: (TransferRecord & { attachments?: TransferAttachment[] }) | null;
 };
+
+function mapTransferRecord(d: DeviceWithRelations) {
+  if (d.transferRecord) {
+    return {
+      id: d.transferRecord.id,
+      owned_by: d.transferRecord.ownedBy || null,
+      transfer_to: d.transferRecord.transferTo || null,
+      transfer_date: d.transferRecord.transferDate?.toISOString() || null,
+      attachments: (d.transferRecord.attachments || []).map((attachment) => ({
+        id: attachment.id,
+        file_name: attachment.fileName,
+        file_type: attachment.fileType,
+        file_size: attachment.fileSize,
+        created_at: attachment.createdAt.toISOString(),
+      })),
+    };
+  }
+
+  if (!d.ownedBy && !d.transferTo && !d.transferDate) {
+    return null;
+  }
+
+  return {
+    id: null,
+    owned_by: d.ownedBy || null,
+    transfer_to: d.transferTo || null,
+    transfer_date: d.transferDate?.toISOString() || null,
+    attachments: [],
+  };
+}
 
 export function mapDevice(d: DeviceWithRelations) {
   return {
@@ -24,6 +55,7 @@ export function mapDevice(d: DeviceWithRelations) {
     loss_date: d.lossDate?.toISOString() || null,
     transfer_to: d.transferTo || null,
     transfer_date: d.transferDate?.toISOString() || null,
+    transfer_record: mapTransferRecord(d),
     primary_attachment_id: d.attachments?.find(a => a.isPrimary)?.id || null,
     created_at: d.createdAt?.toISOString(),
   };

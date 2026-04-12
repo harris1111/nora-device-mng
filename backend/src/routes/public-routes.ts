@@ -11,12 +11,20 @@ router.get('/device/:id', async (req: Request, res: Response) => {
       include: {
         location: { select: { name: true } },
         attachments: {
-          select: { id: true, fileName: true, fileType: true, isPrimary: true },
+          select: { id: true, fileName: true, fileType: true, fileSize: true, isPrimary: true, createdAt: true },
           orderBy: { createdAt: 'asc' },
+        },
+        transferRecord: {
+          include: {
+            attachments: {
+              select: { id: true, fileName: true, fileType: true, fileSize: true, createdAt: true },
+              orderBy: { createdAt: 'asc' },
+            },
+          },
         },
         maintenanceRecords: {
           include: {
-            attachments: { select: { id: true, fileName: true, fileType: true } },
+            attachments: { select: { id: true, fileName: true, fileType: true, fileSize: true, createdAt: true } },
           },
           orderBy: { date: 'desc' },
         },
@@ -40,8 +48,33 @@ router.get('/device/:id', async (req: Request, res: Response) => {
       created_at: device.createdAt.toISOString(),
       transfer_to: device.transferTo || null,
       transfer_date: device.transferDate?.toISOString() || null,
+      transfer_record: device.transferRecord ? {
+        id: device.transferRecord.id,
+        owned_by: device.transferRecord.ownedBy || null,
+        transfer_to: device.transferRecord.transferTo || null,
+        transfer_date: device.transferRecord.transferDate?.toISOString() || null,
+        attachments: device.transferRecord.attachments.map(a => ({
+          id: a.id,
+          file_name: a.fileName,
+          file_type: a.fileType,
+          file_size: a.fileSize,
+          created_at: a.createdAt.toISOString(),
+        })),
+      } : (device.ownedBy || device.transferTo || device.transferDate) ? {
+        id: null,
+        owned_by: device.ownedBy || null,
+        transfer_to: device.transferTo || null,
+        transfer_date: device.transferDate?.toISOString() || null,
+        attachments: [],
+      } : null,
       attachments: device.attachments.map(a => ({
-        id: a.id, file_name: a.fileName, file_type: a.fileType, is_primary: a.isPrimary,
+        id: a.id,
+        device_id: device.id,
+        file_name: a.fileName,
+        file_type: a.fileType,
+        file_size: a.fileSize,
+        is_primary: a.isPrimary,
+        created_at: a.createdAt.toISOString(),
       })),
       maintenance_records: device.type === 'tai_san' ? device.maintenanceRecords.map(r => ({
         id: r.id,
@@ -50,7 +83,11 @@ router.get('/device/:id', async (req: Request, res: Response) => {
         technician: r.technician,
         status: r.status,
         attachments: r.attachments.map(a => ({
-          id: a.id, file_name: a.fileName, file_type: a.fileType,
+          id: a.id,
+          file_name: a.fileName,
+          file_type: a.fileType,
+          file_size: a.fileSize,
+          created_at: a.createdAt.toISOString(),
         })),
       })) : undefined,
     };

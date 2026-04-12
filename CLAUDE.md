@@ -124,6 +124,13 @@ docker compose up --build -d               # Production on :13000
 | POST | `/api/devices/:deviceId/maintenance` | Create record (multipart: date, description, technician, status, files[]) |
 | DELETE | `/api/maintenance/:id` | Delete record |
 
+### Transfer Records
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/devices/:deviceId/transfer/attachments` | Upload transfer attachments (multipart, max 5/transfer) |
+| GET | `/api/transfer-attachments/:id/file` | Stream transfer attachment from S3 |
+| DELETE | `/api/transfer-attachments/:id` | Delete transfer attachment |
+
 ### Other
 | Method | Endpoint | Description |
 |--------|----------|-------------|

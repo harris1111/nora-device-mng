@@ -5,6 +5,7 @@ import path from 'path';
 import prisma from '../lib/prisma-client.js';
 import { mapDevice } from '../utils/response-mapper.js';
 import { generateQrCode } from '../utils/qrcode-generator.js';
+import { syncDeviceTransferRecord } from '../utils/transfer-records.js';
 import { validateTypeStatus, applyDateStatusRules, type StatusData } from '../utils/device-status-rules.js';
 import { uploadFile, deleteFile, deleteFiles } from '../lib/s3-client.js';
 
@@ -34,9 +35,20 @@ const deviceUpload = upload.fields([
   { name: 'attachments', maxCount: 9 },
 ]);
 
-const deviceIncludes = {
+const listDeviceIncludes = {
   location: true,
   attachments: { where: { isPrimary: true }, select: { id: true, isPrimary: true }, take: 1 },
+};
+
+const detailDeviceIncludes = {
+  ...listDeviceIncludes,
+  transferRecord: {
+    include: {
+      attachments: {
+        orderBy: { createdAt: 'asc' as const },
+      },
+    },
+  },
 };
 
 // GET /api/devices — list all devices
@@ -49,7 +61,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     const devices = await prisma.device.findMany({
       where,
-      include: deviceIncludes,
+      include: listDeviceIncludes,
       orderBy: { createdAt: 'desc' },
     });
     res.json(devices.map(mapDevice));
@@ -64,7 +76,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const device = await prisma.device.findUnique({
       where: { id: req.params.id as string },
-      include: deviceIncludes,
+      include: detailDeviceIncludes,
     });
     if (!device) return res.status(404).json({ error: 'Device not found' });
     res.json(mapDevice(device));
@@ -96,28 +108,35 @@ router.post('/', deviceUpload, async (req: Request, res: Response) => {
 
     const id = uuidv4();
     const qrcode = await generateQrCode(id);
+    const transferSummary = {
+      ownedBy: owned_by?.trim() || '',
+      transferTo: transfer_to?.trim() || null,
+      transferDate: transfer_date ? new Date(transfer_date) : null,
+    };
 
-    const device = await prisma.device.create({
-      data: {
-        id,
-        storeId: store_id.trim(),
-        name: name.trim(),
-        locationId: location_id.trim(),
-        managedBy: managed_by?.trim() || '',
-        ownedBy: owned_by?.trim() || '',
-        serialNumber: serial_number?.trim() || '',
-        model: deviceModel?.trim() || '',
-        manufacturer: manufacturer?.trim() || '',
-        description: description?.trim() || '',
-        qrcode: new Uint8Array(qrcode),
-        type: statusData.type,
-        status: statusData.status,
-        disposalDate: statusData.disposalDate,
-        lossDate: statusData.lossDate,
-        transferTo: transfer_to?.trim() || null,
-        transferDate: transfer_date ? new Date(transfer_date) : null,
-      },
-      include: deviceIncludes,
+    await prisma.$transaction(async (tx) => {
+      await tx.device.create({
+        data: {
+          id,
+          storeId: store_id.trim(),
+          name: name.trim(),
+          locationId: location_id.trim(),
+          managedBy: managed_by?.trim() || '',
+          ownedBy: transferSummary.ownedBy,
+          serialNumber: serial_number?.trim() || '',
+          model: deviceModel?.trim() || '',
+          manufacturer: manufacturer?.trim() || '',
+          description: description?.trim() || '',
+          qrcode: new Uint8Array(qrcode),
+          type: statusData.type,
+          status: statusData.status,
+          disposalDate: statusData.disposalDate,
+          lossDate: statusData.lossDate,
+          transferTo: transferSummary.transferTo,
+          transferDate: transferSummary.transferDate,
+        },
+      });
+      await syncDeviceTransferRecord(id, transferSummary, tx);
     });
 
     // Upload primary image and attachments to S3
@@ -146,7 +165,7 @@ router.post('/', deviceUpload, async (req: Request, res: Response) => {
     }
 
     // Re-fetch to include new attachments
-    const updated = await prisma.device.findUnique({ where: { id }, include: deviceIncludes });
+    const updated = await prisma.device.findUnique({ where: { id }, include: detailDeviceIncludes });
     res.status(201).json(mapDevice(updated!));
   } catch (err) {
     console.error('Create device error:', err);
@@ -186,6 +205,11 @@ router.put('/:id', deviceUpload, async (req: Request, res: Response) => {
     statusData = applyDateStatusRules(existing.type, statusData);
 
     const qrcode = await generateQrCode(req.params.id as string);
+    const transferSummary = {
+      ownedBy: owned_by?.trim() || '',
+      transferTo: transfer_to?.trim() || null,
+      transferDate: transfer_date ? new Date(transfer_date) : null,
+    };
 
     const updateData: Record<string, unknown> = {
       storeId: store_id.trim(),
@@ -201,13 +225,16 @@ router.put('/:id', deviceUpload, async (req: Request, res: Response) => {
       status: statusData.status,
       disposalDate: statusData.disposalDate,
       lossDate: statusData.lossDate,
-      transferTo: transfer_to?.trim() || null,
-      transferDate: transfer_date ? new Date(transfer_date) : null,
+      transferTo: transferSummary.transferTo,
+      transferDate: transferSummary.transferDate,
     };
 
-    await prisma.device.update({
-      where: { id: req.params.id as string },
-      data: updateData,
+    await prisma.$transaction(async (tx) => {
+      await tx.device.update({
+        where: { id: req.params.id as string },
+        data: updateData,
+      });
+      await syncDeviceTransferRecord(req.params.id as string, transferSummary, tx);
     });
 
     // Handle primary image upload (replace old primary)
@@ -247,7 +274,7 @@ router.put('/:id', deviceUpload, async (req: Request, res: Response) => {
       }
     }
 
-    const device = await prisma.device.findUnique({ where: { id: req.params.id as string }, include: deviceIncludes });
+    const device = await prisma.device.findUnique({ where: { id: req.params.id as string }, include: detailDeviceIncludes });
     res.json(mapDevice(device!));
   } catch (err) {
     console.error('Update device error:', err);
@@ -262,6 +289,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       where: { id: req.params.id as string },
       include: {
         attachments: { select: { fileKey: true } },
+        transferRecord: { include: { attachments: { select: { fileKey: true } } } },
         maintenanceRecords: { include: { attachments: { select: { fileKey: true } } } },
       },
     });
@@ -269,6 +297,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     const s3Keys = [
       ...device.attachments.map((a: { fileKey: string }) => a.fileKey),
+      ...(device.transferRecord?.attachments.map((a: { fileKey: string }) => a.fileKey) || []),
       ...device.maintenanceRecords.flatMap((r: { attachments: { fileKey: string }[] }) => r.attachments.map((a: { fileKey: string }) => a.fileKey)),
     ];
 
