@@ -12,6 +12,7 @@ import locationRoutes from './routes/location-routes.js';
 import publicRoutes from './routes/public-routes.js';
 import attachmentRoutes from './routes/attachment-routes.js';
 import maintenanceRoutes from './routes/maintenance-routes.js';
+import transferRoutes from './routes/transfer-routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Load root .env for S3 vars (without overriding backend/.env values like DATABASE_URL)
@@ -38,6 +39,7 @@ app.use('/api/locations', locationRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api', attachmentRoutes);
 app.use('/api', maintenanceRoutes);
+app.use('/api', transferRoutes);
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {

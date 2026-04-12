@@ -38,8 +38,22 @@ model Device {
   createdAt    DateTime @default(now()) @map("created_at")
   attachments        Attachment[]
   maintenanceRecords MaintenanceRecord[]
+  transferRecord     TransferRecord?
 
   @@map("devices")
+}
+
+model TransferRecord {
+  id           String   @id @default(uuid())
+  deviceId     String   @unique @map("device_id")
+  device       Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  ownedBy      String   @default("") @map("owned_by")
+  transferTo   String?  @map("transfer_to")
+  transferDate DateTime? @map("transfer_date")
+  createdAt    DateTime @default(now()) @map("created_at")
+  attachments  TransferAttachment[]
+
+  @@map("transfer_records")
 }
 
 model Attachment {
@@ -68,6 +82,19 @@ model MaintenanceRecord {
   attachments MaintenanceAttachment[]
 
   @@map("maintenance_records")
+}
+
+model TransferAttachment {
+  id         String         @id @default(uuid())
+  transferId String         @map("transfer_id")
+  transfer   TransferRecord @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  fileKey    String         @map("file_key")
+  fileName   String         @map("file_name")
+  fileType   String         @map("file_type")
+  fileSize   Int            @map("file_size")
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  @@map("transfer_attachments")
 }
 
 model MaintenanceAttachment {

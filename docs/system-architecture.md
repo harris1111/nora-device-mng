@@ -251,6 +251,30 @@ model MaintenanceAttachment {
   record MaintenanceRecord @relation(fields: [maintenanceRecordId], references: [id], onDelete: Cascade)
 }
 
+model TransferRecord {
+  id String @id @default(cuid())
+  deviceId String @unique
+  ownedBy String @default("")
+  transferTo String?
+  transferDate DateTime?
+  createdAt DateTime @default(now())
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  attachments TransferAttachment[]
+}
+
+model TransferAttachment {
+  id String @id @default(cuid())
+  transferId String
+  fileKey String
+  fileName String
+  fileType String
+  fileSize Int
+  createdAt DateTime @default(now())
+
+  transfer TransferRecord @relation(fields: [transferId], references: [id], onDelete: Cascade)
+}
+
 model Location {
   id String @id @default(cuid())
   name String @unique
@@ -281,6 +305,10 @@ Devices:
 Maintenance Records:
   maintenance/{recordId}/{attachmentId}.{ext}
   Example: maintenance/xyz789/def456.pdf
+
+Transfer Records:
+  transfers/{deviceId}/{attachmentId}.{ext}
+  Example: transfers/550e8400-e29b-41d4-a716-446655440000/ghi789.pdf
 ```
 
 ### File Size & Type Restrictions

@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getDevice, deleteDevice, getAttachments, uploadAttachments, deleteAttachment, setAttachmentPrimary, attachmentFileUrl, getMaintenanceRecords, Device, Attachment, MaintenanceRecord } from '../api/device-api';
+import { getDevice, deleteDevice, getAttachments, uploadAttachments, deleteAttachment, setAttachmentPrimary, attachmentFileUrl, getMaintenanceRecords, uploadTransferAttachments, deleteTransferAttachment, Device, Attachment, MaintenanceRecord } from '../api/device-api';
 import QrcodeDisplay from '../components/qrcode-display';
 import PrintQrcodeButton from '../components/print-qrcode-button';
 import DeviceStatusBadge from '../components/device-status-badge';
 import AttachmentList from '../components/attachment-list';
 import MaintenanceHistory from '../components/maintenance-history';
+import TransferInfoSection from '../components/transfer-info-section';
 import { getTypeName } from '../components/device-constants';
 
 export default function DeviceDetailPage() {
@@ -17,6 +18,7 @@ export default function DeviceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [transferUploading, setTransferUploading] = useState(false);
 
   const loadDevice = useCallback(() => getDevice(id).then(setDevice), [id]);
   const loadAttachments = useCallback(() => getAttachments(id!).then(setAttachments).catch(() => setAttachments([])), [id]);
@@ -64,6 +66,23 @@ export default function DeviceDetailPage() {
     finally { setUploading(false); }
   };
 
+  const handleDeleteTransferAttachment = async (attachmentId: string) => {
+    try {
+      await deleteTransferAttachment(attachmentId);
+      loadDevice();
+    } catch { setError('Không thể xóa tệp chuyển giao'); }
+  };
+
+  const handleUploadTransferFiles = async (files: File[]) => {
+    if (!device) return;
+    setTransferUploading(true);
+    try {
+      await uploadTransferAttachments(device.id, files);
+      loadDevice();
+    } catch { setError('Không thể tải lên tệp chuyển giao'); }
+    finally { setTransferUploading(false); }
+  };
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto space-y-6 animate-pulse">
@@ -98,9 +117,6 @@ export default function DeviceDetailPage() {
     { label: 'Số serial', value: device.serial_number },
     { label: 'Nhà sản xuất', value: device.manufacturer },
     { label: 'Model', value: device.model },
-    { label: 'Chuyển giao cho', value: device.owned_by },
-    { label: 'Người nhận', value: device.transfer_to },
-    { label: 'Ngày chuyển giao', value: device.transfer_date ? new Date(device.transfer_date).toLocaleDateString('vi-VN') : null },
     { label: 'Ngày xử lý', value: device.disposal_date ? new Date(device.disposal_date).toLocaleDateString('vi-VN') : null },
     { label: 'Ngày mất', value: device.loss_date ? new Date(device.loss_date).toLocaleDateString('vi-VN') : null },
   ].filter((f) => f.value);
@@ -216,6 +232,13 @@ export default function DeviceDetailPage() {
           </div>
         </div>
       </div>
+
+      <TransferInfoSection
+        transfer={device.transfer_record}
+        onUpload={handleUploadTransferFiles}
+        onDeleteAttachment={handleDeleteTransferAttachment}
+        uploading={transferUploading}
+      />
 
       {/* Attachments section */}
       <div className="card-glass border border-slate-100 shadow-sm p-6 md:p-8 space-y-4">

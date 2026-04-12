@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { getPublicDevice, attachmentFileUrl, maintenanceAttachmentUrl, PublicDevice } from '../api/device-api';
+import { getPublicDevice, attachmentFileUrl, PublicDevice } from '../api/device-api';
 import { getTypeName, getStatusInfo } from '../components/device-constants';
 import AttachmentList from '../components/attachment-list';
+import TransferInfoSection from '../components/transfer-info-section';
 
 export default function PublicDevicePage() {
   const { id } = useParams();
@@ -83,24 +84,6 @@ export default function PublicDevicePage() {
                 <p className="font-semibold text-slate-700">{device.model}</p>
               </div>
             )}
-            {device.owned_by && (
-              <div>
-                <p className="text-xs text-slate-400 font-medium uppercase">Chuyển giao cho</p>
-                <p className="font-semibold text-slate-700">{device.owned_by}</p>
-              </div>
-            )}
-            {device.transfer_to && (
-              <div>
-                <p className="text-xs text-slate-400 font-medium uppercase">Người nhận</p>
-                <p className="font-semibold text-slate-700">{device.transfer_to}</p>
-              </div>
-            )}
-            {device.transfer_date && (
-              <div>
-                <p className="text-xs text-slate-400 font-medium uppercase">Ngày chuyển giao</p>
-                <p className="font-semibold text-slate-700">{new Date(device.transfer_date).toLocaleDateString('vi-VN')}</p>
-              </div>
-            )}
           </div>
           {device.description && (
             <div className="pt-4 border-t border-slate-100">
@@ -109,6 +92,8 @@ export default function PublicDevicePage() {
             </div>
           )}
         </div>
+
+        <TransferInfoSection transfer={device.transfer_record} compact />
 
         {/* Attachments (read only) */}
         {device.attachments?.length > 1 && (

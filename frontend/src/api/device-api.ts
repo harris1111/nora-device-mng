@@ -18,6 +18,7 @@ export interface Device {
   description: string | null;
   transfer_to: string | null;
   transfer_date: string | null;
+  transfer_record?: TransferRecordItem | null;
   disposal_date: string | null;
   loss_date: string | null;
   primary_attachment_id: string | null;
@@ -46,6 +47,22 @@ export interface MaintenanceAttachmentItem {
   file_type: string;
   file_size: number;
   created_at: string;
+}
+
+export interface TransferAttachmentItem {
+  id: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  created_at: string;
+}
+
+export interface TransferRecordItem {
+  id: string | null;
+  owned_by: string | null;
+  transfer_to: string | null;
+  transfer_date: string | null;
+  attachments: TransferAttachmentItem[];
 }
 
 export interface MaintenanceRecord {
@@ -84,6 +101,13 @@ export const uploadAttachments = (deviceId: string, files: File[]) => {
 export const deleteAttachment = (id: string) => api.delete(`/attachments/${id}`);
 export const setAttachmentPrimary = (id: string) => api.patch(`/attachments/${id}/primary`).then(r => r.data);
 export const attachmentFileUrl = (id: string): string => `/api/attachments/${id}/file`;
+export const uploadTransferAttachments = (deviceId: string, files: File[]) => {
+  const fd = new FormData();
+  files.forEach(f => fd.append('files', f));
+  return api.post(`/devices/${deviceId}/transfer/attachments`, fd).then(r => r.data);
+};
+export const deleteTransferAttachment = (id: string) => api.delete(`/transfer-attachments/${id}`);
+export const transferAttachmentFileUrl = (id: string): string => `/api/transfer-attachments/${id}/file`;
 
 // Maintenance API
 export const getMaintenanceRecords = (deviceId: string): Promise<MaintenanceRecord[]> => api.get(`/devices/${deviceId}/maintenance`).then(r => r.data);
