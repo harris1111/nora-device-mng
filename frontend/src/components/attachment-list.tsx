@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { attachmentFileUrl, maintenanceAttachmentUrl, Attachment, MaintenanceAttachmentItem } from '../api/device-api';
 import PdfViewerModal from './pdf-viewer-modal';
 
@@ -39,6 +39,7 @@ function getFileUrl(a: AnyAttachment, maintenanceMode: boolean): string {
 
 export default function AttachmentList({ attachments, onDelete, onSetPrimary, onUpload, uploading, maxFiles, allowUpload, maintenanceMode }: Props) {
   const [pdfModal, setPdfModal] = useState<{ url: string; name: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleView = (a: AnyAttachment) => {
     const url = getFileUrl(a, !!maintenanceMode);
@@ -129,14 +130,17 @@ export default function AttachmentList({ attachments, onDelete, onSetPrimary, on
       {/* Upload button + counter */}
       {allowUpload && onUpload && (
         <div className="flex items-center gap-3">
-          <label className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl cursor-pointer transition-all border ${uploading ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 active:scale-95'}`}>
+          <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+            onChange={handleUploadChange} disabled={uploading}
+            style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', opacity: 0 }} />
+          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
+            className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl cursor-pointer transition-all border ${uploading ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 active:scale-95'}`}>
             {uploading ? (
               <><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg> Đang tải...</>
             ) : (
               <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg> Tải lên tệp</>
             )}
-            <input type="file" multiple accept="image/*,.pdf" onChange={handleUploadChange} className="hidden" disabled={uploading} />
-          </label>
+          </button>
           {maxFiles && <span className="text-xs text-slate-400">{attachments.length}/{maxFiles} tệp</span>}
         </div>
       )}

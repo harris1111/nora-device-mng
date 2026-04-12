@@ -54,7 +54,7 @@ export default function DeviceCard({ device }: Props) {
         )}
         
         <p className="text-xs text-slate-400 border-t border-slate-100 pt-3 mt-3">
-          Tạo ngày: {new Date(device.created_at + 'Z').toLocaleDateString('vi-VN')}
+          Tạo ngày: {new Date(device.created_at).toLocaleDateString('vi-VN')}
         </p>
       </div>
     </Link>

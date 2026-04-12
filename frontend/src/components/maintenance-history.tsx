@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { createMaintenanceRecord, deleteMaintenanceRecord, updateMaintenanceRecord, MaintenanceRecord, MaintenanceAttachmentItem, maintenanceAttachmentUrl } from '../api/device-api';
 import PdfViewerModal from './pdf-viewer-modal';
 
@@ -22,6 +22,7 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pdfModal, setPdfModal] = useState<{ url: string; name: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleViewAttachment = (a: MaintenanceAttachmentItem) => {
     const url = maintenanceAttachmentUrl(a.id);
@@ -194,14 +195,20 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
                   ))}
                 </div>
               )}
-              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer border bg-white text-slate-600 border-slate-200 hover:bg-slate-50 transition-all">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                Đính kèm tệp
-                <input type="file" multiple accept="image/*,.pdf" className="hidden" onChange={e => {
-                  setFiles(prev => [...prev, ...Array.from(e.target.files || [])].slice(0, 5));
+              <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', opacity: 0 }}
+                onChange={e => {
+                  const selected = Array.from(e.target.files || []);
+                  if (selected.length > 0) {
+                    setFiles(prev => [...prev, ...selected].slice(0, 5));
+                  }
                   e.target.value = '';
                 }} />
-              </label>
+              <button type="button" onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer border bg-white text-slate-600 border-slate-200 hover:bg-slate-50 transition-all">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                Đính kèm tệp
+              </button>
               <span className="text-xs text-slate-400 ml-2">Tối đa 5 tệp</span>
             </div>
           )}

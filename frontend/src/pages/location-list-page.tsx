@@ -172,7 +172,7 @@ export default function LocationListPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-500 font-medium hidden sm:table-cell">
-                      {new Date(loc.created_at + 'Z').toLocaleDateString('vi-VN')}
+                      {new Date(loc.created_at).toLocaleDateString('vi-VN')}
                     </td>
                     <td className="px-6 py-4 text-right">
                       {editId === loc.id ? (
