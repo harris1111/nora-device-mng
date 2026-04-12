@@ -227,11 +227,6 @@ export default function DeviceDetailPage() {
         </h2>
 
         {/* Large primary image preview */}
-        {primaryAttachment && primaryAttachment.file_type?.startsWith('image/') && (
-          <div className="rounded-xl overflow-hidden border border-slate-100">
-            <img src={attachmentFileUrl(primaryAttachment.id)} alt={device.name} className="w-full max-h-80 object-contain bg-slate-50" />
-          </div>
-        )}
 
         <AttachmentList
           attachments={attachments}
