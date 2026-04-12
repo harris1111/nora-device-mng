@@ -1,24 +1,38 @@
 import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
 import prisma from '../lib/prisma-client.js';
 import { mapDevice } from '../utils/response-mapper.js';
 import { generateQrCode } from '../utils/qrcode-generator.js';
 import { validateTypeStatus, applyDateStatusRules, type StatusData } from '../utils/device-status-rules.js';
-import { deleteFiles } from '../lib/s3-client.js';
+import { uploadFile, deleteFile, deleteFiles } from '../lib/s3-client.js';
 
 const router: ReturnType<typeof Router> = Router();
 
-const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ATTACHMENT_MIMES = [...IMAGE_MIMES, 'application/pdf'];
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (ALLOWED_MIMES.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Only JPEG, PNG, WebP, and GIF images are allowed'));
+    if (file.fieldname === 'primary_image') {
+      if (IMAGE_MIMES.includes(file.mimetype)) cb(null, true);
+      else cb(new Error('Primary image must be JPEG, PNG, WebP, or GIF') as unknown as null, false);
+    } else if (file.fieldname === 'attachments') {
+      if (ATTACHMENT_MIMES.includes(file.mimetype)) cb(null, true);
+      else cb(new Error('Attachments must be images or PDF') as unknown as null, false);
+    } else {
+      cb(null, true);
+    }
   },
 });
+
+const deviceUpload = upload.fields([
+  { name: 'primary_image', maxCount: 1 },
+  { name: 'attachments', maxCount: 9 },
+]);
 
 const deviceIncludes = {
   location: true,
@@ -61,7 +75,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // POST /api/devices — create device
-router.post('/', upload.single('image'), async (req: Request, res: Response) => {
+router.post('/', deviceUpload, async (req: Request, res: Response) => {
   try {
     const { name, store_id, location_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
@@ -95,8 +109,6 @@ router.post('/', upload.single('image'), async (req: Request, res: Response) => 
         model: deviceModel?.trim() || '',
         manufacturer: manufacturer?.trim() || '',
         description: description?.trim() || '',
-        image: req.file?.buffer ? new Uint8Array(req.file.buffer) : null,
-        imageMime: req.file?.mimetype || null,
         qrcode: new Uint8Array(qrcode),
         type: statusData.type,
         status: statusData.status,
@@ -108,7 +120,34 @@ router.post('/', upload.single('image'), async (req: Request, res: Response) => 
       include: deviceIncludes,
     });
 
-    res.status(201).json(mapDevice(device));
+    // Upload primary image and attachments to S3
+    const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+    const primaryFile = files?.primary_image?.[0];
+    const attachmentFiles = files?.attachments || [];
+
+    if (primaryFile) {
+      const attachmentId = uuidv4();
+      const ext = path.extname(primaryFile.originalname) || '.jpg';
+      const key = `devices/${id}/${attachmentId}${ext}`;
+      await uploadFile(key, primaryFile.buffer, primaryFile.mimetype);
+      await prisma.attachment.create({
+        data: { id: attachmentId, deviceId: id, fileKey: key, fileName: primaryFile.originalname, fileType: primaryFile.mimetype, fileSize: primaryFile.size, isPrimary: true },
+      });
+    }
+
+    for (const file of attachmentFiles) {
+      const attachmentId = uuidv4();
+      const ext = path.extname(file.originalname) || '.bin';
+      const key = `devices/${id}/${attachmentId}${ext}`;
+      await uploadFile(key, file.buffer, file.mimetype);
+      await prisma.attachment.create({
+        data: { id: attachmentId, deviceId: id, fileKey: key, fileName: file.originalname, fileType: file.mimetype, fileSize: file.size, isPrimary: false },
+      });
+    }
+
+    // Re-fetch to include new attachments
+    const updated = await prisma.device.findUnique({ where: { id }, include: deviceIncludes });
+    res.status(201).json(mapDevice(updated!));
   } catch (err) {
     console.error('Create device error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -116,7 +155,7 @@ router.post('/', upload.single('image'), async (req: Request, res: Response) => 
 });
 
 // PUT /api/devices/:id — update device
-router.put('/:id', upload.single('image'), async (req: Request, res: Response) => {
+router.put('/:id', deviceUpload, async (req: Request, res: Response) => {
   try {
     const existing = await prisma.device.findUnique({ where: { id: req.params.id as string } });
     if (!existing) return res.status(404).json({ error: 'Device not found' });
@@ -166,18 +205,50 @@ router.put('/:id', upload.single('image'), async (req: Request, res: Response) =
       transferDate: transfer_date ? new Date(transfer_date) : null,
     };
 
-    if (req.file) {
-      updateData.image = req.file.buffer;
-      updateData.imageMime = req.file.mimetype;
-    }
-
-    const device = await prisma.device.update({
+    await prisma.device.update({
       where: { id: req.params.id as string },
       data: updateData,
-      include: deviceIncludes,
     });
 
-    res.json(mapDevice(device));
+    // Handle primary image upload (replace old primary)
+    const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+    const primaryFile = files?.primary_image?.[0];
+    const attachmentFiles = files?.attachments || [];
+
+    if (primaryFile) {
+      const oldPrimary = await prisma.attachment.findFirst({ where: { deviceId: req.params.id as string, isPrimary: true } });
+      if (oldPrimary) {
+        await prisma.attachment.delete({ where: { id: oldPrimary.id } });
+        try { await deleteFile(oldPrimary.fileKey); } catch (e: unknown) { console.warn('S3 delete warning:', (e as Error).message); }
+      }
+      const attachmentId = uuidv4();
+      const ext = path.extname(primaryFile.originalname) || '.jpg';
+      const key = `devices/${req.params.id}/${attachmentId}${ext}`;
+      await uploadFile(key, primaryFile.buffer, primaryFile.mimetype);
+      await prisma.attachment.create({
+        data: { id: attachmentId, deviceId: req.params.id as string, fileKey: key, fileName: primaryFile.originalname, fileType: primaryFile.mimetype, fileSize: primaryFile.size, isPrimary: true },
+      });
+    }
+
+    // Handle additional attachments
+    if (attachmentFiles.length > 0) {
+      const existingCount = await prisma.attachment.count({ where: { deviceId: req.params.id as string } });
+      if (existingCount + attachmentFiles.length > 10) {
+        return res.status(400).json({ error: 'Maximum 10 attachments per device' });
+      }
+      for (const file of attachmentFiles) {
+        const attachmentId = uuidv4();
+        const ext = path.extname(file.originalname) || '.bin';
+        const key = `devices/${req.params.id}/${attachmentId}${ext}`;
+        await uploadFile(key, file.buffer, file.mimetype);
+        await prisma.attachment.create({
+          data: { id: attachmentId, deviceId: req.params.id as string, fileKey: key, fileName: file.originalname, fileType: file.mimetype, fileSize: file.size, isPrimary: false },
+        });
+      }
+    }
+
+    const device = await prisma.device.findUnique({ where: { id: req.params.id as string }, include: deviceIncludes });
+    res.json(mapDevice(device!));
   } catch (err) {
     console.error('Update device error:', err);
     res.status(500).json({ error: 'Internal server error' });

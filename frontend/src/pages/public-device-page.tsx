@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { getPublicDevice, attachmentFileUrl, PublicDevice } from '../api/device-api';
+import { getPublicDevice, attachmentFileUrl, maintenanceAttachmentUrl, PublicDevice } from '../api/device-api';
 import { getTypeName, getStatusInfo } from '../components/device-constants';
+import AttachmentList from '../components/attachment-list';
 
 export default function PublicDevicePage() {
   const { id } = useParams();
@@ -109,18 +110,11 @@ export default function PublicDevicePage() {
           )}
         </div>
 
-        {/* Attachment gallery (read only) */}
+        {/* Attachments (read only) */}
         {device.attachments?.length > 1 && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Hình ảnh</h2>
-            <div className="grid grid-cols-3 gap-2">
-              {device.attachments.filter(a => a.file_type?.startsWith('image/')).map(a => (
-                <a key={a.id} href={attachmentFileUrl(a.id)} target="_blank" rel="noopener noreferrer"
-                  className="rounded-xl overflow-hidden border border-slate-100 hover:shadow-md transition-shadow">
-                  <img src={attachmentFileUrl(a.id)} alt={a.file_name} className="w-full aspect-square object-cover" />
-                </a>
-              ))}
-            </div>
+            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Tệp đính kèm</h2>
+            <AttachmentList attachments={device.attachments} />
           </div>
         )}
 
@@ -137,13 +131,17 @@ export default function PublicDevicePage() {
                   <div className="absolute left-0 top-0.5 w-5 h-5 rounded-full bg-blue-100 border-2 border-blue-400 flex items-center justify-center">
                     <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-semibold text-slate-800">{r.description}</p>
                     <div className="flex flex-wrap gap-x-3 mt-1 text-xs text-slate-400">
                       <span>{new Date(r.date).toLocaleDateString('vi-VN')}</span>
-                      {r.performed_by && <span>bởi {r.performed_by}</span>}
-                      {r.cost != null && <span>{Number(r.cost).toLocaleString('vi-VN')} đ</span>}
+                      {r.technician && <span>bởi {r.technician}</span>}
                     </div>
+                    {r.attachments?.length > 0 && (
+                      <div className="mt-2">
+                        <AttachmentList attachments={r.attachments} maintenanceMode />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

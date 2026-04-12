@@ -18,7 +18,6 @@ export function mapDevice(d: DeviceWithRelations) {
     model: d.model,
     manufacturer: d.manufacturer,
     description: d.description,
-    image_mime: d.imageMime,
     type: d.type,
     status: d.status,
     disposal_date: d.disposalDate?.toISOString() || null,

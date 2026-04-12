@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getDevice, deleteDevice, getAttachments, attachmentFileUrl, getMaintenanceRecords, Device, Attachment, MaintenanceRecord } from '../api/device-api';
+import { getDevice, deleteDevice, getAttachments, uploadAttachments, deleteAttachment, setAttachmentPrimary, attachmentFileUrl, getMaintenanceRecords, Device, Attachment, MaintenanceRecord } from '../api/device-api';
 import QrcodeDisplay from '../components/qrcode-display';
 import PrintQrcodeButton from '../components/print-qrcode-button';
 import DeviceStatusBadge from '../components/device-status-badge';
-import AttachmentGallery from '../components/attachment-gallery';
+import AttachmentList from '../components/attachment-list';
 import MaintenanceHistory from '../components/maintenance-history';
 import { getTypeName } from '../components/device-constants';
 
@@ -16,6 +16,7 @@ export default function DeviceDetailPage() {
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const loadDevice = useCallback(() => getDevice(id).then(setDevice), [id]);
   const loadAttachments = useCallback(() => getAttachments(id!).then(setAttachments).catch(() => setAttachments([])), [id]);
@@ -35,6 +36,32 @@ export default function DeviceDetailPage() {
     } catch {
       setError('Không thể xóa thiết bị');
     }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    try {
+      await deleteAttachment(attachmentId);
+      loadAttachments();
+      loadDevice();
+    } catch { setError('Không thể xóa tệp'); }
+  };
+
+  const handleSetPrimary = async (attachmentId: string) => {
+    try {
+      await setAttachmentPrimary(attachmentId);
+      loadAttachments();
+      loadDevice();
+    } catch { setError('Không thể đặt ảnh chính'); }
+  };
+
+  const handleUploadAttachments = async (files: File[]) => {
+    setUploading(true);
+    try {
+      await uploadAttachments(device!.id, files);
+      loadAttachments();
+      loadDevice();
+    } catch { setError('Không thể tải lên tệp'); }
+    finally { setUploading(false); }
   };
 
   if (loading) {
@@ -198,7 +225,23 @@ export default function DeviceDetailPage() {
           </svg>
           Tệp đính kèm ({attachments.length})
         </h2>
-        <AttachmentGallery deviceId={device.id} attachments={attachments} onUpdate={() => { loadAttachments(); loadDevice(); }} />
+
+        {/* Large primary image preview */}
+        {primaryAttachment && primaryAttachment.file_type?.startsWith('image/') && (
+          <div className="rounded-xl overflow-hidden border border-slate-100">
+            <img src={attachmentFileUrl(primaryAttachment.id)} alt={device.name} className="w-full max-h-80 object-contain bg-slate-50" />
+          </div>
+        )}
+
+        <AttachmentList
+          attachments={attachments}
+          onDelete={handleDeleteAttachment}
+          onSetPrimary={handleSetPrimary}
+          onUpload={handleUploadAttachments}
+          uploading={uploading}
+          maxFiles={10}
+          allowUpload={true}
+        />
       </div>
 
       {/* Maintenance section — only for tai_san */}

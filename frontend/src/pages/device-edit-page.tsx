@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getDevice, updateDevice, Device } from '../api/device-api';
+import { getDevice, updateDevice, getAttachments, Device } from '../api/device-api';
 import DeviceForm from '../components/device-form';
 
 export default function DeviceEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [device, setDevice] = useState<Device | null>(null);
+  const [attachmentCount, setAttachmentCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getDevice(id)
-      .then(setDevice)
+    Promise.all([
+      getDevice(id).then(setDevice),
+      getAttachments(id!).then(a => setAttachmentCount(a.length)).catch(() => {}),
+    ])
       .catch(() => setError('Không tìm thấy thiết bị'))
       .finally(() => setLoading(false));
   }, [id]);
@@ -63,7 +66,7 @@ export default function DeviceEditPage() {
         </div>
       </div>
 
-      <DeviceForm initialData={device} onSubmit={handleSubmit} submitLabel="Cập nhật Thiết bị" />
+      <DeviceForm initialData={device} existingAttachmentCount={attachmentCount} onSubmit={handleSubmit} submitLabel="Cập nhật Thiết bị" />
     </div>
   );
 }

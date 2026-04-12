@@ -44,8 +44,8 @@ router.get('/devices/:deviceId/maintenance', async (req: Request, res: Response)
   }
 });
 
-// POST /api/devices/:deviceId/maintenance — create maintenance record
-router.post('/devices/:deviceId/maintenance', async (req: Request, res: Response) => {
+// POST /api/devices/:deviceId/maintenance — create maintenance record (multipart with files)
+router.post('/devices/:deviceId/maintenance', upload.array('files', 5), async (req: Request, res: Response) => {
   try {
     const device = await prisma.device.findUnique({ where: { id: req.params.deviceId as string } });
     if (!device) return res.status(404).json({ error: 'Device not found' });
@@ -56,22 +56,41 @@ router.post('/devices/:deviceId/maintenance', async (req: Request, res: Response
     if (!description?.trim()) return res.status(400).json({ error: 'Description is required' });
     if (status && !['pending', 'completed'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
 
+    const recordId = uuidv4();
     const record = await prisma.maintenanceRecord.create({
       data: {
-        id: uuidv4(),
+        id: recordId,
         deviceId: req.params.deviceId as string,
         date: new Date(date),
         description: description.trim(),
         technician: technician?.trim() || '',
         status: status || 'pending',
       },
-      include: { attachments: true },
     });
+
+    // Upload attached files
+    const files = req.files as Express.Multer.File[] | undefined;
+    const createdAttachments = [];
+    if (files?.length) {
+      for (const file of files) {
+        const attachmentId = uuidv4();
+        const ext = path.extname(file.originalname) || '.bin';
+        const key = `maintenance/${recordId}/${attachmentId}${ext}`;
+        await uploadFile(key, file.buffer, file.mimetype);
+        const attachment = await prisma.maintenanceAttachment.create({
+          data: { id: attachmentId, maintenanceId: recordId, fileKey: key, fileName: file.originalname, fileType: file.mimetype, fileSize: file.size },
+        });
+        createdAttachments.push(attachment);
+      }
+    }
 
     res.status(201).json({
       id: record.id, device_id: record.deviceId, date: record.date.toISOString(),
       description: record.description, technician: record.technician, status: record.status,
-      created_at: record.createdAt.toISOString(), attachments: [],
+      created_at: record.createdAt.toISOString(),
+      attachments: createdAttachments.map(a => ({
+        id: a.id, file_name: a.fileName, file_type: a.fileType, file_size: a.fileSize, created_at: a.createdAt.toISOString(),
+      })),
     });
   } catch (err) {
     console.error('Create maintenance error:', err);
