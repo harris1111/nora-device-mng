@@ -22,7 +22,6 @@ export interface Device {
   loss_date: string | null;
   primary_attachment_id: string | null;
   created_at: string;
-  updated_at: string;
 }
 
 export interface Location {
@@ -41,14 +40,23 @@ export interface Attachment {
   created_at: string;
 }
 
+export interface MaintenanceAttachmentItem {
+  id: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  created_at: string;
+}
+
 export interface MaintenanceRecord {
   id: string;
   device_id: string;
   date: string;
   description: string;
-  performed_by: string | null;
-  cost: number | null;
+  technician: string | null;
+  status: string;
   created_at: string;
+  attachments: MaintenanceAttachmentItem[];
 }
 
 export interface PublicDevice extends Device {
@@ -79,7 +87,7 @@ export const attachmentFileUrl = (id: string): string => `/api/attachments/${id}
 
 // Maintenance API
 export const getMaintenanceRecords = (deviceId: string): Promise<MaintenanceRecord[]> => api.get(`/devices/${deviceId}/maintenance`).then(r => r.data);
-export const createMaintenanceRecord = (deviceId: string, data: Record<string, unknown>) => api.post(`/devices/${deviceId}/maintenance`, data).then(r => r.data);
+export const createMaintenanceRecord = (deviceId: string, data: FormData | Record<string, unknown>) => api.post(`/devices/${deviceId}/maintenance`, data).then(r => r.data);
 export const updateMaintenanceRecord = (id: string, data: Record<string, unknown>) => api.put(`/maintenance/${id}`, data).then(r => r.data);
 export const deleteMaintenanceRecord = (id: string) => api.delete(`/maintenance/${id}`);
 export const getMaintenanceAttachments = (recordId: string) => api.get(`/maintenance/${recordId}/attachments`).then(r => r.data);

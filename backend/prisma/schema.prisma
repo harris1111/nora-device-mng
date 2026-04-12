@@ -28,8 +28,6 @@ model Device {
   model        String   @default("")
   manufacturer String   @default("")
   description  String   @default("")
-  image        Bytes?
-  imageMime    String?  @map("image_mime")
   qrcode       Bytes?
   type         String   @default("tai_san")
   status       String   @default("active")

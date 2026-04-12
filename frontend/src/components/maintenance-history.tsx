@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { createMaintenanceRecord, deleteMaintenanceRecord, updateMaintenanceRecord, MaintenanceRecord } from '../api/device-api';
+import { createMaintenanceRecord, deleteMaintenanceRecord, updateMaintenanceRecord, MaintenanceRecord, maintenanceAttachmentUrl } from '../api/device-api';
+import AttachmentList from './attachment-list';
 
 interface FormState {
   date: string;
   description: string;
-  performed_by: string;
-  cost: string;
+  technician: string;
 }
 
 interface Props {
@@ -17,12 +17,14 @@ interface Props {
 export default function MaintenanceHistory({ deviceId, records, onUpdate }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<FormState>({ date: '', description: '', performed_by: '', cost: '' });
+  const [formData, setFormData] = useState<FormState>({ date: '', description: '', technician: '' });
+  const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const resetForm = () => {
-    setFormData({ date: '', description: '', performed_by: '', cost: '' });
+    setFormData({ date: '', description: '', technician: '' });
+    setFiles([]);
     setShowForm(false);
     setEditingId(null);
     setError(null);
@@ -32,8 +34,7 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
     setFormData({
       date: record.date?.split('T')[0] || '',
       description: record.description || '',
-      performed_by: record.performed_by || '',
-      cost: record.cost != null ? String(record.cost) : '',
+      technician: record.technician || '',
     });
     setEditingId(record.id);
     setShowForm(true);
@@ -48,16 +49,19 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
     setSubmitting(true);
     setError(null);
     try {
-      const payload = {
-        date: formData.date,
-        description: formData.description.trim(),
-        performed_by: formData.performed_by.trim() || null,
-        cost: formData.cost ? parseFloat(formData.cost) : null,
-      };
       if (editingId) {
-        await updateMaintenanceRecord(editingId, payload);
+        await updateMaintenanceRecord(editingId, {
+          date: formData.date,
+          description: formData.description.trim(),
+          technician: formData.technician.trim() || null,
+        });
       } else {
-        await createMaintenanceRecord(deviceId, payload);
+        const fd = new FormData();
+        fd.append('date', formData.date);
+        fd.append('description', formData.description.trim());
+        if (formData.technician.trim()) fd.append('technician', formData.technician.trim());
+        files.forEach(f => fd.append('files', f));
+        await createMaintenanceRecord(deviceId, fd);
       }
       resetForm();
       onUpdate?.();
@@ -101,13 +105,17 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
               </div>
               <div className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
                 <div className="flex justify-between items-start">
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-semibold text-slate-800">{r.description}</p>
                     <div className="flex flex-wrap gap-x-4 mt-1.5 text-xs text-slate-400">
                       <span>{new Date(r.date).toLocaleDateString('vi-VN')}</span>
-                      {r.performed_by && <span>bởi {r.performed_by}</span>}
-                      {r.cost != null && <span>{Number(r.cost).toLocaleString('vi-VN')} đ</span>}
+                      {r.technician && <span>bởi {r.technician}</span>}
                     </div>
+                    {r.attachments?.length > 0 && (
+                      <div className="mt-2">
+                        <AttachmentList attachments={r.attachments} maintenanceMode />
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => handleEdit(r)}
@@ -140,13 +148,39 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input type="date" value={formData.date} onChange={e => setFormData(p => ({ ...p, date: e.target.value }))} required
               className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-            <input type="text" placeholder="Người thực hiện" value={formData.performed_by} onChange={e => setFormData(p => ({ ...p, performed_by: e.target.value }))}
+            <input type="text" placeholder="Kỹ thuật viên" value={formData.technician} onChange={e => setFormData(p => ({ ...p, technician: e.target.value }))}
               className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
           </div>
           <textarea placeholder="Mô tả công việc bảo trì *" value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} required rows={2}
             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none" />
-          <input type="number" placeholder="Chi phí (VNĐ)" value={formData.cost} onChange={e => setFormData(p => ({ ...p, cost: e.target.value }))}
-            className="w-full sm:w-48 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+
+          {/* File upload (create mode only) */}
+          {!editingId && (
+            <div>
+              {files.length > 0 && (
+                <div className="space-y-1 mb-2">
+                  {files.map((f, i) => (
+                    <div key={i} className="flex items-center justify-between py-1 px-2 bg-white rounded border border-slate-100 text-xs">
+                      <span className="truncate text-slate-600">{f.name} ({(f.size / 1024).toFixed(0)} KB)</span>
+                      <button type="button" onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500 ml-1">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer border bg-white text-slate-600 border-slate-200 hover:bg-slate-50 transition-all">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                Đính kèm tệp
+                <input type="file" multiple accept="image/*,.pdf" className="hidden" onChange={e => {
+                  setFiles(prev => [...prev, ...Array.from(e.target.files || [])].slice(0, 5));
+                  e.target.value = '';
+                }} />
+              </label>
+              <span className="text-xs text-slate-400 ml-2">Tối đa 5 tệp</span>
+            </div>
+          )}
+
           <div className="flex gap-2">
             <button type="submit" disabled={submitting}
               className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:bg-slate-300 transition-colors">
