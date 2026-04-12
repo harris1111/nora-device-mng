@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { attachmentFileUrl, Device } from '../api/device-api';
+import { getTypeName } from './device-constants';
 import DeviceStatusBadge from './device-status-badge';
 
 interface Props {
@@ -35,6 +36,11 @@ export default function DeviceListRow({ device }: Props) {
         <Link to={`/devices/${device.id}`} className="text-slate-800 hover:text-indigo-600 font-bold block truncate max-w-xs transition-colors">
           {device.name}
         </Link>
+      </td>
+      <td className="px-6 py-4">
+        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm">
+          {getTypeName(device.type)}
+        </span>
       </td>
       <td className="px-6 py-4">
         <DeviceStatusBadge status={device.status} />
