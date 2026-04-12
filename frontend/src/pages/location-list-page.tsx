@@ -19,7 +19,7 @@ export default function LocationListPage() {
   const fetchLocations = () => {
     getLocations()
       .then(setLocations)
-      .catch(() => setError('Không thể tải danh sách vị trí'))
+      .catch(() => setError('Không thể tải danh sách đơn vị'))
       .finally(() => setLoading(false));
   };
 
@@ -36,7 +36,7 @@ export default function LocationListPage() {
       fetchLocations();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: string } } };
-      setError(axiosErr.response?.data?.error || 'Không thể tạo vị trí');
+      setError(axiosErr.response?.data?.error || 'Không thể tạo đơn vị');
     } finally {
       setCreating(false);
     }
@@ -52,21 +52,21 @@ export default function LocationListPage() {
       fetchLocations();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: string } } };
-      setError(axiosErr.response?.data?.error || 'Không thể cập nhật vị trí');
+      setError(axiosErr.response?.data?.error || 'Không thể cập nhật đơn vị');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Xóa vị trí "${name}"?`)) return;
+    if (!window.confirm(`Xóa đơn vị "${name}"?`)) return;
     setError(null);
     try {
       await deleteLocationApi(id);
       fetchLocations();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: string } } };
-      setError(axiosErr.response?.data?.error || 'Không thể xóa vị trí');
+      setError(axiosErr.response?.data?.error || 'Không thể xóa đơn vị');
     }
   };
 
@@ -95,14 +95,14 @@ export default function LocationListPage() {
           <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
           </svg>
-          Thêm Vị trí Mới
+          Thêm Đơn vị
         </h2>
         <form onSubmit={handleCreate} className="flex flex-col sm:flex-row gap-3">
           <input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Ví dụ: Tầng 1, Phòng họp A..."
+            placeholder="Ví dụ: Phòng Kế toán, Bộ phận IT..."
             className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
             required
           />
@@ -131,15 +131,15 @@ export default function LocationListPage() {
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                </svg>
             </div>
-            <p className="text-lg font-semibold text-slate-700">Chưa có vị trí nào</p>
-            <p className="mt-2 text-slate-500 text-sm">Thêm vị trí đầu tiên ở biểu mẫu bên trên.</p>
+            <p className="text-lg font-semibold text-slate-700">Chưa có đơn vị nào</p>
+            <p className="mt-2 text-slate-500 text-sm">Thêm đơn vị đầu tiên ở biểu mẫu bên trên.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead className="bg-slate-50/80 border-b border-slate-100">
                 <tr>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Tên vị trí</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Tên đơn vị</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest hidden sm:table-cell">Ngày tạo</th>
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Thao tác</th>
                 </tr>

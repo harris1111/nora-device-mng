@@ -183,7 +183,7 @@ export default function DeviceDetailPage() {
               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
                 {device.location_name ? (
                   <><div className="w-1.5 h-1.5 bg-indigo-500 rounded-full mr-1.5"></div>{device.location_name}</>
-                ) : 'Chưa xếp vị trí'}
+                ) : 'Chưa gán đơn vị trực thuộc'}
               </span>
             </div>
 

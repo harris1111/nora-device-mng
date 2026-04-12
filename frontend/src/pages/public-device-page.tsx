@@ -62,7 +62,7 @@ export default function PublicDevicePage() {
             </div>
             {device.location_name && (
               <div>
-                <p className="text-xs text-slate-400 font-medium uppercase">Vị trí</p>
+                <p className="text-xs text-slate-400 font-medium uppercase">Đơn vị trực thuộc</p>
                 <p className="font-semibold text-slate-700">{device.location_name}</p>
               </div>
             )}

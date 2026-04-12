@@ -26,7 +26,7 @@ export default function AppLayout({ children }: Props) {
       )
     },
     {
-      label: 'Vị trí',
+      label: 'Đơn vị',
       path: '/locations',
       icon: (
         <svg className="w-5 h-5 md:mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -42,7 +42,7 @@ export default function AppLayout({ children }: Props) {
     if (path.includes('/devices/') && path.includes('/edit')) return 'Sửa Thiết bị';
     if (path.includes('/devices/') && path !== '/devices') return 'Chi tiết Thiết bị';
     if (path.startsWith('/devices')) return 'Danh sách Thiết bị';
-    if (path.startsWith('/locations')) return 'Quản lý Vị trí';
+    if (path.startsWith('/locations')) return 'Quản lý Đơn vị';
     return '';
   };
 

@@ -35,7 +35,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
 
   useEffect(() => {
-    getLocations().then(setLocations).catch(() => setError('Không thể tải danh sách vị trí.'));
+    getLocations().then(setLocations).catch(() => setError('Không thể tải danh sách đơn vị trực thuộc.'));
   }, []);
 
   // Reset status when type changes
@@ -50,7 +50,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
     e.preventDefault();
     if (!storeId.trim()) { setError('Mã thiết bị là bắt buộc'); return; }
     if (!name.trim()) { setError('Tên là bắt buộc'); return; }
-    if (!locationId) { setError('Vị trí là bắt buộc'); return; }
+    if (!locationId) { setError('Đơn vị trực thuộc là bắt buộc'); return; }
     setSubmitting(true);
     setError(null);
     try {
@@ -126,12 +126,12 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
             {/* Location dropdown */}
             <div className="space-y-1.5 focus-within:text-indigo-600 focus-within:font-medium transition-all md:col-span-2">
               <label htmlFor="location_id" className="block text-sm text-slate-700 font-semibold mb-1">
-                Vị trí (Phòng ban/Khu vực) <span className="text-red-500">*</span>
+                Đơn vị trực thuộc <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <select id="location_id" value={locationId} onChange={(e) => setLocationId(e.target.value)} required
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all appearance-none cursor-pointer">
-                  <option value="" disabled>-- Chọn vị trí --</option>
+                  <option value="" disabled>-- Chọn đơn vị trực thuộc --</option>
                   {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
