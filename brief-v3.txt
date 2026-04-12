@@ -1,0 +1,5 @@
+- File pdf được lưu trữ phải đọc được trực tiếp khi bấm vào
+- Tệp đính kèm được lưu theo dạng list
+- Phần tạo và cập nhật thiết bị có thêm phần đính kèm hình ảnh (đây là hình ảnh primary luôn), đồng thời sẽ thêm tệp đính kèm ở phần tạo thiết bị luôn
+- Phần lịch sử bảo trì bỏ phần chi phí. Ở đây có thể thêm đính kèm dành riêng cho bảo trì (có thể là hình ảnh hoặc file pdf)
+- Cập nhật các giao diện liên quan các yêu cầu trên 1 cách rõ ràng và hiển thị ra

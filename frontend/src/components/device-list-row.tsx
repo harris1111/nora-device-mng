@@ -49,10 +49,10 @@ export default function DeviceListRow({ device }: Props) {
         </span>
       </td>
       <td className="px-6 py-4">
-        {(device.transfer_to || device.owned_by) ? (
+        {device.owned_by ? (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm">
             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
-            {[device.owned_by, device.transfer_to].filter(Boolean).join(' → ')}
+            {[device.location_name, device.owned_by].filter(Boolean).join(' → ')}
           </span>
         ) : (
           <span className="text-xs text-slate-300">—</span>

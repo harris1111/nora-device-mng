@@ -44,11 +44,11 @@ export default function DeviceCard({ device }: Props) {
           <span className="truncate">{device.location_name || 'Chưa xếp vị trí'}</span>
         </div>
 
-        {(device.transfer_to || device.owned_by) && (
+        {device.owned_by && (
           <div className="flex items-center gap-1.5 mb-2">
             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
               <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
-              {[device.owned_by, device.transfer_to].filter(Boolean).join(' → ')}
+              {[device.location_name, device.owned_by].filter(Boolean).join(' → ')}
             </span>
           </div>
         )}
