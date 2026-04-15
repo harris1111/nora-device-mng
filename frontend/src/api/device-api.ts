@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const api = axios.create({ baseURL: '/api' });
+import api from './api-client';
 
 // Shared interfaces
 export interface Device {

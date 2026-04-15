@@ -1,0 +1,201 @@
+BRIEF PHÂN QUYỀN TÀI KHOẢN CHO WEB
+
+1. Mục tiêu
+
+* Xây dựng chức năng phân quyền tài khoản cho hệ thống web để kiểm soát truy cập và thao tác theo vai trò người dùng.
+* Phân quyền phải được áp dụng đồng bộ ở backend và frontend.
+* Backend là nơi kiểm tra quyền thực tế. Frontend chỉ dùng để ẩn/hiện menu, nút và màn hình theo quyền.
+
+2. Vai trò tài khoản
+
+* SAdmin:
+
+  * Chỉ có 1 tài khoản duy nhất.
+  * Tài khoản này được cấu hình cố định, có thể hardcode bằng env, seed hoặc config hệ thống.
+  * Có toàn quyền quản trị hệ thống, bao gồm quản lý Admin, quản lý User, phân quyền, cấu hình hệ thống.
+  * Tài khoản này có thể ẩn khỏi giao diện danh sách tài khoản nếu cần.
+* Admin:
+
+  * Tài khoản do SAdmin tạo.
+  * Chỉ được quản lý User.
+  * Không được quản lý SAdmin.
+  * Không được quản lý Admin khác.
+  * Được vào trang dashboard phân quyền để bật/tắt quyền CRUD trên các module được phép.
+* User:
+
+  * Tài khoản sử dụng hệ thống theo quyền được cấp.
+  * Không có quyền quản trị tài khoản và không được vào dashboard phân quyền.
+
+3. Nguyên tắc phân quyền
+
+* Mỗi tài khoản chỉ thuộc 1 role chính: SAdmin, Admin hoặc User.
+* Tất cả quyền thao tác đều phải được backend kiểm tra trước khi xử lý request.
+* Frontend phải ẩn menu, nút, form và route nếu người dùng không có quyền.
+* Nếu người dùng gọi API trực tiếp mà không đủ quyền, backend phải trả 403.
+* Người dùng không được tự nâng quyền cho chính mình.
+* Không được phép sửa, xóa, khóa tài khoản vượt cấp.
+
+4. Phạm vi chức năng cần có
+
+* Đăng nhập
+* Đăng xuất
+* Lấy thông tin tài khoản đang đăng nhập
+* Quản lý tài khoản
+* Phân quyền theo role và theo module
+* Dashboard bật/tắt quyền CRUD
+* Ẩn/hiện giao diện theo quyền
+* Chặn thao tác trái quyền ở backend
+
+5. Quy tắc quản lý tài khoản
+
+* SAdmin được:
+
+  * Xem danh sách tất cả tài khoản
+  * Tạo Admin và User
+  * Sửa username, reset password, khóa/mở khóa, xóa Admin và User
+  * Cập nhật quyền cho Admin và User
+* Admin được:
+
+  * Xem danh sách User thuộc phạm vi quản lý
+  * Tạo User
+  * Sửa username, reset password, khóa/mở khóa, xóa User
+  * Cập nhật quyền cho User nếu được phép trong dashboard phân quyền
+* Admin không được:
+
+  * Tạo Admin
+  * Sửa Admin khác
+  * Xóa Admin khác
+  * Reset password cho Admin khác
+  * Sửa hoặc tác động đến SAdmin
+* User được:
+
+  * Đăng nhập, đăng xuất
+  * Xem và thao tác trên các module nghiệp vụ được cấp quyền
+* User không được:
+
+  * Quản lý tài khoản khác
+  * Truy cập dashboard phân quyền
+
+6. Ma trận quyền tối thiểu
+   | Module | Action | SAdmin | Admin | User |
+   |---|---|---|---|---|
+   | Tài khoản | View list | Có | Có, chỉ User | Không |
+   | Tài khoản | View detail | Có | Có, chỉ User | Không |
+   | Tài khoản | Create User | Có | Có | Không |
+   | Tài khoản | Create Admin | Có | Không | Không |
+   | Tài khoản | Update User | Có | Có | Không |
+   | Tài khoản | Update Admin | Có | Không | Không |
+   | Tài khoản | Delete User | Có | Có | Không |
+   | Tài khoản | Delete Admin | Có | Không | Không |
+   | Tài khoản | Reset password User | Có | Có | Không |
+   | Tài khoản | Reset password Admin | Có | Không | Không |
+   | Phân quyền | View dashboard | Có | Có | Không |
+   | Phân quyền | Update permission | Có | Có, trong phạm vi User | Không |
+   | Module nghiệp vụ | View/Create/Update/Delete | Có | Theo quyền bật/tắt | Theo quyền bật/tắt |
+
+7. Danh sách module nghiệp vụ áp dụng phân quyền
+
+* Devices
+* Locations
+* Maintenance
+* Attachments
+* Transfer
+* User management
+* Permission dashboard
+
+8. Yêu cầu backend
+
+* Bổ sung auth và authorization middleware.
+* Mỗi API cần xác định rõ:
+
+  * Cần đăng nhập hay không
+  * Role nào được truy cập
+  * Module nào
+  * Action nào: view, create, update, delete
+* Cần có cơ chế permission map:
+
+  * role
+  * module
+  * can_view
+  * can_create
+  * can_update
+  * can_delete
+* Các API:
+
+  * POST /auth/login
+  * POST /auth/logout
+  * GET /auth/me
+  * GET /users
+  * GET /users/:id
+  * POST /users
+  * PUT /users/:id
+  * PUT /users/:id/reset-password
+  * PUT /users/:id/status
+  * DELETE /users/:id
+  * GET /permissions
+  * PUT /permissions/:role hoặc /permissions/:userId
+* Backend phải chặn:
+
+  * Admin thao tác Admin khác hoặc SAdmin
+  * User truy cập API quản trị
+  * Tự nâng quyền
+
+9. Yêu cầu frontend
+
+* Các màn hình:
+
+  * Đăng nhập
+  * Danh sách tài khoản
+  * Tạo/sửa tài khoản
+  * Reset password
+  * Khóa/mở khóa
+  * Dashboard phân quyền
+* Sau login:
+
+  * Lấy profile, role, permission
+* Ẩn/hiện:
+
+  * Menu, route, button CRUD
+* Xử lý 403:
+
+  * Hiển thị không có quyền
+
+10. Dữ liệu cần lưu
+
+* User:
+
+  * id, username, password_hash, role, status
+  * created_by, updated_by, created_at, updated_at
+* Permission:
+
+  * id, target_type, target_id, module
+  * can_view, can_create, can_update, can_delete
+
+11. Quy tắc bảo mật
+
+* Hash password
+* Dùng JWT/session
+* Có audit log
+* Không cho tự nâng role
+* Không xóa tài khoản đang login
+
+12. Rule đặc biệt
+
+* Chỉ 1 SAdmin
+* Admin chỉ quản lý User
+* User có thể đổi password nếu có chức năng
+
+13. Tiêu chí nghiệm thu
+
+* SAdmin full quyền
+* Admin đúng phạm vi
+* User bị hạn chế đúng
+* API sai quyền trả 403
+* UI ẩn đúng
+* Không tạo thêm SAdmin
+
+14. Kết quả mong muốn
+
+* Backend có middleware auth + permission
+* Frontend có guard + UI control
+* Hệ thống hoạt động đồng bộ

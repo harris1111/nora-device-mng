@@ -2,11 +2,12 @@ import { Router, type Request, type Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../lib/prisma-client.js';
 import { mapLocation } from '../utils/response-mapper.js';
+import { requirePermission } from '../middleware/require-permission.js';
 
 const router: ReturnType<typeof Router> = Router();
 
 // GET /api/locations — list all locations
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', requirePermission('locations', 'view'), async (_req: Request, res: Response) => {
   try {
     const locations = await prisma.location.findMany({ orderBy: { name: 'asc' } });
     res.json(locations.map(mapLocation));
@@ -17,7 +18,7 @@ router.get('/', async (_req: Request, res: Response) => {
 });
 
 // GET /api/locations/:id — get single location
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', requirePermission('locations', 'view'), async (req: Request, res: Response) => {
   try {
     const location = await prisma.location.findUnique({ where: { id: req.params.id as string } });
     if (!location) return res.status(404).json({ error: 'Location not found' });
@@ -29,14 +30,14 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // POST /api/locations — create location
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requirePermission('locations', 'create'), async (req: Request, res: Response) => {
   try {
     const { name } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
 
     const location = await prisma.location.create({
-      data: { id: uuidv4(), name: name.trim() },
+      data: { id: uuidv4(), name: name.trim(), createdById: req.user!.id },
     });
     res.status(201).json(mapLocation(location));
   } catch (err: unknown) {
@@ -49,7 +50,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // PUT /api/locations/:id — update location
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', requirePermission('locations', 'update'), async (req: Request, res: Response) => {
   try {
     const existing = await prisma.location.findUnique({ where: { id: req.params.id as string } });
     if (!existing) return res.status(404).json({ error: 'Location not found' });
@@ -60,7 +61,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     const location = await prisma.location.update({
       where: { id: req.params.id as string },
-      data: { name: name.trim() },
+      data: { name: name.trim(), updatedById: req.user!.id },
     });
     res.json(mapLocation(location));
   } catch (err: unknown) {
@@ -73,7 +74,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 });
 
 // DELETE /api/locations/:id — delete location (blocked if devices reference it)
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requirePermission('locations', 'delete'), async (req: Request, res: Response) => {
   try {
     const existing = await prisma.location.findUnique({ where: { id: req.params.id as string } });
     if (!existing) return res.status(404).json({ error: 'Location not found' });

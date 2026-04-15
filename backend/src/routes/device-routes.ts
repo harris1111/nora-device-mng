@@ -8,6 +8,7 @@ import { generateQrCode } from '../utils/qrcode-generator.js';
 import { syncDeviceTransferRecord } from '../utils/transfer-records.js';
 import { validateTypeStatus, applyDateStatusRules, type StatusData } from '../utils/device-status-rules.js';
 import { uploadFile, deleteFile, deleteFiles } from '../lib/s3-client.js';
+import { requirePermission } from '../middleware/require-permission.js';
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -52,7 +53,7 @@ const detailDeviceIncludes = {
 };
 
 // GET /api/devices — list all devices
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requirePermission('devices', 'view'), async (req: Request, res: Response) => {
   try {
     const { type, status } = req.query as { type?: string; status?: string };
     const where: Record<string, string> = {};
@@ -72,7 +73,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // GET /api/devices/:id — get device detail
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', requirePermission('devices', 'view'), async (req: Request, res: Response) => {
   try {
     const device = await prisma.device.findUnique({
       where: { id: req.params.id as string },
@@ -87,7 +88,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // POST /api/devices — create device
-router.post('/', deviceUpload, async (req: Request, res: Response) => {
+router.post('/', requirePermission('devices', 'create'), deviceUpload, async (req: Request, res: Response) => {
   try {
     const { name, store_id, location_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
@@ -134,6 +135,7 @@ router.post('/', deviceUpload, async (req: Request, res: Response) => {
           lossDate: statusData.lossDate,
           transferTo: transferSummary.transferTo,
           transferDate: transferSummary.transferDate,
+          createdById: req.user!.id,
         },
       });
       await syncDeviceTransferRecord(id, transferSummary, tx);
@@ -174,7 +176,7 @@ router.post('/', deviceUpload, async (req: Request, res: Response) => {
 });
 
 // PUT /api/devices/:id — update device
-router.put('/:id', deviceUpload, async (req: Request, res: Response) => {
+router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (req: Request, res: Response) => {
   try {
     const existing = await prisma.device.findUnique({ where: { id: req.params.id as string } });
     if (!existing) return res.status(404).json({ error: 'Device not found' });
@@ -227,6 +229,7 @@ router.put('/:id', deviceUpload, async (req: Request, res: Response) => {
       lossDate: statusData.lossDate,
       transferTo: transferSummary.transferTo,
       transferDate: transferSummary.transferDate,
+      updatedById: req.user!.id,
     };
 
     await prisma.$transaction(async (tx) => {
@@ -283,7 +286,7 @@ router.put('/:id', deviceUpload, async (req: Request, res: Response) => {
 });
 
 // DELETE /api/devices/:id — delete device + S3 cleanup
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requirePermission('devices', 'delete'), async (req: Request, res: Response) => {
   try {
     const device = await prisma.device.findUnique({
       where: { id: req.params.id as string },
@@ -315,7 +318,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // GET /api/devices/:id/qrcode — serve QR code PNG
-router.get('/:id/qrcode', async (req: Request, res: Response) => {
+router.get('/:id/qrcode', requirePermission('devices', 'view'), async (req: Request, res: Response) => {
   try {
     const device = await prisma.device.findUnique({
       where: { id: req.params.id as string },

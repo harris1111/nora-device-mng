@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import prisma from '../lib/prisma-client.js';
 import { uploadFile, downloadFile, deleteFile } from '../lib/s3-client.js';
+import { requirePermission } from '../middleware/require-permission.js';
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -20,7 +21,7 @@ const upload = multer({
 });
 
 // GET /api/devices/:deviceId/attachments — list device attachments
-router.get('/devices/:deviceId/attachments', async (req: Request, res: Response) => {
+router.get('/devices/:deviceId/attachments', requirePermission('attachments', 'view'), async (req: Request, res: Response) => {
   try {
     const attachments = await prisma.attachment.findMany({
       where: { deviceId: req.params.deviceId as string },
@@ -42,7 +43,7 @@ router.get('/devices/:deviceId/attachments', async (req: Request, res: Response)
 });
 
 // POST /api/devices/:deviceId/attachments — upload files
-router.post('/devices/:deviceId/attachments', upload.array('files', 5), async (req: Request, res: Response) => {
+router.post('/devices/:deviceId/attachments', requirePermission('attachments', 'create'), upload.array('files', 5), async (req: Request, res: Response) => {
   try {
     const device = await prisma.device.findUnique({ where: { id: req.params.deviceId as string } });
     if (!device) return res.status(404).json({ error: 'Device not found' });
@@ -92,7 +93,7 @@ router.post('/devices/:deviceId/attachments', upload.array('files', 5), async (r
 });
 
 // GET /api/attachments/:id/file — stream file from S3
-router.get('/attachments/:id/file', async (req: Request, res: Response) => {
+router.get('/attachments/:id/file', requirePermission('attachments', 'view'), async (req: Request, res: Response) => {
   try {
     const attachment = await prisma.attachment.findUnique({ where: { id: req.params.id as string } });
     if (!attachment) return res.status(404).json({ error: 'Attachment not found' });
@@ -109,7 +110,7 @@ router.get('/attachments/:id/file', async (req: Request, res: Response) => {
 });
 
 // DELETE /api/attachments/:id — delete attachment + S3 object
-router.delete('/attachments/:id', async (req: Request, res: Response) => {
+router.delete('/attachments/:id', requirePermission('attachments', 'delete'), async (req: Request, res: Response) => {
   try {
     const attachment = await prisma.attachment.findUnique({ where: { id: req.params.id as string } });
     if (!attachment) return res.status(404).json({ error: 'Attachment not found' });
@@ -136,7 +137,7 @@ router.delete('/attachments/:id', async (req: Request, res: Response) => {
 });
 
 // PATCH /api/attachments/:id/primary — set as primary attachment
-router.patch('/attachments/:id/primary', async (req: Request, res: Response) => {
+router.patch('/attachments/:id/primary', requirePermission('attachments', 'update'), async (req: Request, res: Response) => {
   try {
     const attachment = await prisma.attachment.findUnique({ where: { id: req.params.id as string } });
     if (!attachment) return res.status(404).json({ error: 'Attachment not found' });

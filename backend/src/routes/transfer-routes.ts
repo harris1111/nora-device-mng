@@ -6,6 +6,7 @@ import { Prisma } from '../generated/prisma/client.js';
 import prisma from '../lib/prisma-client.js';
 import { cleanupTransferRecordIfEmpty, ensureTransferRecordForDevice } from '../utils/transfer-records.js';
 import { uploadFile, downloadFile, deleteFile, deleteFiles } from '../lib/s3-client.js';
+import { requirePermission } from '../middleware/require-permission.js';
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -22,7 +23,7 @@ const upload = multer({
   },
 });
 
-router.post('/devices/:deviceId/transfer/attachments', upload.array('files', MAX_PER_TRANSFER), async (req: Request, res: Response) => {
+router.post('/devices/:deviceId/transfer/attachments', requirePermission('transfer', 'create'), upload.array('files', MAX_PER_TRANSFER), async (req: Request, res: Response) => {
   const uploadedKeys: string[] = [];
   try {
     const device = await prisma.device.findUnique({ where: { id: req.params.deviceId as string } });
@@ -90,7 +91,7 @@ router.post('/devices/:deviceId/transfer/attachments', upload.array('files', MAX
   }
 });
 
-router.get('/transfer-attachments/:id/file', async (req: Request, res: Response) => {
+router.get('/transfer-attachments/:id/file', requirePermission('transfer', 'view'), async (req: Request, res: Response) => {
   try {
     const attachment = await prisma.transferAttachment.findUnique({ where: { id: req.params.id as string } });
     if (!attachment) return res.status(404).json({ error: 'Attachment not found' });
@@ -106,7 +107,7 @@ router.get('/transfer-attachments/:id/file', async (req: Request, res: Response)
   }
 });
 
-router.delete('/transfer-attachments/:id', async (req: Request, res: Response) => {
+router.delete('/transfer-attachments/:id', requirePermission('transfer', 'delete'), async (req: Request, res: Response) => {
   try {
     const attachment = await prisma.transferAttachment.findUnique({ where: { id: req.params.id as string } });
     if (!attachment) return res.status(404).json({ error: 'Attachment not found' });
