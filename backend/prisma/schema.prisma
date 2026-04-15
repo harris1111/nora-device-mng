@@ -7,11 +7,87 @@ datasource db {
   provider = "postgresql"
 }
 
-model Location {
+enum UserRole {
+  SADMIN
+  ADMIN
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  LOCKED
+}
+
+model User {
+  id           String     @id @default(uuid())
+  username     String     @unique
+  passwordHash String     @map("password_hash")
+  role         UserRole   @default(USER)
+  status       UserStatus @default(ACTIVE)
+  createdById  String?    @map("created_by")
+  createdBy    User?      @relation("UserCreatedBy", fields: [createdById], references: [id])
+  createdUsers User[]     @relation("UserCreatedBy")
+  updatedById  String?    @map("updated_by")
+  updatedBy    User?      @relation("UserUpdatedBy", fields: [updatedById], references: [id])
+  updatedUsers User[]     @relation("UserUpdatedBy")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  devicesCreated              Device[]              @relation("DeviceCreatedBy")
+  devicesUpdated              Device[]              @relation("DeviceUpdatedBy")
+  locationsCreated            Location[]            @relation("LocationCreatedBy")
+  locationsUpdated            Location[]            @relation("LocationUpdatedBy")
+  maintenanceRecordsCreated   MaintenanceRecord[]   @relation("MaintenanceCreatedBy")
+  maintenanceRecordsUpdated   MaintenanceRecord[]   @relation("MaintenanceUpdatedBy")
+  transferRecordsCreated      TransferRecord[]      @relation("TransferCreatedBy")
+  transferRecordsUpdated      TransferRecord[]      @relation("TransferUpdatedBy")
+  attachmentsCreated          Attachment[]          @relation("AttachmentCreatedBy")
+  attachmentsUpdated          Attachment[]          @relation("AttachmentUpdatedBy")
+  maintAttachmentsCreated     MaintenanceAttachment[] @relation("MaintAttachCreatedBy")
+  maintAttachmentsUpdated     MaintenanceAttachment[] @relation("MaintAttachUpdatedBy")
+  transferAttachmentsCreated  TransferAttachment[]  @relation("TransferAttachCreatedBy")
+  transferAttachmentsUpdated  TransferAttachment[]  @relation("TransferAttachUpdatedBy")
+  auditLogs                   AuditLog[]
+
+  @@map("users")
+}
+
+model Permission {
   id        String   @id @default(uuid())
-  name      String   @unique
-  createdAt DateTime @default(now()) @map("created_at")
-  devices   Device[]
+  role      UserRole
+  module    String
+  canView   Boolean  @default(false) @map("can_view")
+  canCreate Boolean  @default(false) @map("can_create")
+  canUpdate Boolean  @default(false) @map("can_update")
+  canDelete Boolean  @default(false) @map("can_delete")
+
+  @@unique([role, module])
+  @@map("permissions")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?  @map("actor_user_id")
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  action      String
+  targetType  String?  @map("target_type")
+  targetId    String?  @map("target_id")
+  metadata    Json?    @db.JsonB
+  ip          String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
+
+model Location {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdById String?  @map("created_by")
+  createdBy   User?    @relation("LocationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?  @map("updated_by")
+  updatedBy   User?    @relation("LocationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  devices     Device[]
 
   @@map("locations")
 }
@@ -36,6 +112,10 @@ model Device {
   transferTo   String?  @map("transfer_to")
   transferDate DateTime? @map("transfer_date")
   createdAt    DateTime @default(now()) @map("created_at")
+  createdById  String?  @map("created_by")
+  createdBy    User?    @relation("DeviceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById  String?  @map("updated_by")
+  updatedBy    User?    @relation("DeviceUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   attachments        Attachment[]
   maintenanceRecords MaintenanceRecord[]
   transferRecord     TransferRecord?
@@ -51,21 +131,29 @@ model TransferRecord {
   transferTo   String?  @map("transfer_to")
   transferDate DateTime? @map("transfer_date")
   createdAt    DateTime @default(now()) @map("created_at")
+  createdById  String?  @map("created_by")
+  createdBy    User?    @relation("TransferCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById  String?  @map("updated_by")
+  updatedBy    User?    @relation("TransferUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   attachments  TransferAttachment[]
 
   @@map("transfer_records")
 }
 
 model Attachment {
-  id        String   @id @default(uuid())
-  deviceId  String   @map("device_id")
-  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  fileKey   String   @map("file_key")
-  fileName  String   @map("file_name")
-  fileType  String   @map("file_type")
-  fileSize  Int      @map("file_size")
-  isPrimary Boolean  @default(false) @map("is_primary")
-  createdAt DateTime @default(now()) @map("created_at")
+  id          String   @id @default(uuid())
+  deviceId    String   @map("device_id")
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  fileKey     String   @map("file_key")
+  fileName    String   @map("file_name")
+  fileType    String   @map("file_type")
+  fileSize    Int      @map("file_size")
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdById String?  @map("created_by")
+  createdBy   User?    @relation("AttachmentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?  @map("updated_by")
+  updatedBy   User?    @relation("AttachmentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("attachments")
 }
@@ -79,20 +167,28 @@ model MaintenanceRecord {
   technician  String   @default("")
   status      String   @default("pending")
   createdAt   DateTime @default(now()) @map("created_at")
+  createdById String?  @map("created_by")
+  createdBy   User?    @relation("MaintenanceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?  @map("updated_by")
+  updatedBy   User?    @relation("MaintenanceUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   attachments MaintenanceAttachment[]
 
   @@map("maintenance_records")
 }
 
 model TransferAttachment {
-  id         String         @id @default(uuid())
-  transferId String         @map("transfer_id")
-  transfer   TransferRecord @relation(fields: [transferId], references: [id], onDelete: Cascade)
-  fileKey    String         @map("file_key")
-  fileName   String         @map("file_name")
-  fileType   String         @map("file_type")
-  fileSize   Int            @map("file_size")
-  createdAt  DateTime       @default(now()) @map("created_at")
+  id          String         @id @default(uuid())
+  transferId  String         @map("transfer_id")
+  transfer    TransferRecord @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  fileKey     String         @map("file_key")
+  fileName    String         @map("file_name")
+  fileType    String         @map("file_type")
+  fileSize    Int            @map("file_size")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  createdById String?        @map("created_by")
+  createdBy   User?          @relation("TransferAttachCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?        @map("updated_by")
+  updatedBy   User?          @relation("TransferAttachUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("transfer_attachments")
 }
@@ -106,6 +202,10 @@ model MaintenanceAttachment {
   fileType        String            @map("file_type")
   fileSize        Int               @map("file_size")
   createdAt       DateTime          @default(now()) @map("created_at")
+  createdById     String?           @map("created_by")
+  createdBy       User?             @relation("MaintAttachCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById     String?           @map("updated_by")
+  updatedBy       User?             @relation("MaintAttachUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("maintenance_attachments")
 }

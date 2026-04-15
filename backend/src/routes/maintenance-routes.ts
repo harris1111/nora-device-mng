@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import prisma from '../lib/prisma-client.js';
 import { uploadFile, downloadFile, deleteFile, deleteFiles } from '../lib/s3-client.js';
+import { requirePermission } from '../middleware/require-permission.js';
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -19,7 +20,7 @@ const upload = multer({
 });
 
 // GET /api/devices/:deviceId/maintenance — list maintenance records
-router.get('/devices/:deviceId/maintenance', async (req: Request, res: Response) => {
+router.get('/devices/:deviceId/maintenance', requirePermission('maintenance', 'view'), async (req: Request, res: Response) => {
   try {
     const records = await prisma.maintenanceRecord.findMany({
       where: { deviceId: req.params.deviceId as string },
@@ -45,7 +46,7 @@ router.get('/devices/:deviceId/maintenance', async (req: Request, res: Response)
 });
 
 // POST /api/devices/:deviceId/maintenance — create maintenance record (multipart with files)
-router.post('/devices/:deviceId/maintenance', upload.array('files', 5), async (req: Request, res: Response) => {
+router.post('/devices/:deviceId/maintenance', requirePermission('maintenance', 'create'), upload.array('files', 5), async (req: Request, res: Response) => {
   try {
     const device = await prisma.device.findUnique({ where: { id: req.params.deviceId as string } });
     if (!device) return res.status(404).json({ error: 'Device not found' });
@@ -65,6 +66,7 @@ router.post('/devices/:deviceId/maintenance', upload.array('files', 5), async (r
         description: description.trim(),
         technician: technician?.trim() || '',
         status: status || 'pending',
+        createdById: req.user!.id,
       },
     });
 
@@ -99,7 +101,7 @@ router.post('/devices/:deviceId/maintenance', upload.array('files', 5), async (r
 });
 
 // PUT /api/maintenance/:id — update maintenance record
-router.put('/maintenance/:id', async (req: Request, res: Response) => {
+router.put('/maintenance/:id', requirePermission('maintenance', 'update'), async (req: Request, res: Response) => {
   try {
     const existing = await prisma.maintenanceRecord.findUnique({ where: { id: req.params.id as string } });
     if (!existing) return res.status(404).json({ error: 'Record not found' });
@@ -114,6 +116,7 @@ router.put('/maintenance/:id', async (req: Request, res: Response) => {
         ...(description?.trim() && { description: description.trim() }),
         ...(technician !== undefined && { technician: technician?.trim() || '' }),
         ...(status && { status }),
+        updatedById: req.user!.id,
       },
       include: { attachments: true },
     });
@@ -133,7 +136,7 @@ router.put('/maintenance/:id', async (req: Request, res: Response) => {
 });
 
 // DELETE /api/maintenance/:id — delete record + S3 files
-router.delete('/maintenance/:id', async (req: Request, res: Response) => {
+router.delete('/maintenance/:id', requirePermission('maintenance', 'delete'), async (req: Request, res: Response) => {
   try {
     const record = await prisma.maintenanceRecord.findUnique({
       where: { id: req.params.id as string },
@@ -153,7 +156,7 @@ router.delete('/maintenance/:id', async (req: Request, res: Response) => {
 });
 
 // POST /api/maintenance/:id/attachments — upload files to record
-router.post('/maintenance/:id/attachments', upload.array('files', 5), async (req: Request, res: Response) => {
+router.post('/maintenance/:id/attachments', requirePermission('maintenance', 'create'), upload.array('files', 5), async (req: Request, res: Response) => {
   try {
     const record = await prisma.maintenanceRecord.findUnique({ where: { id: req.params.id as string } });
     if (!record) return res.status(404).json({ error: 'Record not found' });
@@ -197,7 +200,7 @@ router.post('/maintenance/:id/attachments', upload.array('files', 5), async (req
 });
 
 // GET /api/maintenance-attachments/:id/file — stream file from S3
-router.get('/maintenance-attachments/:id/file', async (req: Request, res: Response) => {
+router.get('/maintenance-attachments/:id/file', requirePermission('maintenance', 'view'), async (req: Request, res: Response) => {
   try {
     const attachment = await prisma.maintenanceAttachment.findUnique({ where: { id: req.params.id as string } });
     if (!attachment) return res.status(404).json({ error: 'Attachment not found' });
@@ -214,7 +217,7 @@ router.get('/maintenance-attachments/:id/file', async (req: Request, res: Respon
 });
 
 // DELETE /api/maintenance-attachments/:id — delete single attachment
-router.delete('/maintenance-attachments/:id', async (req: Request, res: Response) => {
+router.delete('/maintenance-attachments/:id', requirePermission('maintenance', 'delete'), async (req: Request, res: Response) => {
   try {
     const attachment = await prisma.maintenanceAttachment.findUnique({ where: { id: req.params.id as string } });
     if (!attachment) return res.status(404).json({ error: 'Attachment not found' });
