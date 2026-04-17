@@ -149,6 +149,9 @@ docker compose up --build -d               # Production on :13000
 | `S3_SECRET_KEY` | — | S3 secret access key |
 | `S3_BUCKET` | `nora-devices` | S3 bucket name |
 | `S3_REGION` | `us-east-1` | S3 region code |
+| `JWT_SECRET` | — | **Required.** Secret key for JWT signing (min 32 chars) |
+| `SADMIN_USERNAME` | — | **Required for seed.** Super-admin username |
+| `SADMIN_PASSWORD` | — | **Required for seed.** Super-admin password |
 
 ## Attachment System (April 2026 Overhaul)
 
