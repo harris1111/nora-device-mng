@@ -1,7 +1,10 @@
-import { PrismaClient, UserRole } from './src/generated/prisma/index.js';
+import 'dotenv/config';
+import { PrismaClient, UserRole } from '../src/generated/prisma/client.js';
+import { PrismaPg } from '@prisma/adapter-pg';
 import bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env['DATABASE_URL']! });
+const prisma = new PrismaClient({ adapter });
 
 const MODULES = ['devices', 'locations', 'maintenance', 'attachments', 'transfer', 'users', 'permissions'] as const;
 
