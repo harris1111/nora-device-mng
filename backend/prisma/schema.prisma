@@ -61,6 +61,7 @@ model Permission {
   canCreate Boolean  @default(false) @map("can_create")
   canUpdate Boolean  @default(false) @map("can_update")
   canDelete Boolean  @default(false) @map("can_delete")
+  canExport Boolean  @default(false) @map("can_export")
 
   @@unique([role, module])
   @@map("permissions")

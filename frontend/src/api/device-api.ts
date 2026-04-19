@@ -86,6 +86,20 @@ export const createDevice = (formData: FormData): Promise<Device> => api.post('/
 export const updateDevice = (id: string | undefined, formData: FormData): Promise<Device> => api.put(`/devices/${id}`, formData).then(r => r.data);
 export const deleteDevice = (id: string | undefined) => api.delete(`/devices/${id}`);
 
+// Bulk operations
+export const bulkDeleteDevices = (ids: string[]): Promise<{ deleted: number }> =>
+  api.post('/devices/bulk-delete', { ids }).then(r => r.data);
+
+export interface BulkEditPayload {
+  ids: string[];
+  status?: string;
+  owned_by?: string;
+  transfer_to?: string | null;
+  transfer_date?: string | null;
+}
+export const bulkEditDevices = (payload: BulkEditPayload): Promise<{ updated: number; errors: string[] }> =>
+  api.post('/devices/bulk-edit', payload).then(r => r.data);
+
 export const deviceQrcodeUrl = (id: string): string => `/api/devices/${id}/qrcode`;
 export const getPublicDevice = (id: string | undefined): Promise<PublicDevice> => api.get(`/public/device/${id}`).then(r => r.data);
 

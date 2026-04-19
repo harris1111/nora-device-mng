@@ -1,7 +1,14 @@
 import { Router, type Request, type Response } from 'express';
 import ExcelJS from 'exceljs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import prisma from '../lib/prisma-client.js';
 import { requirePermission } from '../middleware/require-permission.js';
+import { generateQrCode } from '../utils/qrcode-generator.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -36,7 +43,7 @@ async function getUserLocationFilter(req: Request): Promise<Record<string, unkno
 }
 
 // POST /api/devices/export/excel — export selected devices to Excel
-router.post('/excel', requirePermission('devices', 'view'), async (req: Request, res: Response) => {
+router.post('/excel', requirePermission('devices', 'export'), async (req: Request, res: Response) => {
   try {
     const { device_ids } = req.body as { device_ids?: string[] };
     if (!Array.isArray(device_ids) || device_ids.length === 0) {
@@ -61,29 +68,65 @@ router.post('/excel', requirePermission('devices', 'view'), async (req: Request,
       orderBy: { createdAt: 'desc' },
     });
 
-    const baseUrl = process.env.BASE_URL || 'http://localhost:13000';
-
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'BWPDevices';
     workbook.created = new Date();
 
     const sheet = workbook.addWorksheet('Danh sách thiết bị');
 
-    // Define columns
+    // Define columns (no header text — we'll add the table header manually)
     sheet.columns = [
-      { header: 'STT', key: 'stt', width: 6 },
-      { header: 'Mã thiết bị', key: 'store_id', width: 18 },
-      { header: 'Tên thiết bị', key: 'name', width: 30 },
-      { header: 'Loại thiết bị', key: 'type', width: 18 },
-      { header: 'Trạng thái', key: 'status', width: 18 },
-      { header: 'Đơn vị trực thuộc', key: 'location', width: 22 },
-      { header: 'Đơn vị chuyển giao', key: 'transfer_to', width: 22 },
-      { header: 'Ngày nhập', key: 'created_at', width: 14 },
-      { header: 'Mã QRCode', key: 'qrcode', width: 35 },
+      { key: 'stt', width: 6 },
+      { key: 'store_id', width: 18 },
+      { key: 'name', width: 30 },
+      { key: 'type', width: 18 },
+      { key: 'status', width: 18 },
+      { key: 'location', width: 22 },
+      { key: 'transfer_to', width: 22 },
+      { key: 'created_at', width: 14 },
+      { key: 'qrcode', width: 18 },
     ];
 
-    // Style header row
-    const headerRow = sheet.getRow(1);
+    // ── Branded header area (rows 1–5) ──────────────────────────
+    const HEADER_ROWS = 5; // rows reserved for logo + title
+    const DATA_HEADER_ROW = HEADER_ROWS + 1; // row 6 = table column headers
+
+    // Insert logo image in top-left corner
+    const logoPath = path.resolve(__dirname, '../../image/image.png');
+    if (fs.existsSync(logoPath)) {
+      const logoId = workbook.addImage({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        buffer: fs.readFileSync(logoPath) as any,
+        extension: 'png',
+      });
+      // Logo spans A1:B5 (cols 0–2, rows 0–5)
+      sheet.addImage(logoId, {
+        tl: { col: 0, row: 0 } as unknown as ExcelJS.Anchor,
+        br: { col: 2, row: HEADER_ROWS } as unknown as ExcelJS.Anchor,
+      });
+    }
+
+    // Title "Danh sách thiết bị" merged across C2:I3
+    sheet.mergeCells('C2:I3');
+    const titleCell = sheet.getCell('C2');
+    titleCell.value = 'Danh sách thiết bị';
+    titleCell.font = { bold: true, size: 18 };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    // Set header area row heights
+    for (let r = 1; r <= HEADER_ROWS; r++) {
+      sheet.getRow(r).height = 22;
+    }
+
+    // ── Table column header (row 6) ─────────────────────────────
+    const colHeaders = [
+      'STT', 'Mã thiết bị', 'Tên thiết bị', 'Loại thiết bị', 'Trạng thái',
+      'Đơn vị trực thuộc', 'Đơn vị chuyển giao', 'Ngày nhập', 'Mã QRCode',
+    ];
+    const headerRow = sheet.getRow(DATA_HEADER_ROW);
+    colHeaders.forEach((text, i) => {
+      headerRow.getCell(i + 1).value = text;
+    });
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
     headerRow.fill = {
       type: 'pattern',
@@ -93,22 +136,44 @@ router.post('/excel', requirePermission('devices', 'view'), async (req: Request,
     headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
     headerRow.height = 28;
 
-    // Add data rows
+    // Generate QR code images in parallel
+    const qrBuffers = await Promise.all(
+      devices.map(device => generateQrCode(device.id))
+    );
+
+    // QR image size in pixels and row height
+    const qrSize = 110;
+    const qrRowHeight = 90;
+
+    // Add data rows with embedded QR images
     devices.forEach((device, index) => {
-      const row = sheet.addRow({
-        stt: index + 1,
-        store_id: device.storeId,
-        name: device.name,
-        type: TYPE_LABELS[device.type] || device.type,
-        status: STATUS_LABELS[device.status] || device.status,
-        location: device.location?.name || '',
-        transfer_to: device.transferTo || '',
-        created_at: device.createdAt.toLocaleDateString('vi-VN'),
-        qrcode: `${baseUrl}/public/device/${device.id}`,
-      });
+      const rowNumber = DATA_HEADER_ROW + 1 + index; // first data row = 7
+      const row = sheet.getRow(rowNumber);
+      row.values = [
+        index + 1,
+        device.storeId,
+        device.name,
+        TYPE_LABELS[device.type] || device.type,
+        STATUS_LABELS[device.status] || device.status,
+        device.location?.name || '',
+        device.ownedBy ? [device.location?.name, device.ownedBy].filter(Boolean).join(' → ') : '',
+        device.createdAt.toLocaleDateString('vi-VN'),
+        '',
+      ];
 
       row.alignment = { vertical: 'middle', wrapText: true };
-      row.height = 22;
+      row.height = qrRowHeight;
+
+      // Embed QR code image in column I (index 8, 0-based)
+      const imageId = workbook.addImage({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        buffer: qrBuffers[index] as any,
+        extension: 'png',
+      });
+      sheet.addImage(imageId, {
+        tl: { col: 8, row: rowNumber - 1 },
+        ext: { width: qrSize, height: qrSize },
+      });
 
       // Alternating row colors
       if (index % 2 === 1) {
@@ -136,14 +201,14 @@ router.post('/excel', requirePermission('devices', 'view'), async (req: Request,
       });
     }
 
-    // Auto-filter
+    // Auto-filter on table header row
     sheet.autoFilter = {
-      from: { row: 1, column: 1 },
-      to: { row: 1, column: 9 },
+      from: { row: DATA_HEADER_ROW, column: 1 },
+      to: { row: DATA_HEADER_ROW, column: 9 },
     };
 
-    // Freeze header row
-    sheet.views = [{ state: 'frozen', ySplit: 1 }];
+    // Freeze rows above data (header area + table column header)
+    sheet.views = [{ state: 'frozen', ySplit: DATA_HEADER_ROW }];
 
     const buffer = await workbook.xlsx.writeBuffer();
     const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');

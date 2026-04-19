@@ -5,13 +5,26 @@ import DeviceStatusBadge from './device-status-badge';
 
 interface Props {
   device: Device;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }
 
-export default function DeviceListRow({ device }: Props) {
+export default function DeviceListRow({ device, selectable, selected, onToggleSelect }: Props) {
   const thumbUrl = device.primary_attachment_id ? attachmentFileUrl(device.primary_attachment_id) : null;
 
   return (
-    <tr className="hover:bg-indigo-50/30 transition-colors group">
+    <tr className={`hover:bg-indigo-50/30 transition-colors group ${selected ? 'bg-indigo-50/40' : ''}`}>
+      {selectable && (
+        <td className="w-12 px-4 py-4">
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={onToggleSelect}
+            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+          />
+        </td>
+      )}
       <td className="w-16 px-6 py-4">
         <div className="w-12 h-12 bg-slate-100 rounded-xl shadow-sm border border-slate-200 overflow-hidden flex items-center justify-center">
           {thumbUrl ? (

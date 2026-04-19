@@ -13,6 +13,7 @@ export interface PermissionMap {
     create: boolean;
     update: boolean;
     delete: boolean;
+    export: boolean;
   };
 }
 
