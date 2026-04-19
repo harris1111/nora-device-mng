@@ -69,6 +69,110 @@ async function getUserLocationFilter(req: Request): Promise<Record<string, unkno
   };
 }
 
+// POST /api/devices/bulk-delete — delete multiple devices
+router.post('/bulk-delete', requirePermission('devices', 'delete'), async (req: Request, res: Response) => {
+  try {
+    const { ids } = req.body as { ids?: string[] };
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array is required' });
+    if (ids.length > 100) return res.status(400).json({ error: 'Maximum 100 devices per bulk delete' });
+
+    // Gather S3 keys before deletion
+    const devices = await prisma.device.findMany({
+      where: { id: { in: ids } },
+      include: {
+        attachments: { select: { fileKey: true } },
+        transferRecord: { include: { attachments: { select: { fileKey: true } } } },
+        maintenanceRecords: { include: { attachments: { select: { fileKey: true } } } },
+      },
+    });
+
+    const s3Keys = devices.flatMap(d => [
+      ...d.attachments.map((a: { fileKey: string }) => a.fileKey),
+      ...(d.transferRecord?.attachments.map((a: { fileKey: string }) => a.fileKey) || []),
+      ...d.maintenanceRecords.flatMap((r: { attachments: { fileKey: string }[] }) => r.attachments.map((a: { fileKey: string }) => a.fileKey)),
+    ]);
+
+    const result = await prisma.device.deleteMany({ where: { id: { in: ids } } });
+
+    if (s3Keys.length > 0) {
+      try { await deleteFiles(s3Keys); } catch (e: unknown) { console.warn('S3 bulk cleanup warning:', (e as Error).message); }
+    }
+
+    res.json({ deleted: result.count });
+  } catch (err) {
+    console.error('Bulk delete devices error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/devices/bulk-edit — update status and/or transfer fields on multiple devices
+router.post('/bulk-edit', requirePermission('devices', 'update'), async (req: Request, res: Response) => {
+  try {
+    const { ids, status, owned_by, transfer_to, transfer_date } = req.body as {
+      ids?: string[];
+      status?: string;
+      owned_by?: string;
+      transfer_to?: string | null;
+      transfer_date?: string | null;
+    };
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array is required' });
+    if (ids.length > 100) return res.status(400).json({ error: 'Maximum 100 devices per bulk edit' });
+
+    const hasStatusChange = status !== undefined && status !== '';
+    const hasTransferChange = owned_by !== undefined || transfer_to !== undefined || transfer_date !== undefined;
+    if (!hasStatusChange && !hasTransferChange) return res.status(400).json({ error: 'Nothing to update' });
+
+    const devices = await prisma.device.findMany({ where: { id: { in: ids } }, select: { id: true, type: true, status: true } });
+    if (devices.length === 0) return res.status(404).json({ error: 'No devices found' });
+
+    const errors: string[] = [];
+    const validIds: string[] = [];
+
+    // Validate status per device type
+    for (const device of devices) {
+      if (hasStatusChange) {
+        const err = validateTypeStatus(device.type, status!);
+        if (err) {
+          errors.push(`${device.id}: ${err}`);
+          continue;
+        }
+      }
+      validIds.push(device.id);
+    }
+
+    if (validIds.length === 0) return res.status(400).json({ error: 'No valid devices to update', details: errors });
+
+    // Build update payload
+    const updateData: Record<string, unknown> = { updatedById: req.user!.id };
+    if (hasStatusChange) updateData.status = status;
+    if (owned_by !== undefined) updateData.ownedBy = owned_by.trim();
+    if (transfer_to !== undefined) updateData.transferTo = transfer_to ? transfer_to.trim() : null;
+    if (transfer_date !== undefined) updateData.transferDate = transfer_date ? new Date(transfer_date) : null;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.device.updateMany({ where: { id: { in: validIds } }, data: updateData });
+
+      // Sync transfer records if transfer fields changed
+      if (hasTransferChange) {
+        for (const deviceId of validIds) {
+          const device = devices.find(d => d.id === deviceId)!;
+          const transferSummary = {
+            ownedBy: owned_by !== undefined ? owned_by.trim() : '',
+            transferTo: transfer_to !== undefined ? (transfer_to ? transfer_to.trim() : null) : null,
+            transferDate: transfer_date !== undefined ? (transfer_date ? new Date(transfer_date) : null) : null,
+          };
+          await syncDeviceTransferRecord(deviceId, transferSummary, tx);
+        }
+      }
+    });
+
+    res.json({ updated: validIds.length, errors });
+  } catch (err) {
+    console.error('Bulk edit devices error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/devices — list all devices
 router.get('/', requirePermission('devices', 'view'), async (req: Request, res: Response) => {
   try {

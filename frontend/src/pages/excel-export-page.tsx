@@ -1,16 +1,17 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { getDevices, exportDevicesExcel, Device } from '../api/device-api';
-import { DEVICE_TYPES, ALL_STATUSES, TYPE_LABELS, getStatusInfo, getTypeName } from '../components/device-constants';
+import { getStatusInfo, getTypeName } from '../components/device-constants';
+import { useCan } from '../hooks/use-permission';
+import DeviceFilterBar, { useDeviceFilter, EMPTY_FILTERS, type DeviceFilters } from '../components/device-filter-bar';
 
 export default function ExcelExportPage() {
+  const canExport = useCan('devices', 'export');
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filters, setFilters] = useState<DeviceFilters>({ ...EMPTY_FILTERS });
 
   useEffect(() => {
     getDevices()
@@ -19,19 +20,7 @@ export default function ExcelExportPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = useMemo(() => {
-    return devices.filter((d) => {
-      if (filterType && d.type !== filterType) return false;
-      if (filterStatus && d.status !== filterStatus) return false;
-      if (!search.trim()) return true;
-      const q = search.toLowerCase();
-      return (
-        d.name?.toLowerCase().includes(q) ||
-        d.store_id?.toLowerCase().includes(q) ||
-        d.location_name?.toLowerCase().includes(q)
-      );
-    });
-  }, [devices, filterType, filterStatus, search]);
+  const filtered = useDeviceFilter(devices, filters);
 
   const allFilteredSelected = filtered.length > 0 && filtered.every(d => selected.has(d.id));
 
@@ -84,47 +73,20 @@ export default function ExcelExportPage() {
     );
   }
 
+  if (!canExport) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+        <svg className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+        <p className="text-lg font-medium">Bạn không có quyền xuất Excel</p>
+        <p className="text-sm mt-1">Liên hệ quản trị viên để được cấp quyền.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Action Bar */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] border border-slate-100">
-        <div className="flex-1 w-full relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-          <input
-            type="text"
-            placeholder="Tìm kiếm theo tên, mã, đơn vị..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-          />
-        </div>
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <select
-            value={filterType}
-            onChange={(e) => { setFilterType(e.target.value); setFilterStatus(''); }}
-            className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Tất cả loại</option>
-            {DEVICE_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Tất cả trạng thái</option>
-            {Object.entries(ALL_STATUSES).map(([value, { label }]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+      {/* Filter Bar */}
+      <DeviceFilterBar filters={filters} onChange={setFilters} />
 
       {/* Export Button Bar */}
       <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] border border-slate-100">
@@ -208,7 +170,7 @@ export default function ExcelExportPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-slate-600">{d.location_name || '—'}</td>
-                      <td className="px-4 py-3 text-slate-600">{d.transfer_to || ''}</td>
+                      <td className="px-4 py-3 text-slate-600">{d.owned_by ? [d.location_name, d.owned_by].filter(Boolean).join(' → ') : ''}</td>
                       <td className="px-4 py-3 text-slate-500 text-xs">
                         {new Date(d.created_at).toLocaleDateString('vi-VN')}
                       </td>

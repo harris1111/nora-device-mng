@@ -5,10 +5,13 @@ import { useCan } from '../hooks/use-permission';
 
 const ROLES = ['SADMIN', 'ADMIN', 'USER'] as const;
 const MODULES = ['devices', 'locations', 'maintenance', 'attachments', 'transfer', 'users', 'permissions'] as const;
-const ACTIONS = ['canView', 'canCreate', 'canUpdate', 'canDelete'] as const;
-const actionLabels: Record<string, string> = { canView: 'Xem', canCreate: 'Tạo', canUpdate: 'Sửa', canDelete: 'Xóa' };
+const ACTIONS = ['canView', 'canCreate', 'canUpdate', 'canDelete', 'canExport'] as const;
+const actionLabels: Record<string, string> = { canView: 'Xem', canCreate: 'Tạo', canUpdate: 'Sửa', canDelete: 'Xóa', canExport: 'Xuất Excel' };
 const moduleLabels: Record<string, string> = { devices: 'Thiết bị', locations: 'Đơn vị', maintenance: 'Bảo trì', attachments: 'Tệp đính kèm', transfer: 'Luân chuyển', users: 'Tài khoản', permissions: 'Phân quyền' };
 const roleLabels: Record<string, string> = { SADMIN: 'Super Admin', ADMIN: 'Admin', USER: 'User' };
+
+// Only these modules show the canExport checkbox
+const EXPORT_MODULES = new Set(['devices']);
 
 export default function PermissionDashboardPage() {
   const { user } = useAuth();
@@ -36,7 +39,7 @@ export default function PermissionDashboardPage() {
     if (!canEditRole(role)) return;
     setMatrix(prev => {
       const updated = { ...prev };
-      const current = updated[role]?.[mod] || { canView: false, canCreate: false, canUpdate: false, canDelete: false };
+      const current = updated[role]?.[mod] || { canView: false, canCreate: false, canUpdate: false, canDelete: false, canExport: false };
       updated[role] = { ...updated[role], [mod]: { ...current, [action]: !current[action as keyof typeof current] } };
       return updated;
     });
@@ -85,27 +88,32 @@ export default function PermissionDashboardPage() {
                 </thead>
                 <tbody>
                   {MODULES.map(mod => {
-                    const perms = matrix[role]?.[mod] || { canView: false, canCreate: false, canUpdate: false, canDelete: false };
+                    const perms = matrix[role]?.[mod] || { canView: false, canCreate: false, canUpdate: false, canDelete: false, canExport: false };
                     return (
                       <tr key={mod} className="border-b border-slate-100 last:border-0">
                         <td className="px-5 py-3 font-medium text-slate-700">{moduleLabels[mod] || mod}</td>
-                        {ACTIONS.map(action => (
-                          <td key={action} className="text-center px-4 py-3">
-                            <button
-                              onClick={() => togglePermission(role, mod, action)}
-                              disabled={!canEditRole(role)}
-                              className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
-                                perms[action as keyof typeof perms]
-                                  ? 'bg-indigo-600 border-indigo-600 text-white'
-                                  : 'border-slate-300 hover:border-indigo-400'
-                              } ${!canEditRole(role) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                            >
-                              {perms[action as keyof typeof perms] && (
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                              )}
-                            </button>
-                          </td>
-                        ))}
+                        {ACTIONS.map(action => {
+                          if (action === 'canExport' && !EXPORT_MODULES.has(mod)) {
+                            return <td key={action} className="text-center px-4 py-3" />;
+                          }
+                          return (
+                            <td key={action} className="text-center px-4 py-3">
+                              <button
+                                onClick={() => togglePermission(role, mod, action)}
+                                disabled={!canEditRole(role)}
+                                className={`mx-auto w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
+                                  perms[action as keyof typeof perms]
+                                    ? 'bg-indigo-600 border-indigo-600 text-white'
+                                    : 'border-slate-300 hover:border-indigo-400'
+                                } ${!canEditRole(role) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                              >
+                                {perms[action as keyof typeof perms] && (
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                )}
+                              </button>
+                            </td>
+                          );
+                        })}
                       </tr>
                     );
                   })}

@@ -13,9 +13,9 @@ function getClientIp(req: Request): string {
 
 async function loadPermissionsMap(role: UserRole) {
   const perms = await prisma.permission.findMany({ where: { role } });
-  const map: Record<string, { view: boolean; create: boolean; update: boolean; delete: boolean }> = {};
+  const map: Record<string, { view: boolean; create: boolean; update: boolean; delete: boolean; export: boolean }> = {};
   for (const p of perms) {
-    map[p.module] = { view: p.canView, create: p.canCreate, update: p.canUpdate, delete: p.canDelete };
+    map[p.module] = { view: p.canView, create: p.canCreate, update: p.canUpdate, delete: p.canDelete, export: p.canExport };
   }
   return map;
 }

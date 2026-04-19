@@ -1,75 +1,128 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { getDevices, Device } from '../api/device-api';
+import { getDevices, Device, bulkDeleteDevices } from '../api/device-api';
+import { useCan } from '../hooks/use-permission';
 import DeviceCard from '../components/device-card';
 import DeviceListRow from '../components/device-list-row';
 import ViewToggle from '../components/view-toggle';
-import { DEVICE_TYPES, STATUS_BY_TYPE, ALL_STATUSES } from '../components/device-constants';
+import DeviceFilterBar, { useDeviceFilter, EMPTY_FILTERS, type DeviceFilters } from '../components/device-filter-bar';
+import BulkEditModal from '../components/bulk-edit-modal';
 
 export default function DeviceListPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState(() => localStorage.getItem('deviceView') || 'grid');
-  const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filters, setFilters] = useState<DeviceFilters>({ ...EMPTY_FILTERS });
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkEdit, setShowBulkEdit] = useState(false);
 
-  useEffect(() => {
+  const canUpdate = useCan('devices', 'update');
+  const canDelete = useCan('devices', 'delete');
+
+  const fetchDevices = useCallback(() => {
+    setLoading(true);
     getDevices()
-      .then(setDevices)
+      .then(d => { setDevices(d); setSelectedIds(new Set()); })
       .catch(() => setError('Không thể tải danh sách thiết bị'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { fetchDevices(); }, [fetchDevices]);
 
   const handleViewChange = (newView: string) => {
     setView(newView);
     localStorage.setItem('deviceView', newView);
   };
 
-  const filteredDevices = devices.filter((d) => {
-    if (filterType && d.type !== filterType) return false;
-    if (filterStatus && d.status !== filterStatus) return false;
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return d.name?.toLowerCase().includes(q) || d.store_id?.toLowerCase().includes(q) || d.location_name?.toLowerCase().includes(q);
-  });
+  const filteredDevices = useDeviceFilter(devices, filters);
 
-  const statusOptions = filterType ? (STATUS_BY_TYPE[filterType] || []) : Object.entries(ALL_STATUSES).map(([value, { label }]) => ({ value, label }));
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds(prev =>
+      prev.size === filteredDevices.length
+        ? new Set()
+        : new Set(filteredDevices.map(d => d.id))
+    );
+  }, [filteredDevices]);
+
+  const selectedDevices = filteredDevices.filter(d => selectedIds.has(d.id));
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Xóa ${selectedIds.size} thiết bị đã chọn? Thao tác này không thể hoàn tác.`)) return;
+    try {
+      await bulkDeleteDevices([...selectedIds]);
+      fetchDevices();
+    } catch {
+      setError('Không thể xóa thiết bị');
+    }
+  };
+
+  const hasBulkActions = canUpdate || canDelete;
 
   return (
     <div className="space-y-6">
-      {/* Desktop Hidden Header (moved to layout), Custom Floating Action Bar for Mobile/Desktop */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] border border-slate-100 mb-6">
-        <div className="flex-1 w-full relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="block w-full pl-10 pr-3 py-2.5 bg-slate-50 border-0 text-slate-800 rounded-xl focus:ring-2 focus:ring-indigo-500 transition-shadow sm:text-sm"
-            placeholder="Tìm kiếm thiết bị..."
-          />
-        </div>
+      {/* Filter Bar */}
+      <DeviceFilterBar
+        filters={filters}
+        onChange={setFilters}
+        trailing={<ViewToggle view={view} onChange={handleViewChange} />}
+      />
 
-        <div className="flex items-center gap-2 w-full md:w-auto shrink-0 flex-wrap">
-          <select value={filterType} onChange={(e) => { setFilterType(e.target.value); setFilterStatus(''); }}
-            className="px-3 py-2.5 bg-slate-50 border-0 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500 cursor-pointer">
-            <option value="">Tất cả loại</option>
-            {DEVICE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2.5 bg-slate-50 border-0 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500 cursor-pointer">
-            <option value="">Tất cả trạng thái</option>
-            {statusOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
-          <ViewToggle view={view} onChange={handleViewChange} />
+      {/* Bulk Action Toolbar */}
+      {selectedIds.size > 0 && hasBulkActions && (
+        <div className="flex items-center gap-3 px-5 py-3 bg-indigo-50 border border-indigo-100 rounded-2xl shadow-sm animate-slide-up">
+          <span className="text-sm font-semibold text-indigo-700">
+            Đã chọn {selectedIds.size} thiết bị
+          </span>
+          <div className="flex-1" />
+          {canUpdate && (
+            <button
+              onClick={() => setShowBulkEdit(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-sm"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Sửa hàng loạt
+            </button>
+          )}
+          {canDelete && (
+            <button
+              onClick={handleBulkDelete}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-sm"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Xóa hàng loạt
+            </button>
+          )}
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="px-3 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+          >
+            Bỏ chọn
+          </button>
         </div>
-      </div>
+      )}
+
+      {/* Bulk Edit Modal */}
+      {showBulkEdit && (
+        <BulkEditModal
+          devices={selectedDevices}
+          onClose={() => setShowBulkEdit(false)}
+          onSuccess={() => { setShowBulkEdit(false); fetchDevices(); }}
+        />
+      )}
 
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -106,7 +159,17 @@ export default function DeviceListPage() {
       {!loading && filteredDevices.length > 0 && view === 'grid' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredDevices.map((device, index) => (
-            <div key={device.id} className="animate-slide-up" style={{ animationDelay: `${Math.min(index * 50, 500)}ms`, animationFillMode: 'both' }}>
+            <div key={device.id} className="relative animate-slide-up" style={{ animationDelay: `${Math.min(index * 50, 500)}ms`, animationFillMode: 'both' }}>
+              {hasBulkActions && (
+                <div className="absolute top-3 left-3 z-10">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(device.id)}
+                    onChange={() => toggleSelect(device.id)}
+                    className="w-5 h-5 rounded-md border-2 border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm bg-white/90"
+                  />
+                </div>
+              )}
                <DeviceCard device={device} />
             </div>
           ))}
@@ -119,6 +182,16 @@ export default function DeviceListPage() {
           <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead className="bg-slate-50/50">
               <tr>
+                {hasBulkActions && (
+                  <th className="w-12 px-4 py-4 border-b border-slate-100">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === filteredDevices.length && filteredDevices.length > 0}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                  </th>
+                )}
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Hình ảnh</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Mã thiết bị</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Tên thiết bị</th>
@@ -131,7 +204,13 @@ export default function DeviceListPage() {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {filteredDevices.map((device) => (
-                 <DeviceListRow key={device.id} device={device} />
+                 <DeviceListRow
+                   key={device.id}
+                   device={device}
+                   selectable={hasBulkActions}
+                   selected={selectedIds.has(device.id)}
+                   onToggleSelect={() => toggleSelect(device.id)}
+                 />
               ))}
             </tbody>
           </table>

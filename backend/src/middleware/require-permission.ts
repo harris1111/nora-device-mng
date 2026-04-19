@@ -2,13 +2,14 @@ import { type Request, type Response, type NextFunction } from 'express';
 import prisma from '../lib/prisma-client.js';
 import type { UserRole } from '../generated/prisma/enums.js';
 
-type Action = 'view' | 'create' | 'update' | 'delete';
+type Action = 'view' | 'create' | 'update' | 'delete' | 'export';
 
-const ACTION_FIELD: Record<Action, 'canView' | 'canCreate' | 'canUpdate' | 'canDelete'> = {
+const ACTION_FIELD: Record<Action, 'canView' | 'canCreate' | 'canUpdate' | 'canDelete' | 'canExport'> = {
   view: 'canView',
   create: 'canCreate',
   update: 'canUpdate',
   delete: 'canDelete',
+  export: 'canExport',
 };
 
 export function requirePermission(module: string, action: Action) {

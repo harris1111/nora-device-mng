@@ -10,11 +10,11 @@ const prisma = new PrismaClient({ adapter });
 
 const MODULES = ['devices', 'locations', 'maintenance', 'attachments', 'transfer', 'users', 'permissions'] as const;
 
-type PermFlags = { canView: boolean; canCreate: boolean; canUpdate: boolean; canDelete: boolean };
-const CRUD: PermFlags = { canView: true, canCreate: true, canUpdate: true, canDelete: true };
-const VIEW_ONLY: PermFlags = { canView: true, canCreate: false, canUpdate: false, canDelete: false };
-const VIEW_UPDATE: PermFlags = { canView: true, canCreate: false, canUpdate: true, canDelete: false };
-const NONE: PermFlags = { canView: false, canCreate: false, canUpdate: false, canDelete: false };
+type PermFlags = { canView: boolean; canCreate: boolean; canUpdate: boolean; canDelete: boolean; canExport: boolean };
+const CRUD: PermFlags = { canView: true, canCreate: true, canUpdate: true, canDelete: true, canExport: true };
+const VIEW_ONLY: PermFlags = { canView: true, canCreate: false, canUpdate: false, canDelete: false, canExport: false };
+const VIEW_UPDATE: PermFlags = { canView: true, canCreate: false, canUpdate: true, canDelete: false, canExport: false };
+const NONE: PermFlags = { canView: false, canCreate: false, canUpdate: false, canDelete: false, canExport: false };
 
 const PERMISSION_MATRIX: Record<UserRole, Record<string, PermFlags>> = {
   SADMIN: { devices: CRUD, locations: CRUD, maintenance: CRUD, attachments: CRUD, transfer: CRUD, users: CRUD, permissions: VIEW_UPDATE },
