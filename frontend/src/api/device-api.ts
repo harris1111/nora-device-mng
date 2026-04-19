@@ -89,6 +89,11 @@ export const deleteDevice = (id: string | undefined) => api.delete(`/devices/${i
 export const deviceQrcodeUrl = (id: string): string => `/api/devices/${id}/qrcode`;
 export const getPublicDevice = (id: string | undefined): Promise<PublicDevice> => api.get(`/public/device/${id}`).then(r => r.data);
 
+// Public file URLs (no auth required — for QR code scanned pages)
+export const publicAttachmentFileUrl = (id: string): string => `/api/public/attachments/${id}/file`;
+export const publicTransferAttachmentFileUrl = (id: string): string => `/api/public/transfer-attachments/${id}/file`;
+export const publicMaintenanceAttachmentFileUrl = (id: string): string => `/api/public/maintenance-attachments/${id}/file`;
+
 // Attachment API
 export const getAttachments = (deviceId: string): Promise<Attachment[]> => api.get(`/devices/${deviceId}/attachments`).then(r => r.data);
 export const uploadAttachments = (deviceId: string, files: File[]) => {

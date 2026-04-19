@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { getPublicDevice, attachmentFileUrl, PublicDevice } from '../api/device-api';
-import { getTypeName, getStatusInfo } from '../components/device-constants';
-import AttachmentList from '../components/attachment-list';
-import TransferInfoSection from '../components/transfer-info-section';
+import { getPublicDevice, publicAttachmentFileUrl, publicTransferAttachmentFileUrl, publicMaintenanceAttachmentFileUrl, PublicDevice } from '../api/device-api';
+import { getTypeName, getStatusInfo } from '../components/device/device-constants';
+import AttachmentList from '../components/attachment/attachment-list';
+import TransferInfoSection from '../components/transfer/transfer-info-section';
 
 export default function PublicDevicePage() {
   const { id } = useParams();
@@ -30,7 +30,7 @@ export default function PublicDevicePage() {
 
   const statusInfo = getStatusInfo(device.status);
   const primaryImage = device.attachments?.find(a => a.is_primary);
-  const primaryUrl = primaryImage ? attachmentFileUrl(primaryImage.id) : null;
+  const primaryUrl = primaryImage ? publicAttachmentFileUrl(primaryImage.id) : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -93,13 +93,13 @@ export default function PublicDevicePage() {
           )}
         </div>
 
-        <TransferInfoSection transfer={device.transfer_record} compact />
+        <TransferInfoSection transfer={device.transfer_record} compact fileUrlResolver={(a) => publicTransferAttachmentFileUrl(a.id)} />
 
         {/* Attachments (read only) */}
         {device.attachments?.length > 1 && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
             <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Tệp đính kèm</h2>
-            <AttachmentList attachments={device.attachments} />
+            <AttachmentList attachments={device.attachments} fileUrlResolver={(a) => publicAttachmentFileUrl(a.id)} />
           </div>
         )}
 
@@ -124,7 +124,7 @@ export default function PublicDevicePage() {
                     </div>
                     {r.attachments?.length > 0 && (
                       <div className="mt-2">
-                        <AttachmentList attachments={r.attachments} maintenanceMode />
+                        <AttachmentList attachments={r.attachments} maintenanceMode fileUrlResolver={(a) => publicMaintenanceAttachmentFileUrl(a.id)} />
                       </div>
                     )}
                   </div>
