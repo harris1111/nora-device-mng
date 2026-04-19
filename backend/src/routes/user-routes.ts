@@ -22,8 +22,15 @@ router.get('/', requirePermission('users', 'view'), async (req: Request, res: Re
   try {
     const role = req.user!.role;
     const where = role === 'SADMIN' ? {} : { role: 'USER' as UserRole };
-    const users = await prisma.user.findMany({ where, orderBy: { createdAt: 'desc' } });
-    res.json(users.map(mapUser));
+    const users = await prisma.user.findMany({
+      where,
+      include: { assignedLocations: { include: { location: true }, orderBy: { location: { name: 'asc' } } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(users.map(u => ({
+      ...mapUser(u),
+      assigned_locations: u.assignedLocations.map(al => ({ id: al.location.id, name: al.location.name })),
+    })));
   } catch (err) {
     console.error('List users error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -189,6 +196,66 @@ router.put('/:id/change-password', async (req: Request, res: Response) => {
     res.json({ message: 'Password changed successfully' });
   } catch (err) {
     console.error('Change password error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/users/:id/locations — get user's assigned locations
+router.get('/:id/locations', requirePermission('users', 'view'), async (req: Request, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.params.id as string } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const assignments = await prisma.userLocation.findMany({
+      where: { userId: req.params.id as string },
+      include: { location: true },
+      orderBy: { location: { name: 'asc' } },
+    });
+    res.json(assignments.map(a => ({ id: a.location.id, name: a.location.name })));
+  } catch (err) {
+    console.error('Get user locations error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/users/:id/locations — set user's assigned locations (replaces all)
+router.put('/:id/locations', requirePermission('users', 'update'), async (req: Request, res: Response) => {
+  try {
+    const target = await prisma.user.findUnique({ where: { id: req.params.id as string } });
+    if (!target) return res.status(404).json({ error: 'User not found' });
+    if (target.role === 'SADMIN') return res.status(403).json({ error: 'Cannot assign locations to SADMIN' });
+    if (!canManageRole(req.user!.role, target.role)) return res.status(403).json({ error: 'Insufficient permissions' });
+
+    const { locationIds } = req.body;
+    if (!Array.isArray(locationIds)) return res.status(400).json({ error: 'locationIds must be an array' });
+
+    // Validate all location IDs exist
+    if (locationIds.length > 0) {
+      const locations = await prisma.location.findMany({ where: { id: { in: locationIds } } });
+      if (locations.length !== locationIds.length) return res.status(400).json({ error: 'One or more location IDs are invalid' });
+    }
+
+    // Replace all assignments in a transaction
+    await prisma.$transaction(async (tx) => {
+      await tx.userLocation.deleteMany({ where: { userId: req.params.id as string } });
+      if (locationIds.length > 0) {
+        await tx.userLocation.createMany({
+          data: locationIds.map((locId: string) => ({ userId: req.params.id as string, locationId: locId })),
+        });
+      }
+    });
+
+    await logAudit({ actorUserId: req.user!.id, action: 'user_locations_update', targetType: 'User', targetId: target.id, metadata: { locationIds }, ip: getClientIp(req) });
+
+    // Return updated assignments
+    const assignments = await prisma.userLocation.findMany({
+      where: { userId: req.params.id as string },
+      include: { location: true },
+      orderBy: { location: { name: 'asc' } },
+    });
+    res.json(assignments.map(a => ({ id: a.location.id, name: a.location.name })));
+  } catch (err) {
+    console.error('Update user locations error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

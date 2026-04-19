@@ -52,13 +52,36 @@ const detailDeviceIncludes = {
   },
 };
 
+// Helper: get location-based where clause for USER role
+async function getUserLocationFilter(req: Request): Promise<Record<string, unknown> | null> {
+  if (req.user!.role !== 'USER') return null; // SADMIN/ADMIN see all
+  const assignments = await prisma.userLocation.findMany({
+    where: { userId: req.user!.id },
+    include: { location: true },
+  });
+  const locationIds = assignments.map(a => a.locationId);
+  const locationNames = assignments.map(a => a.location.name);
+  return {
+    OR: [
+      { locationId: { in: locationIds } },
+      { transferTo: { in: locationNames } },
+    ],
+  };
+}
+
 // GET /api/devices — list all devices
 router.get('/', requirePermission('devices', 'view'), async (req: Request, res: Response) => {
   try {
     const { type, status } = req.query as { type?: string; status?: string };
-    const where: Record<string, string> = {};
+    const where: Record<string, unknown> = {};
     if (type) where.type = type;
     if (status) where.status = status;
+
+    // Filter by user's assigned locations for USER role
+    const locationFilter = await getUserLocationFilter(req);
+    if (locationFilter) {
+      where.AND = [locationFilter];
+    }
 
     const devices = await prisma.device.findMany({
       where,
@@ -80,6 +103,17 @@ router.get('/:id', requirePermission('devices', 'view'), async (req: Request, re
       include: detailDeviceIncludes,
     });
     if (!device) return res.status(404).json({ error: 'Device not found' });
+
+    // Check location access for USER role
+    const locationFilter = await getUserLocationFilter(req);
+    if (locationFilter) {
+      const orConditions = (locationFilter as { OR: Array<Record<string, unknown>> }).OR;
+      const locationIds = (orConditions[0].locationId as { in: string[] }).in;
+      const locationNames = (orConditions[1].transferTo as { in: string[] }).in;
+      const hasAccess = locationIds.includes(device.locationId || '') || locationNames.includes(device.transferTo || '');
+      if (!hasAccess) return res.status(404).json({ error: 'Device not found' });
+    }
+
     res.json(mapDevice(device));
   } catch (err) {
     console.error('Get device error:', err);

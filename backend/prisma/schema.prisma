@@ -48,6 +48,7 @@ model User {
   transferAttachmentsCreated  TransferAttachment[]  @relation("TransferAttachCreatedBy")
   transferAttachmentsUpdated  TransferAttachment[]  @relation("TransferAttachUpdatedBy")
   auditLogs                   AuditLog[]
+  assignedLocations           UserLocation[]
 
   @@map("users")
 }
@@ -88,8 +89,21 @@ model Location {
   updatedById String?  @map("updated_by")
   updatedBy   User?    @relation("LocationUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   devices     Device[]
+  assignedUsers UserLocation[]
 
   @@map("locations")
+}
+
+model UserLocation {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  locationId String   @map("location_id")
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, locationId])
+  @@map("user_locations")
 }
 
 model Device {

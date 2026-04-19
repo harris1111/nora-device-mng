@@ -87,6 +87,7 @@ export default function UsersListPage() {
               <tr className="border-b border-slate-200 bg-slate-50/60">
                 <th className="text-left px-5 py-3 font-semibold text-slate-600">Tài khoản</th>
                 <th className="text-left px-5 py-3 font-semibold text-slate-600">Vai trò</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-600">Đơn vị</th>
                 <th className="text-left px-5 py-3 font-semibold text-slate-600">Trạng thái</th>
                 <th className="text-left px-5 py-3 font-semibold text-slate-600">Ngày tạo</th>
                 <th className="text-right px-5 py-3 font-semibold text-slate-600">Thao tác</th>
@@ -97,6 +98,11 @@ export default function UsersListPage() {
                 <tr key={u.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
                   <td className="px-5 py-3 font-medium text-slate-800">{u.username}</td>
                   <td className="px-5 py-3"><span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${roleBadge[u.role] || ''}`}>{roleLabel[u.role] || u.role}</span></td>
+                  <td className="px-5 py-3 text-slate-500 text-xs">
+                    {u.assigned_locations && u.assigned_locations.length > 0
+                      ? u.assigned_locations.map(l => l.name).join(', ')
+                      : u.role === 'SADMIN' ? <span className="text-slate-300 italic">Tất cả</span> : <span className="text-slate-300 italic">Chưa gán</span>}
+                  </td>
                   <td className="px-5 py-3"><span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadge[u.status] || ''}`}>{u.status === 'ACTIVE' ? 'Hoạt động' : 'Đã khóa'}</span></td>
                   <td className="px-5 py-3 text-slate-500">{new Date(u.created_at).toLocaleDateString('vi-VN')}</td>
                   <td className="px-5 py-3 text-right">
@@ -126,7 +132,7 @@ export default function UsersListPage() {
                 </tr>
               ))}
               {users.length === 0 && (
-                <tr><td colSpan={5} className="px-5 py-8 text-center text-slate-400">Không có tài khoản nào</td></tr>
+                <tr><td colSpan={6} className="px-5 py-8 text-center text-slate-400">Không có tài khoản nào</td></tr>
               )}
             </tbody>
           </table>

@@ -1,6 +1,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { createUser, getUser, updateUser } from '../api/user-api';
+import { createUser, getUser, updateUser, getUserLocations, updateUserLocations } from '../api/user-api';
+import { getLocations, Location } from '../api/device-api';
 import { useAuth } from '../context/auth-context';
 
 export default function UserFormPage() {
@@ -13,21 +14,43 @@ export default function UserFormPage() {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('USER');
   const [loading, setLoading] = useState(false);
-  const [fetchLoading, setFetchLoading] = useState(isEdit);
+  const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Location assignment state
+  const [allLocations, setAllLocations] = useState<Location[]>([]);
+  const [selectedLocationIds, setSelectedLocationIds] = useState<string[]>([]);
 
   const roleOptions = currentUser?.role === 'SADMIN'
     ? [{ value: 'ADMIN', label: 'Admin' }, { value: 'USER', label: 'User' }]
     : [{ value: 'USER', label: 'User' }];
 
   useEffect(() => {
-    if (isEdit && id) {
-      getUser(id)
-        .then(u => { setUsername(u.username); setRole(u.role); })
-        .catch(() => navigate('/users'))
-        .finally(() => setFetchLoading(false));
-    }
+    const loadData = async () => {
+      try {
+        const locs = await getLocations();
+        setAllLocations(locs);
+
+        if (isEdit && id) {
+          const [u, userLocs] = await Promise.all([getUser(id), getUserLocations(id)]);
+          setUsername(u.username);
+          setRole(u.role);
+          setSelectedLocationIds(userLocs.map(l => l.id));
+        }
+      } catch {
+        if (isEdit) navigate('/users');
+      } finally {
+        setFetchLoading(false);
+      }
+    };
+    loadData();
   }, [id, isEdit, navigate]);
+
+  const toggleLocation = (locId: string) => {
+    setSelectedLocationIds(prev =>
+      prev.includes(locId) ? prev.filter(id => id !== locId) : [...prev, locId]
+    );
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -39,8 +62,10 @@ export default function UserFormPage() {
     try {
       if (isEdit && id) {
         await updateUser(id, { username });
+        await updateUserLocations(id, selectedLocationIds);
       } else {
-        await createUser({ username, password, role });
+        const newUser = await createUser({ username, password, role });
+        await updateUserLocations(newUser.id, selectedLocationIds);
       }
       navigate('/users');
     } catch (err: unknown) {
@@ -80,6 +105,34 @@ export default function UserFormPage() {
             </div>
           </>
         )}
+
+        {/* Location assignment section */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            Đơn vị được phân quyền
+            <span className="text-slate-400 font-normal ml-1">(hiển thị thiết bị theo đơn vị)</span>
+          </label>
+          {allLocations.length === 0 ? (
+            <p className="text-sm text-slate-400 italic">Chưa có đơn vị nào</p>
+          ) : (
+            <div className="border border-slate-200 rounded-xl p-3 max-h-48 overflow-y-auto space-y-2">
+              {allLocations.map(loc => (
+                <label key={loc.id} className="flex items-center gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={selectedLocationIds.includes(loc.id)}
+                    onChange={() => toggleLocation(loc.id)}
+                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-sm text-slate-700 group-hover:text-indigo-600 transition-colors">{loc.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          {selectedLocationIds.length === 0 && (
+            <p className="text-xs text-amber-600 mt-1">Chưa chọn đơn vị — tài khoản sẽ không thấy thiết bị nào (trừ SADMIN/Admin)</p>
+          )}
+        </div>
 
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" onClick={() => navigate('/users')} className="px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">Hủy</button>
