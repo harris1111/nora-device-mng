@@ -122,6 +122,10 @@ export const maintenanceAttachmentUrl = (id: string): string => `/api/maintenanc
 
 // Location API
 export const getLocations = (): Promise<Location[]> => api.get('/locations').then(r => r.data);
+
+// Export API
+export const exportDevicesExcel = (deviceIds: string[]): Promise<Blob> =>
+  api.post('/devices/export/excel', { device_ids: deviceIds }, { responseType: 'blob' }).then(r => r.data);
 export const createLocation = (data: { name: string }): Promise<Location> => api.post('/locations', data).then(r => r.data);
 export const updateLocationApi = (id: string, data: { name: string }) => api.put(`/locations/${id}`, data).then(r => r.data);
 export const deleteLocationApi = (id: string) => api.delete(`/locations/${id}`);

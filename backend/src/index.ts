@@ -19,6 +19,7 @@ import transferRoutes from './routes/transfer-routes.js';
 import userRoutes from './routes/user-routes.js';
 import permissionRoutes from './routes/permission-routes.js';
 import auditLogRoutes from './routes/audit-log-routes.js';
+import exportRoutes from './routes/export-routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Load root .env for S3 vars (without overriding backend/.env values like DATABASE_URL)
@@ -54,6 +55,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/public', publicRoutes);
 
 // Protected routes — require authentication
+app.use('/api/devices/export', requireAuth, exportRoutes);
 app.use('/api/devices', requireAuth, deviceRoutes);
 app.use('/api/locations', requireAuth, locationRoutes);
 app.use('/api', requireAuth, attachmentRoutes);

@@ -13,6 +13,7 @@ import UsersListPage from './pages/users-list-page';
 import UserFormPage from './pages/user-form-page';
 import PermissionDashboardPage from './pages/permission-dashboard-page';
 import AuditLogPage from './pages/audit-log-page';
+import ExcelExportPage from './pages/excel-export-page';
 
 function AdminLayout() {
   return (
@@ -43,6 +44,7 @@ export default function App() {
               <Route path="/users/:id/edit" element={<UserFormPage />} />
               <Route path="/permissions" element={<PermissionDashboardPage />} />
               <Route path="/audit-logs" element={<AuditLogPage />} />
+              <Route path="/export" element={<ExcelExportPage />} />
             </Route>
           </Route>
         </Routes>
