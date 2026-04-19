@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { getUsers, updateUserStatus, deleteUser, type UserItem } from '../api/user-api';
 import { useAuth } from '../context/auth-context';
 import { useCan } from '../hooks/use-permission';
-import ConfirmDialog from '../components/confirm-dialog';
-import ResetPasswordModal from '../components/reset-password-modal';
+import ConfirmDialog from '../components/ui/confirm-dialog';
+import ResetPasswordModal from '../components/auth/reset-password-modal';
 
 const roleBadge: Record<string, string> = {
   SADMIN: 'bg-purple-100 text-purple-700',

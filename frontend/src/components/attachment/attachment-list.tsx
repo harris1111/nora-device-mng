@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { attachmentFileUrl, maintenanceAttachmentUrl, Attachment, MaintenanceAttachmentItem, TransferAttachmentItem } from '../api/device-api';
+import { attachmentFileUrl, maintenanceAttachmentUrl, Attachment, MaintenanceAttachmentItem, TransferAttachmentItem } from '../../api/device-api';
 import PdfViewerModal from './pdf-viewer-modal';
 
 type AnyAttachment = Attachment | MaintenanceAttachmentItem | TransferAttachmentItem;

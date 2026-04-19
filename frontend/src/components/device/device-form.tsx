@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getLocations, Device, Location, attachmentFileUrl } from '../api/device-api';
-import FormTextInput from './form-text-input';
+import { getLocations, Device, Location, attachmentFileUrl } from '../../api/device-api';
+import FormTextInput from '../ui/form-text-input';
 import { DEVICE_TYPES, STATUS_BY_TYPE } from './device-constants';
 
 interface Props {

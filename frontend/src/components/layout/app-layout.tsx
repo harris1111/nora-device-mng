@@ -1,7 +1,7 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/auth-context';
-import { useCan } from '../hooks/use-permission';
+import { useAuth } from '../../context/auth-context';
+import { useCan } from '../../hooks/use-permission';
 
 interface Props {
   children: ReactNode;

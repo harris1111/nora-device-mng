@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getDevice, deleteDevice, getAttachments, uploadAttachments, deleteAttachment, setAttachmentPrimary, attachmentFileUrl, getMaintenanceRecords, uploadTransferAttachments, deleteTransferAttachment, Device, Attachment, MaintenanceRecord } from '../api/device-api';
-import QrcodeDisplay from '../components/qrcode-display';
-import PrintQrcodeButton from '../components/print-qrcode-button';
-import DeviceStatusBadge from '../components/device-status-badge';
-import AttachmentList from '../components/attachment-list';
-import MaintenanceHistory from '../components/maintenance-history';
-import TransferInfoSection from '../components/transfer-info-section';
-import { getTypeName } from '../components/device-constants';
+import QrcodeDisplay from '../components/qrcode/qrcode-display';
+import PrintQrcodeButton from '../components/qrcode/print-qrcode-button';
+import DeviceStatusBadge from '../components/device/device-status-badge';
+import AttachmentList from '../components/attachment/attachment-list';
+import MaintenanceHistory from '../components/maintenance/maintenance-history';
+import TransferInfoSection from '../components/transfer/transfer-info-section';
+import { getTypeName } from '../components/device/device-constants';
 
 export default function DeviceDetailPage() {
   const { id } = useParams();

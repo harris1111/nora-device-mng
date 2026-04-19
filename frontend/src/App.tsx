@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from './context/auth-context';
-import ProtectedRoute from './components/protected-route';
-import AppLayout from './components/app-layout';
+import ProtectedRoute from './components/auth/protected-route';
+import AppLayout from './components/layout/app-layout';
 import LoginPage from './pages/login-page';
 import DeviceListPage from './pages/device-list-page';
 import DeviceCreatePage from './pages/device-create-page';

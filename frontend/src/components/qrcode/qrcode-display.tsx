@@ -1,4 +1,4 @@
-import { deviceQrcodeUrl } from '../api/device-api';
+import { deviceQrcodeUrl } from '../../api/device-api';
 
 interface Props {
   deviceId: string;

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { attachmentFileUrl, Device } from '../api/device-api';
+import { attachmentFileUrl, Device } from '../../api/device-api';
 import DeviceStatusBadge from './device-status-badge';
 import { getTypeName } from './device-constants';
 
