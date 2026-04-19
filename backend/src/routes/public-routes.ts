@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import prisma from '../lib/prisma-client.js';
+import { downloadFile } from '../lib/s3-client.js';
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -95,6 +96,60 @@ router.get('/device/:id', async (req: Request, res: Response) => {
     res.json(result);
   } catch (err: unknown) {
     console.error('Public device error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/public/attachments/:id/file — stream attachment file (read-only, no auth)
+router.get('/attachments/:id/file', async (req: Request, res: Response) => {
+  try {
+    const attachment = await prisma.attachment.findUnique({ where: { id: req.params.id as string } });
+    if (!attachment) return res.status(404).json({ error: 'Attachment not found' });
+
+    const { stream, contentType } = await downloadFile(attachment.fileKey);
+    res.set('Content-Type', attachment.fileType || contentType);
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Content-Disposition', `inline; filename="${attachment.fileName}"`);
+    res.set('Cache-Control', 'public, max-age=3600');
+    stream.pipe(res);
+  } catch (err: unknown) {
+    console.error('Public attachment download error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/public/transfer-attachments/:id/file — stream transfer attachment file (read-only, no auth)
+router.get('/transfer-attachments/:id/file', async (req: Request, res: Response) => {
+  try {
+    const attachment = await prisma.transferAttachment.findUnique({ where: { id: req.params.id as string } });
+    if (!attachment) return res.status(404).json({ error: 'Attachment not found' });
+
+    const { stream, contentType } = await downloadFile(attachment.fileKey);
+    res.set('Content-Type', attachment.fileType || contentType);
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Content-Disposition', `inline; filename="${attachment.fileName}"`);
+    res.set('Cache-Control', 'public, max-age=3600');
+    stream.pipe(res);
+  } catch (err: unknown) {
+    console.error('Public transfer attachment download error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/public/maintenance-attachments/:id/file — stream maintenance attachment file (read-only, no auth)
+router.get('/maintenance-attachments/:id/file', async (req: Request, res: Response) => {
+  try {
+    const attachment = await prisma.maintenanceAttachment.findUnique({ where: { id: req.params.id as string } });
+    if (!attachment) return res.status(404).json({ error: 'Attachment not found' });
+
+    const { stream, contentType } = await downloadFile(attachment.fileKey);
+    res.set('Content-Type', attachment.fileType || contentType);
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Content-Disposition', `inline; filename="${attachment.fileName}"`);
+    res.set('Cache-Control', 'public, max-age=3600');
+    stream.pipe(res);
+  } catch (err: unknown) {
+    console.error('Public maintenance attachment download error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

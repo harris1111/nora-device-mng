@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getDevice, updateDevice, getAttachments, Device } from '../api/device-api';
-import DeviceForm from '../components/device-form';
+import DeviceForm from '../components/device/device-form';
 
 export default function DeviceEditPage() {
   const { id } = useParams();

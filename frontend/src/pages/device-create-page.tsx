@@ -1,6 +1,6 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { createDevice } from '../api/device-api';
-import DeviceForm from '../components/device-form';
+import DeviceForm from '../components/device/device-form';
 
 export default function DeviceCreatePage() {
   const navigate = useNavigate();

@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { useCan } from '../hooks/use-permission';
+import { useCan } from '../../hooks/use-permission';
 
 interface Props {
   module: string;

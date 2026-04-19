@@ -1,5 +1,7 @@
-import { TransferRecordItem, transferAttachmentFileUrl } from '../api/device-api';
-import AttachmentList from './attachment-list';
+import { TransferRecordItem, transferAttachmentFileUrl, TransferAttachmentItem } from '../../api/device-api';
+import AttachmentList from '../attachment/attachment-list';
+
+type AnyAttachment = TransferAttachmentItem;
 
 interface Props {
   transfer: TransferRecordItem | null | undefined;
@@ -7,9 +9,10 @@ interface Props {
   onDeleteAttachment?: (id: string) => void;
   uploading?: boolean;
   compact?: boolean;
+  fileUrlResolver?: (attachment: AnyAttachment) => string;
 }
 
-export default function TransferInfoSection({ transfer, onUpload, onDeleteAttachment, uploading, compact = false }: Props) {
+export default function TransferInfoSection({ transfer, onUpload, onDeleteAttachment, uploading, compact = false, fileUrlResolver }: Props) {
   const attachments = transfer?.attachments || [];
   const summaryItems = [
     { label: 'Chuyển giao cho', value: transfer?.owned_by || null },
@@ -55,7 +58,7 @@ export default function TransferInfoSection({ transfer, onUpload, onDeleteAttach
         uploading={uploading}
         maxFiles={5}
         allowUpload={Boolean(onUpload)}
-        fileUrlResolver={(attachment) => transferAttachmentFileUrl(attachment.id)}
+        fileUrlResolver={fileUrlResolver || ((attachment) => transferAttachmentFileUrl(attachment.id))}
         emptyText="Chưa có tệp chuyển giao"
         uploadButtonLabel="Đính kèm tệp chuyển giao"
       />

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { createMaintenanceRecord, deleteMaintenanceRecord, updateMaintenanceRecord, MaintenanceRecord, MaintenanceAttachmentItem, maintenanceAttachmentUrl } from '../api/device-api';
-import PdfViewerModal from './pdf-viewer-modal';
+import { createMaintenanceRecord, deleteMaintenanceRecord, updateMaintenanceRecord, MaintenanceRecord, MaintenanceAttachmentItem, maintenanceAttachmentUrl } from '../../api/device-api';
+import PdfViewerModal from '../attachment/pdf-viewer-modal';
 
 interface FormState {
   date: string;

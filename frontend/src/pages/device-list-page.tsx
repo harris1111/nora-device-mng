@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getDevices, Device } from '../api/device-api';
-import DeviceCard from '../components/device-card';
-import DeviceListRow from '../components/device-list-row';
-import ViewToggle from '../components/view-toggle';
-import { DEVICE_TYPES, STATUS_BY_TYPE, ALL_STATUSES } from '../components/device-constants';
+import DeviceCard from '../components/device/device-card';
+import DeviceListRow from '../components/device/device-list-row';
+import ViewToggle from '../components/ui/view-toggle';
+import { DEVICE_TYPES, STATUS_BY_TYPE, ALL_STATUSES } from '../components/device/device-constants';
 
 export default function DeviceListPage() {
   const [devices, setDevices] = useState<Device[]>([]);

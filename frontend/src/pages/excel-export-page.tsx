@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getDevices, exportDevicesExcel, Device } from '../api/device-api';
-import { DEVICE_TYPES, ALL_STATUSES, TYPE_LABELS, getStatusInfo, getTypeName } from '../components/device-constants';
+import { DEVICE_TYPES, ALL_STATUSES, TYPE_LABELS, getStatusInfo, getTypeName } from '../components/device/device-constants';
 
 export default function ExcelExportPage() {
   const [devices, setDevices] = useState<Device[]>([]);

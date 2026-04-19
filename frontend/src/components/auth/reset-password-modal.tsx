@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { resetUserPassword } from '../api/user-api';
+import { resetUserPassword } from '../../api/user-api';
 
 interface Props {
   isOpen: boolean;
