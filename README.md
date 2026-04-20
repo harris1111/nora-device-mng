@@ -60,10 +60,10 @@ BASE_URL=https://devices.example.com docker compose up --build -d
 
 ```bash
 # Backend
-cd backend && pnpm install && pnpm run dev   # tsx watch on :3000
+cd backend && pnpm install && pnpm run dev   # tsx watch on the PORT from .env (13000 in this repo)
 
 # Frontend (separate terminal)
-cd frontend && pnpm install && pnpm run dev  # Vite on :5173, proxies to :3000
+cd frontend && pnpm install && pnpm run dev  # Vite on :5173, proxies /api to VITE_API_PROXY_TARGET or http://localhost:13000
 
 # Type checking
 cd backend && pnpm run build                 # tsc --noEmit

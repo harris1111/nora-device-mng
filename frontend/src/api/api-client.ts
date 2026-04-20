@@ -5,7 +5,10 @@ const api = axios.create({ baseURL: '/api', withCredentials: true });
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 && !window.location.pathname.startsWith('/login')) {
+    const requestUrl = String(err.config?.url || '');
+    const isAuthProbe = requestUrl === '/auth/me' || requestUrl.endsWith('/auth/me');
+
+    if (err.response?.status === 401 && !isAuthProbe && !window.location.pathname.startsWith('/login')) {
       window.location.href = '/login';
     }
     return Promise.reject(err);
