@@ -5,6 +5,11 @@ services:
       POSTGRES_USER: nora
       POSTGRES_PASSWORD: nora
       POSTGRES_DB: nora_devices
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nora -d nora_devices"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
     volumes:
       - pg-data:/var/lib/postgresql/data
     ports:
@@ -20,13 +25,18 @@ services:
       - PORT=3000
       - BASE_URL=${BASE_URL:-http://localhost:13000}
       - DATABASE_URL=postgresql://nora:nora@postgres:5432/nora_devices
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET_required}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
+      - SADMIN_USERNAME=${SADMIN_USERNAME:?SADMIN_USERNAME_required}
+      - SADMIN_PASSWORD=${SADMIN_PASSWORD:?SADMIN_PASSWORD_required}
       - S3_ENDPOINT=${S3_ENDPOINT}
       - S3_ACCESS_KEY=${S3_ACCESS_KEY}
       - S3_SECRET_KEY=${S3_SECRET_KEY}
       - S3_BUCKET=${S3_BUCKET:-nora-devices}
       - S3_REGION=${S3_REGION:-us-east-1}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

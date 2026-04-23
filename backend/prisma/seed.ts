@@ -66,10 +66,22 @@ async function seed(): Promise<void> {
     { storeId: 'TS-002', name: 'Máy in HP LaserJet Pro', type: 'tai_san', manufacturer: 'HP', model: 'LaserJet Pro M404dn', serialNumber: 'SN-HP-001', locationId: locations[1].id, ownedBy: 'Phòng Kế toán' },
     { storeId: 'CC-001', name: 'Bàn phím Logitech K380', type: 'cong_cu_dung_cu', manufacturer: 'Logitech', model: 'K380', locationId: locations[0].id, ownedBy: 'Phòng IT' },
   ];
+  let createdCount = 0;
+  let updatedCount = 0;
   for (const d of devices) {
-    await prisma.device.upsert({ where: { id: d.storeId }, update: {}, create: { ...d, status: 'active' } });
+    const updated = await prisma.device.updateMany({
+      where: { storeId: d.storeId },
+      data: { ...d, status: 'active' },
+    });
+
+    if (updated.count === 0) {
+      await prisma.device.create({ data: { ...d, status: 'active' } });
+      createdCount += 1;
+    } else {
+      updatedCount += updated.count;
+    }
   }
-  console.log(`Created ${devices.length} devices`);
+  console.log(`Seeded devices (${createdCount} created, ${updatedCount} updated)`);
   console.log('Seed completed!');
 }
 
