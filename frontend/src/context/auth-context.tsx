@@ -20,11 +20,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (window.location.pathname.startsWith('/public/device/')) {
-      setIsLoading(false);
-      return;
-    }
-
     getMeApi()
       .then(({ user, permissions }) => {
         setUser(user);

@@ -1,14 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { getPublicDevice, publicAttachmentFileUrl, publicTransferAttachmentFileUrl, publicMaintenanceAttachmentFileUrl, PublicDevice } from '../api/device-api';
 import { getTypeName, getStatusInfo } from '../components/device/device-constants';
 import AttachmentList from '../components/attachment/attachment-list';
 import TransferInfoSection from '../components/transfer/transfer-info-section';
+import LoginModal from '../components/auth/login-modal';
+import { useAuth } from '../context/auth-context';
+import { useCan } from '../hooks/use-permission';
 
 export default function PublicDevicePage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const canEdit = useCan('devices', 'update');
   const [device, setDevice] = useState<PublicDevice | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loginOpen, setLoginOpen] = useState(true);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
 
   useEffect(() => {
     getPublicDevice(id)
@@ -16,13 +24,31 @@ export default function PublicDevicePage() {
       .catch(() => setError('Không tìm thấy thiết bị'));
   }, [id]);
 
+  // Auto-redirect authenticated users with edit permission to the edit page.
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && canEdit && id) {
+      navigate(`/devices/${id}/edit`, { replace: true });
+    }
+  }, [authLoading, isAuthenticated, canEdit, id, navigate]);
+
+  // After a login attempt inside the modal, react to the new auth state.
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      if (canEdit) {
+        setLoginOpen(false);
+      } else {
+        setPermissionError('Tài khoản không có quyền chỉnh sửa thiết bị');
+      }
+    }
+  }, [authLoading, isAuthenticated, canEdit]);
+
   if (error) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <p className="text-red-500 text-xl">{error}</p>
     </div>
   );
 
-  if (!device) return (
+  if (!device || authLoading || (isAuthenticated && canEdit)) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <p className="text-gray-500">Đang tải...</p>
     </div>
@@ -33,6 +59,7 @@ export default function PublicDevicePage() {
   const primaryUrl = primaryImage ? publicAttachmentFileUrl(primaryImage.id) : null;
 
   return (
+    <>
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
         {/* Header */}
@@ -140,5 +167,11 @@ export default function PublicDevicePage() {
         </p>
       </div>
     </div>
+    <LoginModal
+      open={loginOpen}
+      onClose={() => { setLoginOpen(false); setPermissionError(null); }}
+      extraError={permissionError}
+    />
+    </>
   );
 }
