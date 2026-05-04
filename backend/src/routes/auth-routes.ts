@@ -48,12 +48,17 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     const token = signToken({ userId: user.id, role: user.role });
-    const isProduction = process.env.NODE_ENV === 'production';
+    // Only mark cookie as Secure when the request actually arrived over HTTPS
+    // (covers `req.secure` and reverse-proxy `X-Forwarded-Proto: https`).
+    // Using NODE_ENV=production alone breaks plain-HTTP LAN access (e.g. http://192.168.x.x:3000)
+    // because browsers silently drop Secure cookies on non-HTTPS origins (except localhost).
+    const forwardedProto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0]?.trim();
+    const isHttps = req.secure || forwardedProto === 'https';
 
     res.cookie('token', token, {
       httpOnly: true,
-      sameSite: 'strict',
-      secure: isProduction,
+      sameSite: 'lax',
+      secure: isHttps,
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });

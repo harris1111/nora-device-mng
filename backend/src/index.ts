@@ -34,12 +34,19 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust the first hop reverse proxy so req.secure / req.ip honor X-Forwarded-* headers.
+// Required for correctly detecting HTTPS when terminated upstream (and for accurate cookie Secure flag).
+app.set('trust proxy', 1);
+
 // Validate S3 config on startup
 validateS3Config();
 
-// CORS with credentials for cookie auth
+// CORS with credentials for cookie auth.
+// Reflect the request origin when credentials are used so the app works from any host
+// (e.g. http://localhost:13000, http://192.168.3.139:3000, or a custom domain) without
+// requiring BASE_URL to be set per-deployment.
 app.use(cors({
-  origin: process.env.BASE_URL || 'http://localhost:3000',
+  origin: true,
   credentials: true,
 }));
 app.use(express.json({ limit: '100kb' }));
