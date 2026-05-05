@@ -5,6 +5,8 @@ import { useAuth } from '../context/auth-context';
 import { useCan } from '../hooks/use-permission';
 import ConfirmDialog from '../components/ui/confirm-dialog';
 import ResetPasswordModal from '../components/auth/reset-password-modal';
+import EmptyState from '../components/ui/empty-state';
+import ErrorState from '../components/ui/error-state';
 
 const roleBadge: Record<string, string> = {
   SADMIN: 'bg-purple-100 text-purple-700',
@@ -25,13 +27,22 @@ export default function UsersListPage() {
 
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const [confirmDialog, setConfirmDialog] = useState<{ type: 'delete' | 'status'; user: UserItem } | null>(null);
   const [resetModal, setResetModal] = useState<UserItem | null>(null);
 
   const fetchUsers = useCallback(async () => {
-    try { setUsers(await getUsers()); } catch { /* handled by interceptor */ } finally { setLoading(false); }
+    setLoading(true);
+    setError(null);
+    try {
+      setUsers(await getUsers());
+    } catch {
+      setError('Không thể tải danh sách tài khoản');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
@@ -80,6 +91,23 @@ export default function UsersListPage() {
         )}
       </div>
 
+      {error && (
+        <div className="mb-6">
+          <ErrorState message={error} onRetry={fetchUsers} />
+        </div>
+      )}
+
+      {!error && users.length === 0 ? (
+        <EmptyState
+          icon={
+            <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5.13a4 4 0 11-8 0 4 4 0 018 0zm6 3a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          }
+          title="Chưa có tài khoản nào"
+          description={canCreate ? 'Nhấn nút “Thêm tài khoản” ở góc phải để tạo tài khoản đầu tiên.' : undefined}
+        />
+      ) : !error && (
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -131,13 +159,11 @@ export default function UsersListPage() {
                   </td>
                 </tr>
               ))}
-              {users.length === 0 && (
-                <tr><td colSpan={6} className="px-5 py-8 text-center text-slate-400">Không có tài khoản nào</td></tr>
-              )}
             </tbody>
           </table>
         </div>
       </div>
+      )}
 
       {confirmDialog?.type === 'delete' && (
         <ConfirmDialog

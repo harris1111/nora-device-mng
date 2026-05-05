@@ -79,8 +79,29 @@ export interface PublicDevice extends Device {
   maintenance_records: MaintenanceRecord[];
 }
 
+// Device list pagination
+export interface DeviceListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  type?: string;
+  status?: string;
+  location_id?: string;
+  date_from?: string;
+  date_to?: string;
+}
+
+export interface PaginatedDevices {
+  items: Device[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
 // Device API
-export const getDevices = (params?: Record<string, string>): Promise<Device[]> => api.get('/devices', { params }).then(r => r.data);
+export const getDevices = (params?: DeviceListParams): Promise<PaginatedDevices> =>
+  api.get('/devices', { params }).then(r => r.data);
 export const getDevice = (id: string | undefined): Promise<Device> => api.get(`/devices/${id}`).then(r => r.data);
 export const createDevice = (formData: FormData): Promise<Device> => api.post('/devices', formData).then(r => r.data);
 export const updateDevice = (id: string | undefined, formData: FormData): Promise<Device> => api.put(`/devices/${id}`, formData).then(r => r.data);
@@ -145,6 +166,8 @@ export const getLocations = (): Promise<Location[]> => api.get('/locations').the
 // Export API
 export const exportDevicesExcel = (deviceIds: string[]): Promise<Blob> =>
   api.post('/devices/export/excel', { device_ids: deviceIds }, { responseType: 'blob' }).then(r => r.data);
+export const exportDevicesExcelFiltered = (params?: DeviceListParams): Promise<Blob> =>
+  api.get('/devices/export/excel', { params, responseType: 'blob' }).then(r => r.data);
 export const createLocation = (data: { name: string }): Promise<Location> => api.post('/locations', data).then(r => r.data);
 export const updateLocationApi = (id: string, data: { name: string }) => api.put(`/locations/${id}`, data).then(r => r.data);
 export const deleteLocationApi = (id: string) => api.delete(`/locations/${id}`);

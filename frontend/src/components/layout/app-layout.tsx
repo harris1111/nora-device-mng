@@ -120,10 +120,22 @@ export default function AppLayout({ children }: Props) {
           </div>
           <span className="font-bold text-slate-800 tracking-tight text-lg">BWP<span className="text-indigo-600">Dev</span></span>
         </div>
-        <button 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 -mr-2 text-slate-600 hover:text-indigo-600 transition-colors focus:outline-none"
-        >
+        <div className="flex items-center gap-1">
+          {canCreateDevices && (
+            <Link
+              to="/devices/new"
+              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors focus:outline-none"
+              title="Thêm thiết bị mới"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </Link>
+          )}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 -mr-2 text-slate-600 hover:text-indigo-600 transition-colors focus:outline-none"
+          >
           {isMobileMenuOpen ? (
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -133,7 +145,8 @@ export default function AppLayout({ children }: Props) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           )}
-        </button>
+          </button>
+        </div>
       </header>
 
       {/* Mobile Slide-out Menu Overlay */}

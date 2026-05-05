@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getLocations, createLocation, updateLocationApi, deleteLocationApi, Location } from '../api/device-api';
+import EmptyState from '../components/ui/empty-state';
+import ErrorState from '../components/ui/error-state';
 
 export default function LocationListPage() {
   const [locations, setLocations] = useState<Location[]>([]);
@@ -83,9 +85,8 @@ export default function LocationListPage() {
       </div>
 
       {error && (
-        <div className="p-4 mb-6 bg-red-50 text-red-600 rounded-xl border border-red-100 flex items-center gap-2">
-           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          {error}
+        <div className="mb-6">
+          <ErrorState message={error} />
         </div>
       )}
 
@@ -124,16 +125,17 @@ export default function LocationListPage() {
              <div className="h-4 bg-slate-200 rounded w-full"></div>
            </div>
         ) : locations.length === 0 ? (
-          <div className="text-center py-16 flex flex-col items-center">
-            <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mb-4">
-               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-               </svg>
-            </div>
-            <p className="text-lg font-semibold text-slate-700">Chưa có đơn vị nào</p>
-            <p className="mt-2 text-slate-500 text-sm">Thêm đơn vị đầu tiên ở biểu mẫu bên trên.</p>
-          </div>
+          <EmptyState
+            variant="subtle"
+            icon={
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            }
+            title="Chưa có đơn vị nào"
+            description="Thêm đơn vị đầu tiên ở biểu mẫu bên trên."
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">

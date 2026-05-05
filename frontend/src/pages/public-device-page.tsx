@@ -15,7 +15,7 @@ export default function PublicDevicePage() {
   const canEdit = useCan('devices', 'update');
   const [device, setDevice] = useState<PublicDevice | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loginOpen, setLoginOpen] = useState(true);
+  const [loginOpen, setLoginOpen] = useState(false);
   const [permissionError, setPermissionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -160,6 +160,23 @@ export default function PublicDevicePage() {
             </div>
           </div>
         )}
+
+        {/* Edit CTA */}
+        <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-indigo-900">Bạn là quản trị viên?</p>
+            <p className="text-xs text-indigo-600 mt-0.5">Đăng nhập để chỉnh sửa thông tin thiết bị này</p>
+          </div>
+          <button
+            onClick={() => { setPermissionError(null); setLoginOpen(true); }}
+            className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 active:bg-indigo-800 transition-colors shadow-sm shadow-indigo-200"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+            </svg>
+            Đăng nhập
+          </button>
+        </div>
 
         {/* Footer */}
         <p className="text-center text-xs text-slate-400 pb-4">

@@ -173,31 +173,99 @@ router.post('/bulk-edit', requirePermission('devices', 'update'), async (req: Re
   }
 });
 
-// GET /api/devices — list all devices
+// Helper: build the Prisma where clause from list query params
+async function buildDeviceListWhere(req: Request): Promise<Record<string, unknown>> {
+  const {
+    type,
+    status,
+    search,
+    location_id,
+    date_from,
+    date_to,
+  } = req.query as {
+    type?: string;
+    status?: string;
+    search?: string;
+    location_id?: string;
+    date_from?: string;
+    date_to?: string;
+  };
+
+  const where: Record<string, unknown> = {};
+  const andClauses: Record<string, unknown>[] = [];
+
+  if (type) where.type = type;
+  if (status) where.status = status;
+  if (location_id) where.locationId = location_id;
+
+  if (search && search.trim()) {
+    const q = search.trim();
+    andClauses.push({
+      OR: [
+        { name: { contains: q, mode: 'insensitive' } },
+        { storeId: { contains: q, mode: 'insensitive' } },
+        { serialNumber: { contains: q, mode: 'insensitive' } },
+        { manufacturer: { contains: q, mode: 'insensitive' } },
+        { model: { contains: q, mode: 'insensitive' } },
+        { ownedBy: { contains: q, mode: 'insensitive' } },
+      ],
+    });
+  }
+
+  if (date_from || date_to) {
+    const createdAt: Record<string, Date> = {};
+    if (date_from) createdAt.gte = new Date(date_from);
+    if (date_to) {
+      const to = new Date(date_to);
+      to.setHours(23, 59, 59, 999);
+      createdAt.lte = to;
+    }
+    andClauses.push({ createdAt });
+  }
+
+  // RBAC: filter by user's assigned locations for USER role
+  const locationFilter = await getUserLocationFilter(req);
+  if (locationFilter) andClauses.push(locationFilter);
+
+  if (andClauses.length > 0) where.AND = andClauses;
+  return where;
+}
+
+// GET /api/devices — paginated list of devices
 router.get('/', requirePermission('devices', 'view'), async (req: Request, res: Response) => {
   try {
-    const { type, status } = req.query as { type?: string; status?: string };
-    const where: Record<string, unknown> = {};
-    if (type) where.type = type;
-    if (status) where.status = status;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const skip = (page - 1) * limit;
 
-    // Filter by user's assigned locations for USER role
-    const locationFilter = await getUserLocationFilter(req);
-    if (locationFilter) {
-      where.AND = [locationFilter];
-    }
+    const where = await buildDeviceListWhere(req);
 
-    const devices = await prisma.device.findMany({
-      where,
-      include: listDeviceIncludes,
-      orderBy: { createdAt: 'desc' },
+    const [devices, total] = await Promise.all([
+      prisma.device.findMany({
+        where,
+        include: listDeviceIncludes,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.device.count({ where }),
+    ]);
+
+    res.json({
+      items: devices.map(mapDevice),
+      total,
+      page,
+      limit,
+      pages: Math.max(1, Math.ceil(total / limit)),
     });
-    res.json(devices.map(mapDevice));
   } catch (err) {
     console.error('List devices error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// Export the where-builder so the export route can reuse identical filter semantics
+export { buildDeviceListWhere };
 
 // GET /api/devices/:id — get device detail
 router.get('/:id', requirePermission('devices', 'view'), async (req: Request, res: Response) => {

@@ -14,8 +14,10 @@ export default function ExcelExportPage() {
   const [filters, setFilters] = useState<DeviceFilters>({ ...EMPTY_FILTERS });
 
   useEffect(() => {
-    getDevices()
-      .then(setDevices)
+    // The export page applies its own client-side filtering, so fetch up to the max page size.
+    // Note: backend caps export at 500 devices, so this remains within bounds.
+    getDevices({ page: 1, limit: 100 })
+      .then((res) => setDevices(res.items))
       .catch(() => setError('Không thể tải danh sách thiết bị'))
       .finally(() => setLoading(false));
   }, []);
