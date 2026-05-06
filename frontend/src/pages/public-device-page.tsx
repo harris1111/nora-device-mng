@@ -133,7 +133,7 @@ export default function PublicDevicePage() {
         {/* Maintenance timeline (read only, tai_san only) */}
         {device.maintenance_records?.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-4">Lịch sử bảo trì</h2>
+            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-4">Lịch sử sửa chữa</h2>
             <div className="space-y-0">
               {device.maintenance_records.map((r, i) => (
                 <div key={r.id} className="relative pl-7 pb-4 last:pb-0">

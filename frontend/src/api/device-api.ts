@@ -21,6 +21,7 @@ export interface Device {
   loss_date: string | null;
   warranty_value: number | null;
   warranty_unit: 'month' | 'year' | null;
+  maintenance_status?: 'in_use' | 'needs_maintenance';
   primary_attachment_id: string | null;
   created_at: string;
 }
@@ -165,6 +166,95 @@ export const maintenanceAttachmentUrl = (id: string): string => `/api/maintenanc
 
 // Distinct transfer-unit values (device.owned_by) for filter dropdowns
 export const getTransferUnits = (): Promise<string[]> => api.get('/devices/transfer-units').then(r => r.data);
+
+// Maintenance schedule (per-device, single row)
+export interface MaintenanceSchedule {
+  id: string;
+  device_id: string;
+  interval_days: number;
+  notify_days_before: number;
+  next_due_at: string;
+  last_notified_at: string | null;
+}
+
+export interface MaintenanceSchedulePayload {
+  interval_days: number;
+  notify_days_before: number;
+  next_due_at: string; // YYYY-MM-DD or ISO
+}
+
+export const getMaintenanceSchedule = (deviceId: string): Promise<MaintenanceSchedule | null> =>
+  api.get(`/devices/${deviceId}/maintenance-schedule`).then(r => r.data).catch((e) => {
+    if (e?.response?.status === 404) return null;
+    throw e;
+  });
+export const upsertMaintenanceSchedule = (deviceId: string, payload: MaintenanceSchedulePayload): Promise<MaintenanceSchedule> =>
+  api.put(`/devices/${deviceId}/maintenance-schedule`, payload).then(r => r.data);
+export const deleteMaintenanceSchedule = (deviceId: string) =>
+  api.delete(`/devices/${deviceId}/maintenance-schedule`);
+
+// Maintenance tasks (new feature, separate from MaintenanceRecord which is now repair history)
+export interface MaintenanceTaskAttachment {
+  id: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  created_at: string;
+}
+
+export interface MaintenanceTask {
+  id: string;
+  device_id: string;
+  date: string;
+  description: string;
+  technician: string | null;
+  status: string;
+  created_at: string;
+  attachments: MaintenanceTaskAttachment[];
+}
+
+export type MaintenancePeriod = 'week' | 'month' | 'year' | '';
+
+export const getMaintenanceTasks = (deviceId: string, period?: MaintenancePeriod): Promise<MaintenanceTask[]> =>
+  api.get(`/devices/${deviceId}/maintenance-tasks`, { params: period ? { period } : {} }).then(r => r.data);
+export const createMaintenanceTask = (deviceId: string, data: FormData) =>
+  api.post(`/devices/${deviceId}/maintenance-tasks`, data).then(r => r.data);
+export const updateMaintenanceTask = (id: string, data: Record<string, unknown>) =>
+  api.put(`/maintenance-tasks/${id}`, data).then(r => r.data);
+export const deleteMaintenanceTask = (id: string) => api.delete(`/maintenance-tasks/${id}`);
+export const uploadMaintenanceTaskAttachment = (id: string, files: File[]) => {
+  const fd = new FormData();
+  files.forEach(f => fd.append('files', f));
+  return api.post(`/maintenance-tasks/${id}/attachments`, fd).then(r => r.data);
+};
+export const deleteMaintenanceTaskAttachment = (id: string) => api.delete(`/maintenance-task-attachments/${id}`);
+export const maintenanceTaskAttachmentUrl = (id: string): string => `/api/maintenance-task-attachments/${id}/file`;
+
+// Notifications
+export interface NotificationItem {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  link: string | null;
+  source_type: string | null;
+  source_id: string | null;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface NotificationListResponse {
+  items: NotificationItem[];
+  unread_count: number;
+}
+
+export const getNotifications = (limit = 30): Promise<NotificationListResponse> =>
+  api.get('/notifications', { params: { limit } }).then(r => r.data);
+export const markNotificationRead = (id: string): Promise<NotificationItem> =>
+  api.patch(`/notifications/${id}/read`).then(r => r.data);
+export const markAllNotificationsRead = (): Promise<{ updated: number }> =>
+  api.post('/notifications/mark-all-read').then(r => r.data);
 
 // Location API
 export const getLocations = (): Promise<Location[]> => api.get('/locations').then(r => r.data);

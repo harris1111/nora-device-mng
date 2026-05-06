@@ -6,6 +6,7 @@ import PrintQrcodeButton from '../components/qrcode/print-qrcode-button';
 import DeviceStatusBadge from '../components/device/device-status-badge';
 import AttachmentList from '../components/attachment/attachment-list';
 import MaintenanceHistory from '../components/maintenance/maintenance-history';
+import MaintenanceSection from '../components/maintenance/maintenance-section';
 import TransferInfoSection from '../components/transfer/transfer-info-section';
 import { getTypeName } from '../components/device/device-constants';
 
@@ -267,7 +268,16 @@ export default function DeviceDetailPage() {
         />
       </div>
 
-      {/* Maintenance section — only for tai_san */}
+      {/* Scheduled maintenance + maintenance task history (NEW) — only for tai_san */}
+      {device.type === 'tai_san' && (
+        <MaintenanceSection
+          deviceId={device.id}
+          maintenanceStatus={device.maintenance_status}
+          onChange={loadDevice}
+        />
+      )}
+
+      {/* Repair history (formerly "Lịch sử bảo trì") — only for tai_san */}
       {device.type === 'tai_san' && (
         <div className="card-glass border border-slate-100 shadow-sm p-6 md:p-8 space-y-4">
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -275,7 +285,7 @@ export default function DeviceDetailPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            Lịch sử bảo trì ({maintenanceRecords.length})
+            Lịch sử sửa chữa ({maintenanceRecords.length})
           </h2>
           <MaintenanceHistory deviceId={device.id} records={maintenanceRecords} onUpdate={loadMaintenance} />
         </div>

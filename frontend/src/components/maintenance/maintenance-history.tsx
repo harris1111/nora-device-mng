@@ -85,7 +85,7 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Xóa bản ghi bảo trì này?')) return;
+    if (!window.confirm('Xóa bản ghi sửa chữa này?')) return;
     try {
       await deleteMaintenanceRecord(id);
       onUpdate?.();
@@ -159,14 +159,14 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
           ))}
         </div>
       ) : (
-        !showForm && <p className="text-sm text-slate-400 italic">Chưa có lịch sử bảo trì.</p>
+        !showForm && <p className="text-sm text-slate-400 italic">Chưa có lịch sử sửa chữa.</p>
       )}
 
       {/* Form */}
       {showForm ? (
         <form onSubmit={handleSubmit} className="bg-blue-50/50 rounded-2xl p-5 border border-blue-100 space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-sm font-bold text-slate-800">{editingId ? 'Chỉnh sửa' : 'Thêm'} bảo trì</h3>
+            <h3 className="text-sm font-bold text-slate-800">{editingId ? 'Chỉnh sửa' : 'Thêm'} sửa chữa</h3>
             <button type="button" onClick={resetForm} className="text-slate-400 hover:text-slate-600">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
@@ -177,7 +177,7 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
             <input type="text" placeholder="Kỹ thuật viên" value={formData.technician} onChange={e => setFormData(p => ({ ...p, technician: e.target.value }))}
               className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
           </div>
-          <textarea placeholder="Mô tả công việc bảo trì *" value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} required rows={2}
+          <textarea placeholder="Mô tả công việc sửa chữa *" value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} required rows={2}
             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none" />
 
           {/* File upload (create mode only) */}
@@ -228,7 +228,7 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
         <button onClick={() => setShowForm(true)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 text-sm font-semibold rounded-xl hover:bg-blue-100 active:scale-95 transition-all border border-blue-200">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-          Thêm bảo trì
+          Thêm sửa chữa
         </button>
       )}
     </div>

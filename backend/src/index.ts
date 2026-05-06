@@ -15,11 +15,15 @@ import locationRoutes from './routes/location-routes.js';
 import publicRoutes from './routes/public-routes.js';
 import attachmentRoutes from './routes/attachment-routes.js';
 import maintenanceRoutes from './routes/maintenance-routes.js';
+import maintenanceScheduleRoutes from './routes/maintenance-schedule-routes.js';
+import maintenanceTaskRoutes from './routes/maintenance-task-routes.js';
+import notificationRoutes from './routes/notification-routes.js';
 import transferRoutes from './routes/transfer-routes.js';
 import userRoutes from './routes/user-routes.js';
 import permissionRoutes from './routes/permission-routes.js';
 import auditLogRoutes from './routes/audit-log-routes.js';
 import exportRoutes from './routes/export-routes.js';
+import { startMaintenanceScheduler } from './lib/maintenance-scheduler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Load root .env for S3 vars (without overriding backend/.env values like DATABASE_URL)
@@ -67,6 +71,9 @@ app.use('/api/devices', requireAuth, deviceRoutes);
 app.use('/api/locations', requireAuth, locationRoutes);
 app.use('/api', requireAuth, attachmentRoutes);
 app.use('/api', requireAuth, maintenanceRoutes);
+app.use('/api', requireAuth, maintenanceScheduleRoutes);
+app.use('/api', requireAuth, maintenanceTaskRoutes);
+app.use('/api/notifications', requireAuth, notificationRoutes);
 app.use('/api', requireAuth, transferRoutes);
 app.use('/api/users', requireAuth, userRoutes);
 app.use('/api/permissions', requireAuth, permissionRoutes);
@@ -114,6 +121,9 @@ async function start(): Promise<void> {
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
+
+    // Start the in-process maintenance reminder scheduler
+    startMaintenanceScheduler();
   } catch (err) {
     console.error('Failed to start:', err);
     process.exit(1);

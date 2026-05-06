@@ -39,6 +39,13 @@ model User {
   locationsUpdated            Location[]            @relation("LocationUpdatedBy")
   maintenanceRecordsCreated   MaintenanceRecord[]   @relation("MaintenanceCreatedBy")
   maintenanceRecordsUpdated   MaintenanceRecord[]   @relation("MaintenanceUpdatedBy")
+  scheduledMaintenanceCreated ScheduledMaintenance[] @relation("ScheduledMaintenanceCreatedBy")
+  scheduledMaintenanceUpdated ScheduledMaintenance[] @relation("ScheduledMaintenanceUpdatedBy")
+  maintenanceTasksCreated     MaintenanceTask[]     @relation("MaintenanceTaskCreatedBy")
+  maintenanceTasksUpdated     MaintenanceTask[]     @relation("MaintenanceTaskUpdatedBy")
+  maintenanceTaskAttachmentsCreated MaintenanceTaskAttachment[] @relation("MaintenanceTaskAttachCreatedBy")
+  maintenanceTaskAttachmentsUpdated MaintenanceTaskAttachment[] @relation("MaintenanceTaskAttachUpdatedBy")
+  notifications               Notification[]
   transferRecordsCreated      TransferRecord[]      @relation("TransferCreatedBy")
   transferRecordsUpdated      TransferRecord[]      @relation("TransferUpdatedBy")
   attachmentsCreated          Attachment[]          @relation("AttachmentCreatedBy")
@@ -128,6 +135,7 @@ model Device {
   transferDate DateTime? @map("transfer_date")
   warrantyValue Int?    @map("warranty_value")
   warrantyUnit  String? @map("warranty_unit")
+  maintenanceStatus String @default("in_use") @map("maintenance_status")
   createdAt    DateTime @default(now()) @map("created_at")
   createdById  String?  @map("created_by")
   createdBy    User?    @relation("DeviceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -135,6 +143,8 @@ model Device {
   updatedBy    User?    @relation("DeviceUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   attachments        Attachment[]
   maintenanceRecords MaintenanceRecord[]
+  scheduledMaintenance ScheduledMaintenance?
+  maintenanceTasks   MaintenanceTask[]
   transferRecord     TransferRecord?
 
   @@map("devices")
@@ -225,4 +235,81 @@ model MaintenanceAttachment {
   updatedBy       User?             @relation("MaintAttachUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("maintenance_attachments")
+}
+
+// Per-device maintenance schedule. Drives reminder notifications and the
+// maintenance_status transitions on the parent Device.
+model ScheduledMaintenance {
+  id               String   @id @default(uuid())
+  deviceId         String   @unique @map("device_id")
+  device           Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  intervalDays     Int      @map("interval_days")            // recurrence period in days
+  notifyDaysBefore Int      @default(7) @map("notify_days_before")
+  nextDueAt        DateTime @map("next_due_at")
+  lastNotifiedAt   DateTime? @map("last_notified_at")        // dedupe — null => not yet notified for current cycle
+  createdAt        DateTime @default(now()) @map("created_at")
+  createdById      String?  @map("created_by")
+  createdBy        User?    @relation("ScheduledMaintenanceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById      String?  @map("updated_by")
+  updatedBy        User?    @relation("ScheduledMaintenanceUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("scheduled_maintenances")
+}
+
+// Completed maintenance entries (ad-hoc or against a scheduled cycle).
+// Mirrors MaintenanceRecord shape but is the *new* feature; the old
+// MaintenanceRecord becomes the "repair history" in user-facing copy.
+model MaintenanceTask {
+  id          String   @id @default(uuid())
+  deviceId    String   @map("device_id")
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  date        DateTime
+  description String
+  technician  String   @default("")
+  status      String   @default("pending")
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdById String?  @map("created_by")
+  createdBy   User?    @relation("MaintenanceTaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?  @map("updated_by")
+  updatedBy   User?    @relation("MaintenanceTaskUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  attachments MaintenanceTaskAttachment[]
+
+  @@map("maintenance_tasks")
+}
+
+model MaintenanceTaskAttachment {
+  id            String          @id @default(uuid())
+  taskId        String          @map("task_id")
+  task          MaintenanceTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  fileKey       String          @map("file_key")
+  fileName      String          @map("file_name")
+  fileType      String          @map("file_type")
+  fileSize      Int             @map("file_size")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  createdById   String?         @map("created_by")
+  createdBy     User?           @relation("MaintenanceTaskAttachCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById   String?         @map("updated_by")
+  updatedBy     User?           @relation("MaintenanceTaskAttachUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("maintenance_task_attachments")
+}
+
+// In-app notifications (delivered via SSE + REST fetch). Per-user; null userId = broadcast.
+model Notification {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String                                              // e.g. 'maintenance_due'
+  title      String
+  message    String
+  link       String?                                             // route to navigate to on click
+  sourceType String?  @map("source_type")                        // dedupe key prefix, e.g. 'device'
+  sourceId   String?  @map("source_id")                          // dedupe key id
+  isRead     Boolean  @default(false) @map("is_read")
+  readAt     DateTime? @map("read_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([userId, isRead])
+  @@index([sourceType, sourceId])
+  @@map("notifications")
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/auth-context';
 import { useCan } from '../../hooks/use-permission';
+import NotificationBell from '../notification/notification-bell';
 
 interface Props {
   children: ReactNode;
@@ -121,6 +122,7 @@ export default function AppLayout({ children }: Props) {
           <span className="font-bold text-slate-800 tracking-tight text-lg">BWP<span className="text-indigo-600">Dev</span></span>
         </div>
         <div className="flex items-center gap-1">
+          <NotificationBell />
           {canCreateDevices && (
             <Link
               to="/devices/new"
@@ -242,7 +244,8 @@ export default function AppLayout({ children }: Props) {
           <div>
             <h2 className="text-xl font-bold text-slate-800">{getPageTitle()}</h2>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+             <NotificationBell />
              {canCreateDevices && (
              <Link to="/devices/new" className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-200 flex items-center gap-2">
                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
