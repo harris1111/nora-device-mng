@@ -5,6 +5,7 @@ import {
   exportDevicesExcelFiltered,
   bulkDeleteDevices,
   getLocations,
+  getTransferUnits,
   Device,
   DeviceListParams,
   Location,
@@ -33,6 +34,7 @@ function readStateFromParams(params: URLSearchParams): { filters: DeviceFilters;
       type: params.get('type') || '',
       status: params.get('status') || '',
       location: params.get('location') || '',
+      transferUnit: params.get('transfer_unit') || '',
       dateFrom: params.get('date_from') || '',
       dateTo: params.get('date_to') || '',
     },
@@ -47,6 +49,7 @@ function writeStateToParams(filters: DeviceFilters, page: number, limit: number)
   if (filters.type) next.set('type', filters.type);
   if (filters.status) next.set('status', filters.status);
   if (filters.location) next.set('location', filters.location);
+  if (filters.transferUnit) next.set('transfer_unit', filters.transferUnit);
   if (filters.dateFrom) next.set('date_from', filters.dateFrom);
   if (filters.dateTo) next.set('date_to', filters.dateTo);
   if (page !== 1) next.set('page', String(page));
@@ -85,6 +88,10 @@ export default function DeviceListPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   useEffect(() => { getLocations().then(setLocations).catch(() => {}); }, []);
 
+  // Distinct transfer-unit values for the filter dropdown (server-provided, RBAC-aware)
+  const [transferUnits, setTransferUnits] = useState<string[]>([]);
+  useEffect(() => { getTransferUnits().then(setTransferUnits).catch(() => {}); }, []);
+
   const canUpdate = useCan('devices', 'update');
   const canDelete = useCan('devices', 'delete');
   const canExport = useCan('devices', 'export');
@@ -107,10 +114,11 @@ export default function DeviceListPage() {
       const id = locationNameToId.get(filters.location);
       if (id) p.location_id = id;
     }
+    if (filters.transferUnit) p.transfer_unit = filters.transferUnit;
     if (filters.dateFrom) p.date_from = filters.dateFrom;
     if (filters.dateTo) p.date_to = filters.dateTo;
     return p;
-  }, [page, limit, debouncedSearch, filters.type, filters.status, filters.location, filters.dateFrom, filters.dateTo, locationNameToId]);
+  }, [page, limit, debouncedSearch, filters.type, filters.status, filters.location, filters.transferUnit, filters.dateFrom, filters.dateTo, locationNameToId]);
 
   // Sync state → URL whenever filters or pagination change
   useEffect(() => {
@@ -137,12 +145,12 @@ export default function DeviceListPage() {
   // When any filter input (or page size) changes, reset to page 1
   const prevFilterKey = useRef<string>('');
   useEffect(() => {
-    const key = JSON.stringify([debouncedSearch, filters.type, filters.status, filters.location, filters.dateFrom, filters.dateTo, limit]);
+    const key = JSON.stringify([debouncedSearch, filters.type, filters.status, filters.location, filters.transferUnit, filters.dateFrom, filters.dateTo, limit]);
     if (prevFilterKey.current && prevFilterKey.current !== key && page !== 1) {
       setPage(1);
     }
     prevFilterKey.current = key;
-  }, [debouncedSearch, filters.type, filters.status, filters.location, filters.dateFrom, filters.dateTo, limit, page]);
+  }, [debouncedSearch, filters.type, filters.status, filters.location, filters.transferUnit, filters.dateFrom, filters.dateTo, limit, page]);
 
   const handleViewChange = (newView: string) => {
     setView(newView);
@@ -205,7 +213,7 @@ export default function DeviceListPage() {
   };
 
   const allSelectedOnPage = devices.length > 0 && selectedIds.size === devices.length;
-  const hasActiveFilters = !!(filters.search || filters.type || filters.status || filters.location || filters.dateFrom || filters.dateTo);
+  const hasActiveFilters = !!(filters.search || filters.type || filters.status || filters.location || filters.transferUnit || filters.dateFrom || filters.dateTo);
 
   return (
     <div className="space-y-6">
@@ -213,6 +221,7 @@ export default function DeviceListPage() {
       <DeviceFilterBar
         filters={filters}
         onChange={setFilters}
+        transferUnits={transferUnits}
         trailing={
           <div className="flex items-center gap-2">
             {canExport && (

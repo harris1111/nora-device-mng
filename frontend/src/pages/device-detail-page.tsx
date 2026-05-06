@@ -112,11 +112,16 @@ export default function DeviceDetailPage() {
   const primaryAttachment = attachments.find(a => a.is_primary);
   const primaryImageUrl = primaryAttachment ? attachmentFileUrl(primaryAttachment.id) : null;
 
+  const warrantyText = device.warranty_value && device.warranty_unit
+    ? `${device.warranty_value} ${device.warranty_unit === 'year' ? 'năm' : 'tháng'}`
+    : null;
+
   const infoFields = [
     { label: 'Loại', value: getTypeName(device.type) },
     { label: 'Số serial', value: device.serial_number },
     { label: 'Nhà sản xuất', value: device.manufacturer },
     { label: 'Model', value: device.model },
+    { label: 'Thời hạn bảo hành', value: warrantyText },
     { label: 'Ngày xử lý', value: device.disposal_date ? new Date(device.disposal_date).toLocaleDateString('vi-VN') : null },
     { label: 'Ngày mất', value: device.loss_date ? new Date(device.loss_date).toLocaleDateString('vi-VN') : null },
   ].filter((f) => f.value);

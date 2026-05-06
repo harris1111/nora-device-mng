@@ -180,6 +180,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
     status,
     search,
     location_id,
+    transfer_unit,
     date_from,
     date_to,
   } = req.query as {
@@ -187,6 +188,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
     status?: string;
     search?: string;
     location_id?: string;
+    transfer_unit?: string;
     date_from?: string;
     date_to?: string;
   };
@@ -197,6 +199,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
   if (type) where.type = type;
   if (status) where.status = status;
   if (location_id) where.locationId = location_id;
+  if (transfer_unit) where.ownedBy = transfer_unit;
 
   if (search && search.trim()) {
     const q = search.trim();
@@ -267,6 +270,24 @@ router.get('/', requirePermission('devices', 'view'), async (req: Request, res: 
 // Export the where-builder so the export route can reuse identical filter semantics
 export { buildDeviceListWhere };
 
+// GET /api/devices/transfer-units — distinct non-empty ownedBy values (used to populate filter dropdown)
+router.get('/transfer-units', requirePermission('devices', 'view'), async (req: Request, res: Response) => {
+  try {
+    const where: Record<string, unknown> = { NOT: { ownedBy: '' } };
+    const locationFilter = await getUserLocationFilter(req);
+    if (locationFilter) where.AND = [locationFilter];
+    const rows = await prisma.device.findMany({ where, distinct: ['ownedBy'], select: { ownedBy: true } });
+    const units = rows
+      .map(r => r.ownedBy)
+      .filter((v): v is string => !!v && v.trim() !== '')
+      .sort((a, b) => a.localeCompare(b, 'vi'));
+    res.json(units);
+  } catch (err) {
+    console.error('List transfer units error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/devices/:id — get device detail
 router.get('/:id', requirePermission('devices', 'view'), async (req: Request, res: Response) => {
   try {
@@ -293,10 +314,23 @@ router.get('/:id', requirePermission('devices', 'view'), async (req: Request, re
   }
 });
 
+// Parse and validate warranty input. Returns { value, unit } (both null if blank/missing) or throws.
+function parseWarranty(rawValue: unknown, rawUnit: unknown): { value: number | null; unit: string | null } {
+  const valStr = typeof rawValue === 'string' ? rawValue.trim() : '';
+  const unit = typeof rawUnit === 'string' ? rawUnit.trim() : '';
+  if (!valStr && !unit) return { value: null, unit: null };
+  if (!valStr || !unit) throw new Error('Warranty value and unit must both be provided');
+  if (unit !== 'month' && unit !== 'year') throw new Error('Warranty unit must be "month" or "year"');
+  const value = Number.parseInt(valStr, 10);
+  if (!Number.isFinite(value) || value < 1) throw new Error('Warranty value must be a positive integer');
+  if (unit === 'year' && value > 5) throw new Error('Warranty value in years must be 1–5');
+  return { value, unit };
+}
+
 // POST /api/devices — create device
 router.post('/', requirePermission('devices', 'create'), deviceUpload, async (req: Request, res: Response) => {
   try {
-    const { name, store_id, location_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date } = req.body;
+    const { name, store_id, location_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_value, warranty_unit } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
@@ -312,6 +346,10 @@ router.post('/', requirePermission('devices', 'create'), deviceUpload, async (re
 
     let statusData: StatusData = { type: deviceType, status: deviceStatus, disposalDate: disposal_date ? new Date(disposal_date) : null, lossDate: loss_date ? new Date(loss_date) : null };
     statusData = applyDateStatusRules(deviceType, statusData);
+
+    let warranty: { value: number | null; unit: string | null };
+    try { warranty = parseWarranty(warranty_value, warranty_unit); }
+    catch (e) { return res.status(400).json({ error: (e as Error).message }); }
 
     const id = uuidv4();
     const qrcode = await generateQrCode(id);
@@ -341,6 +379,8 @@ router.post('/', requirePermission('devices', 'create'), deviceUpload, async (re
           lossDate: statusData.lossDate,
           transferTo: transferSummary.transferTo,
           transferDate: transferSummary.transferDate,
+          warrantyValue: warranty.value,
+          warrantyUnit: warranty.unit,
           createdById: req.user!.id,
         },
       });
@@ -387,7 +427,7 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
     const existing = await prisma.device.findUnique({ where: { id: req.params.id as string } });
     if (!existing) return res.status(404).json({ error: 'Device not found' });
 
-    const { name, store_id, location_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date } = req.body;
+    const { name, store_id, location_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_value, warranty_unit } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
@@ -412,6 +452,10 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
     };
     statusData = applyDateStatusRules(existing.type, statusData);
 
+    let warranty: { value: number | null; unit: string | null };
+    try { warranty = parseWarranty(warranty_value, warranty_unit); }
+    catch (e) { return res.status(400).json({ error: (e as Error).message }); }
+
     const qrcode = await generateQrCode(req.params.id as string);
     const transferSummary = {
       ownedBy: owned_by?.trim() || '',
@@ -435,6 +479,8 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
       lossDate: statusData.lossDate,
       transferTo: transferSummary.transferTo,
       transferDate: transferSummary.transferDate,
+      warrantyValue: warranty.value,
+      warrantyUnit: warranty.unit,
       updatedById: req.user!.id,
     };
 

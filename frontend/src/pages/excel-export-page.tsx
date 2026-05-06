@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getDevices, exportDevicesExcel, Device } from '../api/device-api';
 import { getStatusInfo, getTypeName } from '../components/device/device-constants';
 import { useCan } from '../hooks/use-permission';
@@ -23,6 +23,12 @@ export default function ExcelExportPage() {
   }, []);
 
   const filtered = useDeviceFilter(devices, filters);
+
+  const transferUnits = useMemo(() => {
+    const unique = new Set<string>();
+    devices.forEach(d => { if (d.owned_by) unique.add(d.owned_by); });
+    return Array.from(unique).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [devices]);
 
   const allFilteredSelected = filtered.length > 0 && filtered.every(d => selected.has(d.id));
 
@@ -88,7 +94,7 @@ export default function ExcelExportPage() {
   return (
     <div className="space-y-6">
       {/* Filter Bar */}
-      <DeviceFilterBar filters={filters} onChange={setFilters} />
+      <DeviceFilterBar filters={filters} onChange={setFilters} transferUnits={transferUnits} />
 
       {/* Export Button Bar */}
       <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] border border-slate-100">

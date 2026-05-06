@@ -126,6 +126,8 @@ model Device {
   lossDate     DateTime? @map("loss_date")
   transferTo   String?  @map("transfer_to")
   transferDate DateTime? @map("transfer_date")
+  warrantyValue Int?    @map("warranty_value")
+  warrantyUnit  String? @map("warranty_unit")
   createdAt    DateTime @default(now()) @map("created_at")
   createdById  String?  @map("created_by")
   createdBy    User?    @relation("DeviceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)

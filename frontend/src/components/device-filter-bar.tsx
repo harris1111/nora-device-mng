@@ -7,15 +7,18 @@ export interface DeviceFilters {
   type: string;
   status: string;
   location: string;
+  transferUnit: string;
   dateFrom: string;
   dateTo: string;
 }
 
-const EMPTY_FILTERS: DeviceFilters = { search: '', type: '', status: '', location: '', dateFrom: '', dateTo: '' };
+const EMPTY_FILTERS: DeviceFilters = { search: '', type: '', status: '', location: '', transferUnit: '', dateFrom: '', dateTo: '' };
 
 interface Props {
   filters: DeviceFilters;
   onChange: (filters: DeviceFilters) => void;
+  /** Distinct transfer-unit values (device.owned_by) sourced from the loaded devices */
+  transferUnits?: string[];
   /** Extra controls rendered at the end (e.g. ViewToggle) */
   trailing?: ReactNode;
 }
@@ -26,6 +29,7 @@ export function useDeviceFilter(devices: Device[], filters: DeviceFilters) {
       if (filters.type && d.type !== filters.type) return false;
       if (filters.status && d.status !== filters.status) return false;
       if (filters.location && d.location_name !== filters.location) return false;
+      if (filters.transferUnit && (d.owned_by || '') !== filters.transferUnit) return false;
 
       if (filters.dateFrom) {
         const from = new Date(filters.dateFrom);
@@ -48,7 +52,7 @@ export function useDeviceFilter(devices: Device[], filters: DeviceFilters) {
   }, [devices, filters]);
 }
 
-export default function DeviceFilterBar({ filters, onChange, trailing }: Props) {
+export default function DeviceFilterBar({ filters, onChange, transferUnits = [], trailing }: Props) {
   const [locations, setLocations] = useState<Location[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -58,10 +62,10 @@ export default function DeviceFilterBar({ filters, onChange, trailing }: Props) 
 
   // Auto-show advanced panel if any advanced filter is active
   useEffect(() => {
-    if (filters.location || filters.dateFrom || filters.dateTo) {
+    if (filters.location || filters.transferUnit || filters.dateFrom || filters.dateTo) {
       setShowAdvanced(true);
     }
-  }, [filters.location, filters.dateFrom, filters.dateTo]);
+  }, [filters.location, filters.transferUnit, filters.dateFrom, filters.dateTo]);
 
   const set = (patch: Partial<DeviceFilters>) => {
     const next = { ...filters, ...patch };
@@ -74,10 +78,10 @@ export default function DeviceFilterBar({ filters, onChange, trailing }: Props) 
     ? (STATUS_BY_TYPE[filters.type] || [])
     : Object.entries(ALL_STATUSES).map(([value, { label }]) => ({ value, label }));
 
-  const activeAdvancedCount = [filters.location, filters.dateFrom, filters.dateTo].filter(Boolean).length;
+  const activeAdvancedCount = [filters.location, filters.transferUnit, filters.dateFrom, filters.dateTo].filter(Boolean).length;
 
   const clearAll = () => onChange({ ...EMPTY_FILTERS });
-  const hasAnyFilter = filters.search || filters.type || filters.status || filters.location || filters.dateFrom || filters.dateTo;
+  const hasAnyFilter = filters.search || filters.type || filters.status || filters.location || filters.transferUnit || filters.dateFrom || filters.dateTo;
 
   return (
     <div className="bg-white rounded-2xl shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] border border-slate-100">
@@ -170,6 +174,19 @@ export default function DeviceFilterBar({ filters, onChange, trailing }: Props) 
             >
               <option value="">Tất cả đơn vị</option>
               {locations.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
+            </select>
+          </div>
+
+          {/* Transfer unit (đơn vị chuyển giao) */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-slate-500 whitespace-nowrap">Đơn vị chuyển giao</label>
+            <select
+              value={filters.transferUnit}
+              onChange={(e) => set({ transferUnit: e.target.value })}
+              className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500 cursor-pointer min-w-[180px]"
+            >
+              <option value="">Tất cả đơn vị chuyển giao</option>
+              {transferUnits.map(u => <option key={u} value={u}>{u}</option>)}
             </select>
           </div>
 

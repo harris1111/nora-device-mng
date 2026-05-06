@@ -55,6 +55,8 @@ export function mapDevice(d: DeviceWithRelations) {
     loss_date: d.lossDate?.toISOString() || null,
     transfer_to: d.transferTo || null,
     transfer_date: d.transferDate?.toISOString() || null,
+    warranty_value: d.warrantyValue ?? null,
+    warranty_unit: d.warrantyUnit ?? null,
     transfer_record: mapTransferRecord(d),
     primary_attachment_id: d.attachments?.find(a => a.isPrimary)?.id || null,
     created_at: d.createdAt?.toISOString(),

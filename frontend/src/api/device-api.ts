@@ -19,6 +19,8 @@ export interface Device {
   transfer_record?: TransferRecordItem | null;
   disposal_date: string | null;
   loss_date: string | null;
+  warranty_value: number | null;
+  warranty_unit: 'month' | 'year' | null;
   primary_attachment_id: string | null;
   created_at: string;
 }
@@ -87,6 +89,7 @@ export interface DeviceListParams {
   type?: string;
   status?: string;
   location_id?: string;
+  transfer_unit?: string;
   date_from?: string;
   date_to?: string;
 }
@@ -159,6 +162,9 @@ export const uploadMaintenanceAttachment = (recordId: string, files: File[]) => 
   return api.post(`/maintenance/${recordId}/attachments`, fd).then(r => r.data);
 };
 export const maintenanceAttachmentUrl = (id: string): string => `/api/maintenance-attachments/${id}/file`;
+
+// Distinct transfer-unit values (device.owned_by) for filter dropdowns
+export const getTransferUnits = (): Promise<string[]> => api.get('/devices/transfer-units').then(r => r.data);
 
 // Location API
 export const getLocations = (): Promise<Location[]> => api.get('/locations').then(r => r.data);
