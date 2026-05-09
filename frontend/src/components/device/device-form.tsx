@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getLocations, Device, Location, attachmentFileUrl } from '../../api/device-api';
+import { getLocations, getAreas, Device, Location, Area, attachmentFileUrl } from '../../api/device-api';
 import FormTextInput from '../ui/form-text-input';
 import { DEVICE_TYPES, STATUS_BY_TYPE } from './device-constants';
 
@@ -14,6 +14,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
   const [name, setName] = useState(initialData?.name || '');
   const [storeId, setStoreId] = useState(initialData?.store_id || '');
   const [locationId, setLocationId] = useState(initialData?.location_id || '');
+  const [areaId, setAreaId] = useState(initialData?.area_id || '');
   const [ownedBy, setOwnedBy] = useState(initialData?.owned_by || '');
   const [serialNumber, setSerialNumber] = useState(initialData?.serial_number || '');
   const [model, setModel] = useState(initialData?.model || '');
@@ -28,6 +29,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
   const [warrantyValue, setWarrantyValue] = useState<string>(initialData?.warranty_value != null ? String(initialData.warranty_value) : '');
   const [warrantyUnit, setWarrantyUnit] = useState<'' | 'month' | 'year'>(initialData?.warranty_unit ?? '');
   const [locations, setLocations] = useState<Location[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +40,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
 
   useEffect(() => {
     getLocations().then(setLocations).catch(() => setError('Không thể tải danh sách đơn vị trực thuộc.'));
+    getAreas().then(setAreas).catch(() => { /* areas optional — silent fail */ });
   }, []);
 
   // Reset status when type changes
@@ -69,6 +72,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
       fd.append('store_id', storeId.trim());
       fd.append('name', name.trim());
       fd.append('location_id', locationId);
+      fd.append('area_id', areaId);
       fd.append('owned_by', ownedBy);
       fd.append('serial_number', serialNumber.trim());
       fd.append('model', model.trim());
@@ -143,7 +147,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
             </div>
 
             {/* Location dropdown */}
-            <div className="space-y-1.5 focus-within:text-indigo-600 focus-within:font-medium transition-all md:col-span-2">
+            <div className="space-y-1.5 focus-within:text-indigo-600 focus-within:font-medium transition-all">
               <label htmlFor="location_id" className="block text-sm text-slate-700 font-semibold mb-1">
                 Đơn vị trực thuộc <span className="text-red-500">*</span>
               </label>
@@ -152,6 +156,23 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all appearance-none cursor-pointer">
                   <option value="" disabled>-- Chọn đơn vị trực thuộc --</option>
                   {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Area dropdown */}
+            <div className="space-y-1.5 focus-within:text-indigo-600 focus-within:font-medium transition-all">
+              <label htmlFor="area_id" className="block text-sm text-slate-700 font-semibold mb-1">
+                Khu vực
+              </label>
+              <div className="relative">
+                <select id="area_id" value={areaId} onChange={(e) => setAreaId(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all appearance-none cursor-pointer">
+                  <option value="">-- Chọn khu vực --</option>
+                  {areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>

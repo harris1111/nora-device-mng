@@ -11,6 +11,7 @@ router.get('/device/:id', async (req: Request, res: Response) => {
       where: { id: req.params.id as string },
       include: {
         location: { select: { name: true } },
+        area: { select: { name: true } },
         attachments: {
           select: { id: true, fileName: true, fileType: true, fileSize: true, isPrimary: true, createdAt: true },
           orderBy: { createdAt: 'asc' },
@@ -41,6 +42,8 @@ router.get('/device/:id', async (req: Request, res: Response) => {
       type: device.type,
       status: device.status,
       location_name: device.location?.name || null,
+      area_id: device.areaId ?? null,
+      area_name: device.area?.name || null,
       owned_by: device.ownedBy,
       serial_number: device.serialNumber,
       model: device.model,

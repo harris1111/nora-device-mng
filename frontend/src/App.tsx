@@ -12,6 +12,7 @@ import DeviceDetailPage from './pages/device-detail-page';
 import DeviceEditPage from './pages/device-edit-page';
 import PublicDevicePage from './pages/public-device-page';
 import LocationListPage from './pages/location-list-page';
+import AreaListPage from './pages/area-list-page';
 import UsersListPage from './pages/users-list-page';
 import UserFormPage from './pages/user-form-page';
 import PermissionDashboardPage from './pages/permission-dashboard-page';
@@ -44,6 +45,9 @@ export default function App() {
               <Route path="/devices/:id/edit" element={<DeviceEditPage />} />
               <Route element={<PermissionRoute module="locations" action="view" />}>
                 <Route path="/locations" element={<LocationListPage />} />
+              </Route>
+              <Route element={<PermissionRoute module="areas" action="view" />}>
+                <Route path="/areas" element={<AreaListPage />} />
               </Route>
               <Route element={<PermissionRoute module="users" action="view" />}>
                 <Route path="/users" element={<UsersListPage />} />

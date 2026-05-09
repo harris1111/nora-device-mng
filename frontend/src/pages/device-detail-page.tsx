@@ -191,6 +191,11 @@ export default function DeviceDetailPage() {
                   <><div className="w-1.5 h-1.5 bg-indigo-500 rounded-full mr-1.5"></div>{device.location_name}</>
                 ) : 'Chưa gán đơn vị trực thuộc'}
               </span>
+              {device.area_name && (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+                  <div className="w-1.5 h-1.5 bg-amber-500 rounded-full mr-1.5"></div>{device.area_name}
+                </span>
+              )}
             </div>
 
             <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight leading-tight mb-4">

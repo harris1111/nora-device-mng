@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, type ReactNode } from 'react';
-import { getLocations, type Location, type Device } from '../api/device-api';
+import { getLocations, type Location, type Area, type Device } from '../api/device-api';
 import { DEVICE_TYPES, STATUS_BY_TYPE, ALL_STATUSES } from './device/device-constants';
 
 export interface DeviceFilters {
@@ -7,16 +7,19 @@ export interface DeviceFilters {
   type: string;
   status: string;
   location: string;
+  area: string;
   transferUnit: string;
   dateFrom: string;
   dateTo: string;
 }
 
-const EMPTY_FILTERS: DeviceFilters = { search: '', type: '', status: '', location: '', transferUnit: '', dateFrom: '', dateTo: '' };
+const EMPTY_FILTERS: DeviceFilters = { search: '', type: '', status: '', location: '', area: '', transferUnit: '', dateFrom: '', dateTo: '' };
 
 interface Props {
   filters: DeviceFilters;
   onChange: (filters: DeviceFilters) => void;
+  /** Areas list for the area filter dropdown */
+  areas?: Area[];
   /** Distinct transfer-unit values (device.owned_by) sourced from the loaded devices */
   transferUnits?: string[];
   /** Extra controls rendered at the end (e.g. ViewToggle) */
@@ -29,6 +32,7 @@ export function useDeviceFilter(devices: Device[], filters: DeviceFilters) {
       if (filters.type && d.type !== filters.type) return false;
       if (filters.status && d.status !== filters.status) return false;
       if (filters.location && d.location_name !== filters.location) return false;
+      if (filters.area && (d.area_name || '') !== filters.area) return false;
       if (filters.transferUnit && (d.owned_by || '') !== filters.transferUnit) return false;
 
       if (filters.dateFrom) {
@@ -52,7 +56,7 @@ export function useDeviceFilter(devices: Device[], filters: DeviceFilters) {
   }, [devices, filters]);
 }
 
-export default function DeviceFilterBar({ filters, onChange, transferUnits = [], trailing }: Props) {
+export default function DeviceFilterBar({ filters, onChange, areas = [], transferUnits = [], trailing }: Props) {
   const [locations, setLocations] = useState<Location[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -62,10 +66,10 @@ export default function DeviceFilterBar({ filters, onChange, transferUnits = [],
 
   // Auto-show advanced panel if any advanced filter is active
   useEffect(() => {
-    if (filters.location || filters.transferUnit || filters.dateFrom || filters.dateTo) {
+    if (filters.location || filters.area || filters.transferUnit || filters.dateFrom || filters.dateTo) {
       setShowAdvanced(true);
     }
-  }, [filters.location, filters.transferUnit, filters.dateFrom, filters.dateTo]);
+  }, [filters.location, filters.area, filters.transferUnit, filters.dateFrom, filters.dateTo]);
 
   const set = (patch: Partial<DeviceFilters>) => {
     const next = { ...filters, ...patch };
@@ -78,10 +82,10 @@ export default function DeviceFilterBar({ filters, onChange, transferUnits = [],
     ? (STATUS_BY_TYPE[filters.type] || [])
     : Object.entries(ALL_STATUSES).map(([value, { label }]) => ({ value, label }));
 
-  const activeAdvancedCount = [filters.location, filters.transferUnit, filters.dateFrom, filters.dateTo].filter(Boolean).length;
+  const activeAdvancedCount = [filters.location, filters.area, filters.transferUnit, filters.dateFrom, filters.dateTo].filter(Boolean).length;
 
   const clearAll = () => onChange({ ...EMPTY_FILTERS });
-  const hasAnyFilter = filters.search || filters.type || filters.status || filters.location || filters.transferUnit || filters.dateFrom || filters.dateTo;
+  const hasAnyFilter = filters.search || filters.type || filters.status || filters.location || filters.area || filters.transferUnit || filters.dateFrom || filters.dateTo;
 
   return (
     <div className="bg-white rounded-2xl shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] border border-slate-100">
@@ -174,6 +178,19 @@ export default function DeviceFilterBar({ filters, onChange, transferUnits = [],
             >
               <option value="">Tất cả đơn vị</option>
               {locations.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
+            </select>
+          </div>
+
+          {/* Area */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-slate-500 whitespace-nowrap">Khu vực</label>
+            <select
+              value={filters.area}
+              onChange={(e) => set({ area: e.target.value })}
+              className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500 cursor-pointer min-w-[160px]"
+            >
+              <option value="">Tất cả khu vực</option>
+              {areas.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
             </select>
           </div>
 

@@ -45,6 +45,7 @@ async function getUserLocationFilter(req: Request): Promise<Record<string, unkno
 
 type DeviceWithLocation = Awaited<ReturnType<typeof prisma.device.findMany>>[number] & {
   location?: { name: string } | null;
+  area?: { name: string } | null;
 };
 
 // Build a styled, QR-embedded XLSX workbook for the given devices
@@ -62,6 +63,7 @@ async function buildDevicesWorkbook(devices: DeviceWithLocation[]): Promise<Exce
     { key: 'type', width: 18 },
     { key: 'status', width: 18 },
     { key: 'location', width: 22 },
+    { key: 'area', width: 18 },
     { key: 'transfer_to', width: 22 },
     { key: 'created_at', width: 14 },
     { key: 'qrcode', width: 18 },
@@ -84,7 +86,7 @@ async function buildDevicesWorkbook(devices: DeviceWithLocation[]): Promise<Exce
     });
   }
 
-  sheet.mergeCells('C2:I3');
+  sheet.mergeCells('C2:J3');
   const titleCell = sheet.getCell('C2');
   titleCell.value = 'Danh sách thiết bị';
   titleCell.font = { bold: true, size: 18 };
@@ -94,7 +96,7 @@ async function buildDevicesWorkbook(devices: DeviceWithLocation[]): Promise<Exce
 
   const colHeaders = [
     'STT', 'Mã thiết bị', 'Tên thiết bị', 'Loại thiết bị', 'Trạng thái',
-    'Đơn vị trực thuộc', 'Đơn vị chuyển giao', 'Ngày nhập', 'Mã QRCode',
+    'Đơn vị trực thuộc', 'Khu vực', 'Đơn vị chuyển giao', 'Ngày nhập', 'Mã QRCode',
   ];
   const headerRow = sheet.getRow(DATA_HEADER_ROW);
   colHeaders.forEach((text, i) => { headerRow.getCell(i + 1).value = text; });
@@ -117,6 +119,7 @@ async function buildDevicesWorkbook(devices: DeviceWithLocation[]): Promise<Exce
       TYPE_LABELS[device.type] || device.type,
       STATUS_LABELS[device.status] || device.status,
       device.location?.name || '',
+      device.area?.name || '',
       device.ownedBy ? [device.location?.name, device.ownedBy].filter(Boolean).join(' → ') : '',
       device.createdAt.toLocaleDateString('vi-VN'),
       '',
@@ -130,7 +133,7 @@ async function buildDevicesWorkbook(devices: DeviceWithLocation[]): Promise<Exce
       extension: 'png',
     });
     sheet.addImage(imageId, {
-      tl: { col: 8, row: rowNumber - 1 },
+      tl: { col: 9, row: rowNumber - 1 },
       ext: { width: qrSize, height: qrSize },
     });
 
@@ -155,7 +158,7 @@ async function buildDevicesWorkbook(devices: DeviceWithLocation[]): Promise<Exce
 
   sheet.autoFilter = {
     from: { row: DATA_HEADER_ROW, column: 1 },
-    to: { row: DATA_HEADER_ROW, column: 9 },
+    to: { row: DATA_HEADER_ROW, column: 10 },
   };
   sheet.views = [{ state: 'frozen', ySplit: DATA_HEADER_ROW }];
 
@@ -190,7 +193,7 @@ router.post('/excel', requirePermission('devices', 'export'), async (req: Reques
 
     const devices = await prisma.device.findMany({
       where,
-      include: { location: true },
+      include: { location: true, area: true },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -209,7 +212,7 @@ router.get('/excel', requirePermission('devices', 'export'), async (req: Request
 
     const devices = await prisma.device.findMany({
       where,
-      include: { location: true },
+      include: { location: true, area: true },
       orderBy: { createdAt: 'desc' },
     });
 

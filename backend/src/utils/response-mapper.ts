@@ -1,7 +1,8 @@
-import type { Device, Location, Attachment, TransferAttachment, TransferRecord } from '../generated/prisma/client.js';
+import type { Device, Location, Area, Attachment, TransferAttachment, TransferRecord } from '../generated/prisma/client.js';
 
 type DeviceWithRelations = Device & {
   location?: { name: string } | null;
+  area?: { name: string } | null;
   attachments?: Pick<Attachment, 'id' | 'isPrimary'>[];
   transferRecord?: (TransferRecord & { attachments?: TransferAttachment[] }) | null;
 };
@@ -43,6 +44,8 @@ export function mapDevice(d: DeviceWithRelations) {
     name: d.name,
     location_id: d.locationId,
     location_name: d.location?.name || null,
+    area_id: d.areaId ?? null,
+    area_name: d.area?.name || null,
     managed_by: d.managedBy,
     owned_by: d.ownedBy,
     serial_number: d.serialNumber,
@@ -68,5 +71,13 @@ export function mapLocation(l: Location) {
     id: l.id,
     name: l.name,
     created_at: l.createdAt?.toISOString(),
+  };
+}
+
+export function mapArea(a: Area) {
+  return {
+    id: a.id,
+    name: a.name,
+    created_at: a.createdAt?.toISOString(),
   };
 }

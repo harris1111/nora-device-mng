@@ -68,6 +68,16 @@ export default function DeviceListRow({ device, selectable, selected, onToggleSe
         </span>
       </td>
       <td className="px-6 py-4">
+        {device.area_name ? (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100 shadow-sm">
+            <div className="w-1.5 h-1.5 bg-amber-500 rounded-full mr-1.5"></div>
+            {device.area_name}
+          </span>
+        ) : (
+          <span className="text-xs text-slate-300">—</span>
+        )}
+      </td>
+      <td className="px-6 py-4">
         {device.owned_by ? (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm">
             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>

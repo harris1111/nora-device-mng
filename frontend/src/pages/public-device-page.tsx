@@ -93,6 +93,12 @@ export default function PublicDevicePage() {
                 <p className="font-semibold text-slate-700">{device.location_name}</p>
               </div>
             )}
+            {device.area_name && (
+              <div>
+                <p className="text-xs text-slate-400 font-medium uppercase">Khu vực</p>
+                <p className="font-semibold text-slate-700">{device.area_name}</p>
+              </div>
+            )}
             {device.serial_number && (
               <div>
                 <p className="text-xs text-slate-400 font-medium uppercase">Số serial</p>

@@ -38,6 +38,7 @@ const deviceUpload = upload.fields([
 
 const listDeviceIncludes = {
   location: true,
+  area: true,
   attachments: { where: { isPrimary: true }, select: { id: true, isPrimary: true }, take: 1 },
 };
 
@@ -180,6 +181,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
     status,
     search,
     location_id,
+    area_id,
     transfer_unit,
     date_from,
     date_to,
@@ -188,6 +190,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
     status?: string;
     search?: string;
     location_id?: string;
+    area_id?: string;
     transfer_unit?: string;
     date_from?: string;
     date_to?: string;
@@ -199,6 +202,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
   if (type) where.type = type;
   if (status) where.status = status;
   if (location_id) where.locationId = location_id;
+  if (area_id) where.areaId = area_id;
   if (transfer_unit) where.ownedBy = transfer_unit;
 
   if (search && search.trim()) {
@@ -330,7 +334,7 @@ function parseWarranty(rawValue: unknown, rawUnit: unknown): { value: number | n
 // POST /api/devices — create device
 router.post('/', requirePermission('devices', 'create'), deviceUpload, async (req: Request, res: Response) => {
   try {
-    const { name, store_id, location_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_value, warranty_unit } = req.body;
+    const { name, store_id, location_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_value, warranty_unit } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
@@ -338,6 +342,13 @@ router.post('/', requirePermission('devices', 'create'), deviceUpload, async (re
 
     const location = await prisma.location.findUnique({ where: { id: location_id.trim() } });
     if (!location) return res.status(400).json({ error: 'Invalid location selected' });
+
+    let resolvedAreaId: string | null = null;
+    if (area_id && typeof area_id === 'string' && area_id.trim()) {
+      const area = await prisma.area.findUnique({ where: { id: area_id.trim() } });
+      if (!area) return res.status(400).json({ error: 'Invalid area selected' });
+      resolvedAreaId = area.id;
+    }
 
     const deviceType = type || 'tai_san';
     const deviceStatus = status || 'active';
@@ -366,6 +377,7 @@ router.post('/', requirePermission('devices', 'create'), deviceUpload, async (re
           storeId: store_id.trim(),
           name: name.trim(),
           locationId: location_id.trim(),
+          areaId: resolvedAreaId,
           managedBy: managed_by?.trim() || '',
           ownedBy: transferSummary.ownedBy,
           serialNumber: serial_number?.trim() || '',
@@ -427,7 +439,7 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
     const existing = await prisma.device.findUnique({ where: { id: req.params.id as string } });
     if (!existing) return res.status(404).json({ error: 'Device not found' });
 
-    const { name, store_id, location_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_value, warranty_unit } = req.body;
+    const { name, store_id, location_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_value, warranty_unit } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
@@ -439,6 +451,18 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
 
     const location = await prisma.location.findUnique({ where: { id: location_id.trim() } });
     if (!location) return res.status(400).json({ error: 'Invalid location selected' });
+
+    let resolvedAreaId: string | null = existing.areaId;
+    if (area_id !== undefined) {
+      const trimmed = typeof area_id === 'string' ? area_id.trim() : '';
+      if (trimmed) {
+        const area = await prisma.area.findUnique({ where: { id: trimmed } });
+        if (!area) return res.status(400).json({ error: 'Invalid area selected' });
+        resolvedAreaId = area.id;
+      } else {
+        resolvedAreaId = null;
+      }
+    }
 
     const deviceStatus = status || existing.status;
     const typeErr = validateTypeStatus(existing.type, deviceStatus);
@@ -467,6 +491,7 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
       storeId: store_id.trim(),
       name: name.trim(),
       locationId: location_id.trim(),
+      areaId: resolvedAreaId,
       managedBy: managed_by?.trim() || '',
       ownedBy: owned_by?.trim() || '',
       serialNumber: serial_number?.trim() || '',

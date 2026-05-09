@@ -9,6 +9,8 @@ export interface Device {
   status: string;
   location_id: string;
   location_name: string | null;
+  area_id: string | null;
+  area_name: string | null;
   owned_by: string | null;
   serial_number: string | null;
   manufacturer: string | null;
@@ -27,6 +29,12 @@ export interface Device {
 }
 
 export interface Location {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface Area {
   id: string;
   name: string;
   created_at: string;
@@ -90,6 +98,7 @@ export interface DeviceListParams {
   type?: string;
   status?: string;
   location_id?: string;
+  area_id?: string;
   transfer_unit?: string;
   date_from?: string;
   date_to?: string;
@@ -267,3 +276,9 @@ export const exportDevicesExcelFiltered = (params?: DeviceListParams): Promise<B
 export const createLocation = (data: { name: string }): Promise<Location> => api.post('/locations', data).then(r => r.data);
 export const updateLocationApi = (id: string, data: { name: string }) => api.put(`/locations/${id}`, data).then(r => r.data);
 export const deleteLocationApi = (id: string) => api.delete(`/locations/${id}`);
+
+// Area API
+export const getAreas = (): Promise<Area[]> => api.get('/areas').then(r => r.data);
+export const createArea = (data: { name: string }): Promise<Area> => api.post('/areas', data).then(r => r.data);
+export const updateAreaApi = (id: string, data: { name: string }) => api.put(`/areas/${id}`, data).then(r => r.data);
+export const deleteAreaApi = (id: string) => api.delete(`/areas/${id}`);

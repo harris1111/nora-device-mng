@@ -5,10 +5,12 @@ import {
   exportDevicesExcelFiltered,
   bulkDeleteDevices,
   getLocations,
+  getAreas,
   getTransferUnits,
   Device,
   DeviceListParams,
   Location,
+  Area,
 } from '../api/device-api';
 import { useCan } from '../hooks/use-permission';
 import DeviceCard from '../components/device/device-card';
@@ -34,6 +36,7 @@ function readStateFromParams(params: URLSearchParams): { filters: DeviceFilters;
       type: params.get('type') || '',
       status: params.get('status') || '',
       location: params.get('location') || '',
+      area: params.get('area') || '',
       transferUnit: params.get('transfer_unit') || '',
       dateFrom: params.get('date_from') || '',
       dateTo: params.get('date_to') || '',
@@ -49,6 +52,7 @@ function writeStateToParams(filters: DeviceFilters, page: number, limit: number)
   if (filters.type) next.set('type', filters.type);
   if (filters.status) next.set('status', filters.status);
   if (filters.location) next.set('location', filters.location);
+  if (filters.area) next.set('area', filters.area);
   if (filters.transferUnit) next.set('transfer_unit', filters.transferUnit);
   if (filters.dateFrom) next.set('date_from', filters.dateFrom);
   if (filters.dateTo) next.set('date_to', filters.dateTo);
@@ -88,6 +92,9 @@ export default function DeviceListPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   useEffect(() => { getLocations().then(setLocations).catch(() => {}); }, []);
 
+  const [areas, setAreas] = useState<Area[]>([]);
+  useEffect(() => { getAreas().then(setAreas).catch(() => {}); }, []);
+
   // Distinct transfer-unit values for the filter dropdown (server-provided, RBAC-aware)
   const [transferUnits, setTransferUnits] = useState<string[]>([]);
   useEffect(() => { getTransferUnits().then(setTransferUnits).catch(() => {}); }, []);
@@ -104,6 +111,13 @@ export default function DeviceListPage() {
     return m;
   }, [locations]);
 
+  // Resolve area name → id (the filter bar still uses name)
+  const areaNameToId = useMemo(() => {
+    const m = new Map<string, string>();
+    areas.forEach(a => m.set(a.name, a.id));
+    return m;
+  }, [areas]);
+
   // Build the params object sent to the API
   const apiParams: DeviceListParams = useMemo(() => {
     const p: DeviceListParams = { page, limit };
@@ -114,11 +128,15 @@ export default function DeviceListPage() {
       const id = locationNameToId.get(filters.location);
       if (id) p.location_id = id;
     }
+    if (filters.area) {
+      const id = areaNameToId.get(filters.area);
+      if (id) p.area_id = id;
+    }
     if (filters.transferUnit) p.transfer_unit = filters.transferUnit;
     if (filters.dateFrom) p.date_from = filters.dateFrom;
     if (filters.dateTo) p.date_to = filters.dateTo;
     return p;
-  }, [page, limit, debouncedSearch, filters.type, filters.status, filters.location, filters.transferUnit, filters.dateFrom, filters.dateTo, locationNameToId]);
+  }, [page, limit, debouncedSearch, filters.type, filters.status, filters.location, filters.area, filters.transferUnit, filters.dateFrom, filters.dateTo, locationNameToId, areaNameToId]);
 
   // Sync state → URL whenever filters or pagination change
   useEffect(() => {
@@ -145,12 +163,12 @@ export default function DeviceListPage() {
   // When any filter input (or page size) changes, reset to page 1
   const prevFilterKey = useRef<string>('');
   useEffect(() => {
-    const key = JSON.stringify([debouncedSearch, filters.type, filters.status, filters.location, filters.transferUnit, filters.dateFrom, filters.dateTo, limit]);
+    const key = JSON.stringify([debouncedSearch, filters.type, filters.status, filters.location, filters.area, filters.transferUnit, filters.dateFrom, filters.dateTo, limit]);
     if (prevFilterKey.current && prevFilterKey.current !== key && page !== 1) {
       setPage(1);
     }
     prevFilterKey.current = key;
-  }, [debouncedSearch, filters.type, filters.status, filters.location, filters.transferUnit, filters.dateFrom, filters.dateTo, limit, page]);
+  }, [debouncedSearch, filters.type, filters.status, filters.location, filters.area, filters.transferUnit, filters.dateFrom, filters.dateTo, limit, page]);
 
   const handleViewChange = (newView: string) => {
     setView(newView);
@@ -213,7 +231,7 @@ export default function DeviceListPage() {
   };
 
   const allSelectedOnPage = devices.length > 0 && selectedIds.size === devices.length;
-  const hasActiveFilters = !!(filters.search || filters.type || filters.status || filters.location || filters.transferUnit || filters.dateFrom || filters.dateTo);
+  const hasActiveFilters = !!(filters.search || filters.type || filters.status || filters.location || filters.area || filters.transferUnit || filters.dateFrom || filters.dateTo);
 
   return (
     <div className="space-y-6">
@@ -221,6 +239,7 @@ export default function DeviceListPage() {
       <DeviceFilterBar
         filters={filters}
         onChange={setFilters}
+        areas={areas}
         transferUnits={transferUnits}
         trailing={
           <div className="flex items-center gap-2">
@@ -363,6 +382,7 @@ export default function DeviceListPage() {
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Loại thiết bị</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Trạng thái</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Đơn vị trực thuộc</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Khu vực</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Chuyển giao</th>
                 <th className="px-6 py-4 border-b border-slate-100"></th>
               </tr>

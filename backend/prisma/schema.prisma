@@ -37,6 +37,8 @@ model User {
   devicesUpdated              Device[]              @relation("DeviceUpdatedBy")
   locationsCreated            Location[]            @relation("LocationCreatedBy")
   locationsUpdated            Location[]            @relation("LocationUpdatedBy")
+  areasCreated                Area[]                @relation("AreaCreatedBy")
+  areasUpdated                Area[]                @relation("AreaUpdatedBy")
   maintenanceRecordsCreated   MaintenanceRecord[]   @relation("MaintenanceCreatedBy")
   maintenanceRecordsUpdated   MaintenanceRecord[]   @relation("MaintenanceUpdatedBy")
   scheduledMaintenanceCreated ScheduledMaintenance[] @relation("ScheduledMaintenanceCreatedBy")
@@ -102,6 +104,19 @@ model Location {
   @@map("locations")
 }
 
+model Area {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdById String?  @map("created_by")
+  createdBy   User?    @relation("AreaCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?  @map("updated_by")
+  updatedBy   User?    @relation("AreaUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  devices     Device[]
+
+  @@map("areas")
+}
+
 model UserLocation {
   id         String   @id @default(uuid())
   userId     String   @map("user_id")
@@ -120,6 +135,8 @@ model Device {
   name         String
   locationId   String?  @map("location_id")
   location     Location? @relation(fields: [locationId], references: [id])
+  areaId       String?  @map("area_id")
+  area         Area?    @relation(fields: [areaId], references: [id])
   managedBy    String   @default("") @map("managed_by")
   ownedBy      String   @default("") @map("owned_by")
   serialNumber String   @default("") @map("serial_number")
