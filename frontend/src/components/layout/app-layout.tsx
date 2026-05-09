@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/auth-context';
 import { useCan } from '../../hooks/use-permission';
@@ -6,6 +6,52 @@ import NotificationBell from '../notification/notification-bell';
 
 interface Props {
   children: ReactNode;
+}
+
+interface NavItem {
+  label: string;
+  shortLabel: string;
+  path: string;
+  description: string;
+  visible: boolean;
+  icon: ReactNode;
+}
+
+function ShellActionButtons({ canCreateDevices, compact = false }: { canCreateDevices: boolean; compact?: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      <NotificationBell />
+      {canCreateDevices && (
+        <Link
+          to="/devices/new"
+          className={compact
+            ? 'inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm shadow-indigo-200 transition-colors hover:bg-indigo-700'
+            : 'inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-indigo-200 transition-colors hover:bg-indigo-700'}
+          title="Thêm thiết bị mới"
+          aria-label="Thêm thiết bị mới"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          {!compact && <span>Thêm mới</span>}
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function getPageMeta(path: string): { title: string; eyebrow: string } {
+  if (path.includes('/devices/new')) return { title: 'Thêm thiết bị', eyebrow: 'Thiết bị' };
+  if (path.includes('/devices/') && path.includes('/edit')) return { title: 'Sửa thiết bị', eyebrow: 'Thiết bị' };
+  if (path.includes('/devices/') && path !== '/devices') return { title: 'Chi tiết thiết bị', eyebrow: 'Thiết bị' };
+  if (path.startsWith('/devices')) return { title: 'Danh sách thiết bị', eyebrow: 'Quản lý thiết bị' };
+  if (path.startsWith('/locations')) return { title: 'Quản lý đơn vị', eyebrow: 'Danh mục' };
+  if (path.startsWith('/areas')) return { title: 'Quản lý khu vực', eyebrow: 'Danh mục' };
+  if (path.startsWith('/users')) return { title: 'Quản lý người dùng', eyebrow: 'Quản trị' };
+  if (path.startsWith('/permissions')) return { title: 'Quản lý phân quyền', eyebrow: 'Quản trị' };
+  if (path.startsWith('/audit-logs')) return { title: 'Nhật ký hệ thống', eyebrow: 'Quản trị' };
+  if (path.startsWith('/export')) return { title: 'Xuất Excel', eyebrow: 'Tiện ích' };
+  return { title: 'Nora Device Manager', eyebrow: 'BWP Devices' };
 }
 
 export default function AppLayout({ children }: Props) {
@@ -20,39 +66,45 @@ export default function AppLayout({ children }: Props) {
   const canViewPermissions = useCan('permissions', 'view');
   const canCreateDevices = useCan('devices', 'create');
   const canExportDevices = useCan('devices', 'export');
+  const pageMeta = getPageMeta(path);
 
-  // Close mobile menu when route changes
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [path]);
 
-  const allNavItems = [
+  const allNavItems: NavItem[] = [
     {
       label: 'Thiết bị',
+      shortLabel: 'Thiết bị',
       path: '/devices',
+      description: 'Danh sách, tìm kiếm và chi tiết',
       visible: canViewDevices,
       icon: (
-        <svg className="w-5 h-5 md:mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
         </svg>
       )
     },
     {
       label: 'Xuất Excel',
+      shortLabel: 'Xuất',
       path: '/export',
+      description: 'Xuất dữ liệu theo điều kiện lọc',
       visible: canExportDevices,
       icon: (
-        <svg className="w-5 h-5 md:mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
       )
     },
     {
       label: 'Đơn vị',
+      shortLabel: 'Đơn vị',
       path: '/locations',
+      description: 'Quản lý đơn vị trực thuộc',
       visible: canViewLocations,
       icon: (
-        <svg className="w-5 h-5 md:mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
@@ -60,187 +112,188 @@ export default function AppLayout({ children }: Props) {
     },
     {
       label: 'Khu vực',
+      shortLabel: 'Khu vực',
       path: '/areas',
+      description: 'Quản lý khu vực sử dụng',
       visible: canViewAreas,
       icon: (
-        <svg className="w-5 h-5 md:mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
         </svg>
       )
     },
     {
       label: 'Người dùng',
+      shortLabel: 'Users',
       path: '/users',
+      description: 'Tài khoản và phân công truy cập',
       visible: canViewUsers,
       icon: (
-        <svg className="w-5 h-5 md:mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
       )
     },
     {
       label: 'Phân quyền',
+      shortLabel: 'Quyền',
       path: '/permissions',
+      description: 'Phân quyền theo chức năng',
       visible: canViewPermissions,
       icon: (
-        <svg className="w-5 h-5 md:mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
         </svg>
       )
     },
     {
       label: 'Nhật ký',
+      shortLabel: 'Nhật ký',
       path: '/audit-logs',
+      description: 'Theo dõi thay đổi hệ thống',
       visible: user?.role === 'SADMIN',
       icon: (
-        <svg className="w-5 h-5 md:mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
         </svg>
       )
     }
   ];
 
-  const navItems = allNavItems.filter(item => item.visible);
-
+  const navItems = allNavItems.filter((item) => item.visible);
   const userInitials = user ? user.username.slice(0, 2).toUpperCase() : 'AD';
   const roleLabels: Record<string, string> = { SADMIN: 'Super Admin', ADMIN: 'Quản trị viên', USER: 'Người dùng' };
   const roleLabel = user ? roleLabels[user.role] || user.role : '';
 
-  const getPageTitle = () => {
-    if (path.includes('/devices/new')) return 'Thêm Thiết bị';
-    if (path.includes('/devices/') && path.includes('/edit')) return 'Sửa Thiết bị';
-    if (path.includes('/devices/') && path !== '/devices') return 'Chi tiết Thiết bị';
-    if (path.startsWith('/devices')) return 'Danh sách Thiết bị';
-    if (path.startsWith('/locations')) return 'Quản lý Đơn vị';
-    if (path.startsWith('/areas')) return 'Quản lý Khu vực';
-    if (path.startsWith('/users')) return 'Quản lý Người dùng';
-    if (path.startsWith('/permissions')) return 'Quản lý Phân quyền';
-    if (path.startsWith('/audit-logs')) return 'Nhật ký hệ thống';
-    if (path.startsWith('/export')) return 'Xuất Excel';
-    return '';
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans">
-      
-      {/* Mobile Top Header */}
-      <header className="md:hidden bg-white border-b border-slate-200 sticky top-0 z-30 flex items-center justify-between px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-md shadow-indigo-200">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
-            </svg>
-          </div>
-          <span className="font-bold text-slate-800 tracking-tight text-lg">BWP<span className="text-indigo-600">Dev</span></span>
-        </div>
-        <div className="flex items-center gap-1">
-          <NotificationBell />
-          {canCreateDevices && (
-            <Link
-              to="/devices/new"
-              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors focus:outline-none"
-              title="Thêm thiết bị mới"
+    <div className="min-h-screen bg-slate-50 font-sans lg:flex">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur lg:hidden">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:border-indigo-200 hover:text-indigo-600"
+              aria-label={isMobileMenuOpen ? 'Đóng menu' : 'Mở menu'}
             >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </Link>
-          )}
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 -mr-2 text-slate-600 hover:text-indigo-600 transition-colors focus:outline-none"
-          >
-          {isMobileMenuOpen ? (
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          ) : (
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          )}
-          </button>
+              {isMobileMenuOpen ? (
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
+            <div className="min-w-0">
+              <p className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{pageMeta.eyebrow}</p>
+              <h1 className="truncate text-base font-bold text-slate-800">{pageMeta.title}</h1>
+            </div>
+          </div>
+          <ShellActionButtons canCreateDevices={canCreateDevices} compact />
         </div>
       </header>
 
-      {/* Mobile Slide-out Menu Overlay */}
       {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-800/40 backdrop-blur-sm z-40 md:hidden animate-fade-in"
+        <div
+          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm animate-fade-in lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
-      {/* Sidebar (Desktop & Mobile Slide-out) */}
-      <aside className={`
-        fixed md:static inset-y-0 left-0 z-50 
-        w-64 bg-white border-r border-slate-200 shadow-[4px_0_24px_rgba(0,0,0,0.02)]
-        transform transition-transform duration-300 ease-in-out
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        flex flex-col
-      `}>
-        <Link to="/devices" className="p-6 flex-shrink-0 hidden md:flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-200">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
-            </svg>
-          </div>
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight">BWP<span className="text-indigo-600">Devices</span></h1>
-        </Link>
-        
-        {/* Mobile Sidebar Header */}
-        <div className="p-4 md:hidden flex justify-between items-center border-b border-slate-100">
-          <span className="font-semibold text-slate-700">Menu</span>
-          <button onClick={() => setIsMobileMenuOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
-             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+      <aside
+        className={[
+          'fixed inset-y-0 left-0 z-50 flex w-72 max-w-[88vw] flex-col border-r border-slate-200 bg-white shadow-[4px_0_24px_rgba(0,0,0,0.08)] transform transition-transform duration-300 ease-in-out',
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full',
+          'lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:max-w-none lg:translate-x-0 lg:shadow-[4px_0_24px_rgba(0,0,0,0.02)]'
+        ].join(' ')}
+      >
+        <div className="border-b border-slate-100 px-5 py-5">
+          <Link to="/devices" className="flex items-center gap-3 transition-opacity hover:opacity-80">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 shadow-md shadow-indigo-200">
+              <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">BWP System</p>
+              <h1 className="text-lg font-bold tracking-tight text-slate-800">BWP<span className="text-indigo-600">Devices</span></h1>
+            </div>
+          </Link>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4 px-2">Quản lý</div>
-          {navItems.map((item) => {
-            const isActive = path.startsWith(item.path);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`
-                  flex items-center px-4 py-3 rounded-xl transition-all duration-200 font-medium group
-                  ${isActive 
-                    ? 'bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-100/50' 
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600'}
-                `}
-              >
-                <div className={`
-                  ${isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-indigo-500'} 
-                  transition-colors
-                `}>
-                  {item.icon}
-                </div>
-                {item.label}
-              </Link>
-            );
-          })}
+        <div className="border-b border-slate-100 px-5 py-4 lg:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-700">Điều hướng</p>
+              <p className="text-xs text-slate-500">Chuyển nhanh giữa các màn hình quản trị</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              aria-label="Đóng menu"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-4 py-5">
+          <div className="mb-4 px-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Quản lý</div>
+          <div className="space-y-1.5">
+            {navItems.map((item) => {
+              const isActive = path.startsWith(item.path);
+
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={[
+                    'group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200',
+                    isActive
+                      ? 'bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-100/70 ring-1 ring-indigo-100'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600'
+                  ].join(' ')}
+                >
+                  <div
+                    className={[
+                      'flex h-10 w-10 items-center justify-center rounded-xl border transition-colors',
+                      isActive
+                        ? 'border-indigo-100 bg-white text-indigo-600'
+                        : 'border-transparent bg-slate-100 text-slate-400 group-hover:bg-white group-hover:text-indigo-500'
+                    ].join(' ')}
+                  >
+                    {item.icon}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate">{item.label}</div>
+                    <div className="truncate text-xs text-slate-400 group-hover:text-slate-500">{item.description}</div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         </nav>
-        
-        {/* User Profile at bottom */}
-        <div className="p-4 border-t border-slate-100 m-4 rounded-xl bg-slate-50">
+
+        <div className="m-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
               {userInitials}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-700 truncate">{user?.username || 'Admin'}</p>
-              <p className="text-xs text-slate-500 truncate">{roleLabel}</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-slate-700">{user?.username || 'Admin'}</p>
+              <p className="truncate text-xs text-slate-500">{roleLabel}</p>
             </div>
             <button
               onClick={logout}
               title="Đăng xuất"
-              className="p-1.5 text-slate-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             </button>
@@ -248,54 +301,42 @@ export default function AppLayout({ children }: Props) {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        
-        {/* Desktop Top Header */}
-        <header className="hidden md:flex h-20 items-center justify-between px-8 bg-white/80 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-20">
+      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="sticky top-0 z-20 hidden h-20 items-center justify-between border-b border-slate-200/60 bg-white/80 px-8 backdrop-blur-md lg:flex">
           <div>
-            <h2 className="text-xl font-bold text-slate-800">{getPageTitle()}</h2>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{pageMeta.eyebrow}</p>
+            <h2 className="text-xl font-bold text-slate-800">{pageMeta.title}</h2>
           </div>
-          <div className="flex items-center gap-3">
-             <NotificationBell />
-             {canCreateDevices && (
-             <Link to="/devices/new" className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-200 flex items-center gap-2">
-               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-               </svg>
-               Thêm mới
-             </Link>
-             )}
-          </div>
+          <ShellActionButtons canCreateDevices={canCreateDevices} />
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 animate-fade-in relative z-10 pb-24 md:pb-8">
-          <div className="w-full max-w-6xl mx-auto">
-            {children}
-          </div>
+        <main className="relative z-10 flex-1 overflow-y-auto px-4 pb-28 pt-4 animate-fade-in sm:px-5 sm:pt-5 lg:px-8 lg:pb-8 lg:pt-8">
+          <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
-        
       </div>
-      
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 z-20 pointer-events-none">
-         <div className="bg-slate-800/90 backdrop-blur-lg rounded-2xl shadow-xl flex items-center justify-around p-2 pointer-events-auto border border-white/10 relative">
-           {navItems.slice(0, 4).map((item) => (
-             <Link
-               key={item.path}
-               to={item.path}
-               className={`flex-1 flex flex-col items-center p-2 rounded-xl transition-all ${
-                 path.startsWith(item.path) ? 'text-white' : 'text-slate-400 hover:text-slate-200'
-               }`}
-             >
-               <div className={`mb-1 transition-transform duration-300 ${path.startsWith(item.path) ? 'scale-110' : ''}`}>
-                 {item.icon}
-               </div>
-               <span className="text-[10px] font-medium">{item.label}</span>
-             </Link>
-           ))}
-         </div>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 px-3 pb-3 lg:hidden">
+        <div className="pointer-events-auto overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/92 shadow-xl backdrop-blur-xl [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-max items-stretch gap-1 p-2">
+            {navItems.map((item) => {
+              const isActive = path.startsWith(item.path);
+
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={[
+                    'min-w-[76px] flex-1 rounded-xl px-3 py-2 text-center transition-all',
+                    isActive ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'
+                  ].join(' ')}
+                >
+                  <div className="mx-auto mb-1 flex h-5 w-5 items-center justify-center">{item.icon}</div>
+                  <span className="block text-[10px] font-medium leading-4">{item.shortLabel}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
+  attachmentFileUrl,
   getDevices,
   exportDevicesExcelFiltered,
   bulkDeleteDevices,
@@ -15,6 +16,8 @@ import {
 import { useCan } from '../hooks/use-permission';
 import DeviceCard from '../components/device/device-card';
 import DeviceListRow from '../components/device/device-list-row';
+import DeviceStatusBadge from '../components/device/device-status-badge';
+import { getTypeName } from '../components/device/device-constants';
 import ViewToggle from '../components/ui/view-toggle';
 import Pagination from '../components/ui/pagination';
 import EmptyState from '../components/ui/empty-state';
@@ -232,71 +235,93 @@ export default function DeviceListPage() {
 
   const allSelectedOnPage = devices.length > 0 && selectedIds.size === devices.length;
   const hasActiveFilters = !!(filters.search || filters.type || filters.status || filters.location || filters.area || filters.transferUnit || filters.dateFrom || filters.dateTo);
+  const isSearchPending = filters.search !== debouncedSearch;
+  const resultSummary = loading
+    ? 'Đang cập nhật danh sách thiết bị...'
+    : total > 0
+      ? `${total} thiết bị phù hợp${hasActiveFilters ? ' với bộ lọc hiện tại' : ''}`
+      : hasActiveFilters
+        ? 'Không có thiết bị phù hợp với bộ lọc hiện tại'
+        : 'Chưa có thiết bị trong hệ thống';
 
   return (
     <div className="space-y-6">
-      {/* Filter Bar */}
-      <DeviceFilterBar
-        filters={filters}
-        onChange={setFilters}
-        areas={areas}
-        transferUnits={transferUnits}
-        trailing={
-          <div className="flex items-center gap-2">
+      <section className="rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] sm:px-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Khám phá thiết bị</p>
+            <h3 className="text-lg font-bold text-slate-800">Danh sách thiết bị</h3>
+            <p className="text-sm text-slate-500">{resultSummary}</p>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
+            <ViewToggle view={view} onChange={handleViewChange} />
             {canExport && (
               <button
                 type="button"
                 onClick={handleExport}
                 disabled={exporting || total === 0}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                 title={total === 0 ? 'Không có thiết bị để xuất' : `Xuất tất cả ${total} thiết bị phù hợp với bộ lọc`}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
                 </svg>
                 {exporting ? 'Đang xuất...' : 'Xuất Excel'}
               </button>
             )}
-            <ViewToggle view={view} onChange={handleViewChange} />
           </div>
-        }
+        </div>
+      </section>
+
+      <DeviceFilterBar
+        filters={filters}
+        onChange={setFilters}
+        areas={areas}
+        transferUnits={transferUnits}
+        helperText={hasActiveFilters ? 'Điều chỉnh nhanh bộ lọc để thu hẹp danh sách.' : 'Dùng từ khóa hoặc bộ lọc nhanh để bắt đầu.'}
+        isSearching={isSearchPending}
       />
 
       {/* Bulk Action Toolbar */}
       {selectedIds.size > 0 && hasBulkActions && (
-        <div className="flex items-center gap-3 px-5 py-3 bg-indigo-50 border border-indigo-100 rounded-2xl shadow-sm animate-slide-up">
-          <span className="text-sm font-semibold text-indigo-700">
-            Đã chọn {selectedIds.size} thiết bị (trang hiện tại)
-          </span>
-          <div className="flex-1" />
-          {canUpdate && (
-            <button
-              onClick={() => setShowBulkEdit(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-sm"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Sửa hàng loạt
-            </button>
-          )}
-          {canDelete && (
-            <button
-              onClick={handleBulkDelete}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-sm"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Xóa hàng loạt
-            </button>
-          )}
-          <button
-            onClick={() => setSelectedIds(new Set())}
-            className="px-3 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
-          >
-            Bỏ chọn
-          </button>
+        <div className="animate-slide-up rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-4 shadow-sm sm:px-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-indigo-700">Đã chọn {selectedIds.size} thiết bị trên trang hiện tại</p>
+              <p className="text-sm text-indigo-600/80">Thực hiện thao tác hàng loạt hoặc bỏ chọn để quay lại chế độ duyệt.</p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              {canUpdate && (
+                <button
+                  onClick={() => setShowBulkEdit(true)}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Sửa hàng loạt
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  onClick={handleBulkDelete}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Xóa hàng loạt
+                </button>
+              )}
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800"
+              >
+                Bỏ chọn
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -341,20 +366,21 @@ export default function DeviceListPage() {
 
       {/* Grid View */}
       {!loading && devices.length > 0 && view === 'grid' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
           {devices.map((device, index) => (
-            <div key={device.id} className="relative animate-slide-up" style={{ animationDelay: `${Math.min(index * 50, 500)}ms`, animationFillMode: 'both' }}>
-              {hasBulkActions && (
-                <div className="absolute top-3 left-3 z-10">
+            <div key={device.id} className="animate-slide-up" style={{ animationDelay: `${Math.min(index * 50, 500)}ms`, animationFillMode: 'both' }}>
+              <DeviceCard
+                device={device}
+                selectionControl={hasBulkActions ? (
                   <input
                     type="checkbox"
                     checked={selectedIds.has(device.id)}
                     onChange={() => toggleSelect(device.id)}
-                    className="w-5 h-5 rounded-md border-2 border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm bg-white/90"
+                    aria-label={`Chọn thiết bị ${device.name}`}
+                    className="h-5 w-5 rounded-md border-2 border-slate-300 bg-white text-indigo-600 shadow-sm focus:ring-indigo-500"
                   />
-                </div>
-              )}
-              <DeviceCard device={device} />
+                ) : undefined}
+              />
             </div>
           ))}
         </div>
@@ -362,44 +388,109 @@ export default function DeviceListPage() {
 
       {/* List View */}
       {!loading && devices.length > 0 && view === 'list' && (
-        <div className="card-glass bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
-          <table className="w-full text-left border-collapse whitespace-nowrap">
-            <thead className="bg-slate-50/50">
-              <tr>
-                {hasBulkActions && (
-                  <th className="w-12 px-4 py-4 border-b border-slate-100">
-                    <input
-                      type="checkbox"
-                      checked={allSelectedOnPage}
-                      onChange={toggleSelectAll}
-                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                    />
-                  </th>
-                )}
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Hình ảnh</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Mã thiết bị</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Tên thiết bị</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Loại thiết bị</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Trạng thái</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Đơn vị trực thuộc</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Khu vực</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Chuyển giao</th>
-                <th className="px-6 py-4 border-b border-slate-100"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {devices.map((device) => (
-                <DeviceListRow
-                  key={device.id}
-                  device={device}
-                  selectable={hasBulkActions}
-                  selected={selectedIds.has(device.id)}
-                  onToggleSelect={() => toggleSelect(device.id)}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="space-y-3 md:hidden">
+            {devices.map((device) => {
+              const thumbUrl = device.primary_attachment_id ? attachmentFileUrl(device.primary_attachment_id) : null;
+
+              return (
+                <article key={device.id} className={`rounded-2xl border bg-white p-4 shadow-sm transition-colors ${selectedIds.has(device.id) ? 'border-indigo-200 bg-indigo-50/40' : 'border-slate-200'}`}>
+                  <div className="flex items-start gap-3">
+                    {hasBulkActions && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(device.id)}
+                        onChange={() => toggleSelect(device.id)}
+                        aria-label={`Chọn thiết bị ${device.name}`}
+                        className="mt-1 h-5 w-5 rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    )}
+
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm">
+                      {thumbUrl ? (
+                        <img src={thumbUrl} alt={device.name} loading="lazy" className="h-full w-full object-cover" />
+                      ) : (
+                        <svg className="h-7 w-7 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      )}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="mb-2 inline-flex rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1 font-mono text-xs font-semibold text-slate-600">
+                            {device.store_id}
+                          </div>
+                          <Link to={`/devices/${device.id}`} className="block text-base font-bold text-slate-800 transition-colors hover:text-indigo-600">
+                            <span className="line-clamp-2">{device.name}</span>
+                          </Link>
+                        </div>
+                        <Link to={`/devices/${device.id}`} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 transition-colors hover:text-indigo-600">
+                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <DeviceStatusBadge status={device.status} />
+                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                          {getTypeName(device.type)}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 space-y-2 text-sm text-slate-600">
+                        <div className="line-clamp-2">Đơn vị: {device.location_name || 'Chưa có'}</div>
+                        {device.area_name && <div className="line-clamp-2">Khu vực: {device.area_name}</div>}
+                        {device.owned_by && <div className="line-clamp-2">Chuyển giao: {[device.location_name, device.owned_by].filter(Boolean).join(' → ')}</div>}
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm md:block">
+            <table className="w-full border-collapse whitespace-nowrap text-left">
+              <thead className="bg-slate-50/50">
+                <tr>
+                  {hasBulkActions && (
+                    <th className="w-12 border-b border-slate-100 px-4 py-4">
+                      <input
+                        type="checkbox"
+                        checked={allSelectedOnPage}
+                        onChange={toggleSelectAll}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    </th>
+                  )}
+                  <th className="border-b border-slate-100 px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500">Hình ảnh</th>
+                  <th className="border-b border-slate-100 px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500">Mã thiết bị</th>
+                  <th className="border-b border-slate-100 px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500">Tên thiết bị</th>
+                  <th className="border-b border-slate-100 px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500">Loại thiết bị</th>
+                  <th className="border-b border-slate-100 px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500">Trạng thái</th>
+                  <th className="border-b border-slate-100 px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500">Đơn vị trực thuộc</th>
+                  <th className="border-b border-slate-100 px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500">Khu vực</th>
+                  <th className="border-b border-slate-100 px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500">Chuyển giao</th>
+                  <th className="border-b border-slate-100 px-6 py-4"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {devices.map((device) => (
+                  <DeviceListRow
+                    key={device.id}
+                    device={device}
+                    selectable={hasBulkActions}
+                    selected={selectedIds.has(device.id)}
+                    onToggleSelect={() => toggleSelect(device.id)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Pagination */}

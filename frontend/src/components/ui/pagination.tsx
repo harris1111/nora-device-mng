@@ -64,9 +64,9 @@ export default function Pagination({
   );
 
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-4 py-3 bg-white border border-slate-100 rounded-2xl shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)]">
-      {/* Left: range + page size */}
-      <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
+    <div className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-white px-4 py-4 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] sm:px-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
         <span>
           {total === 0 ? (
             <>Không có {itemLabel} nào</>
@@ -85,33 +85,41 @@ export default function Pagination({
             {pageSizeOptions.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
+        </div>
+
+        <div className="hidden items-center gap-1.5 sm:flex" role="navigation" aria-label="Pagination">
+          {navBtn('«', 1, safePage <= 1, 'First page')}
+          {navBtn('‹', safePage - 1, safePage <= 1, 'Previous page')}
+          {tokens.map((tok, i) =>
+            tok === 'gap' ? (
+              <span key={`gap-${i}`} className="select-none px-2 text-slate-400">…</span>
+            ) : (
+              <button
+                key={tok}
+                type="button"
+                onClick={() => go(tok)}
+                aria-current={tok === safePage ? 'page' : undefined}
+                className={
+                  tok === safePage
+                    ? 'inline-flex h-9 min-w-[36px] items-center justify-center rounded-lg bg-indigo-600 px-2.5 text-sm font-semibold text-white shadow-sm'
+                    : 'inline-flex h-9 min-w-[36px] items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50'
+                }
+              >
+                {tok}
+              </button>
+            )
+          )}
+          {navBtn('›', safePage + 1, safePage >= safePages, 'Next page')}
+          {navBtn('»', safePages, safePage >= safePages, 'Last page')}
+        </div>
       </div>
 
-      {/* Right: navigation */}
-      <div className="flex items-center gap-1.5" role="navigation" aria-label="Pagination">
-        {navBtn('«', 1, safePage <= 1, 'First page')}
+      <div className="flex items-center justify-between gap-3 sm:hidden" role="navigation" aria-label="Pagination mobile">
         {navBtn('‹', safePage - 1, safePage <= 1, 'Previous page')}
-        {tokens.map((tok, i) =>
-          tok === 'gap' ? (
-            <span key={`gap-${i}`} className="px-2 text-slate-400 select-none">…</span>
-          ) : (
-            <button
-              key={tok}
-              type="button"
-              onClick={() => go(tok)}
-              aria-current={tok === safePage ? 'page' : undefined}
-              className={
-                tok === safePage
-                  ? 'inline-flex items-center justify-center min-w-[36px] h-9 px-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold shadow-sm'
-                  : 'inline-flex items-center justify-center min-w-[36px] h-9 px-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors'
-              }
-            >
-              {tok}
-            </button>
-          )
-        )}
+        <div className="flex min-w-0 flex-1 items-center justify-center rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600">
+          Trang <span className="mx-1 font-semibold text-slate-800">{safePage}</span> / {safePages}
+        </div>
         {navBtn('›', safePage + 1, safePage >= safePages, 'Next page')}
-        {navBtn('»', safePages, safePage >= safePages, 'Last page')}
       </div>
     </div>
   );
