@@ -7,6 +7,7 @@ import TransferInfoSection from '../components/transfer/transfer-info-section';
 import LoginModal from '../components/auth/login-modal';
 import { useAuth } from '../context/auth-context';
 import { useCan } from '../hooks/use-permission';
+import SiteFooter from '../components/layout/site-footer';
 
 export default function PublicDevicePage() {
   const { id } = useParams();
@@ -60,8 +61,8 @@ export default function PublicDevicePage() {
 
   return (
     <>
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <div className="flex min-h-screen flex-col bg-gradient-to-b from-slate-50 to-white">
+      <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 space-y-6">
         {/* Header */}
         <div className="text-center">
           <h1 className="text-2xl font-extrabold text-slate-800 mb-1">{device.name}</h1>
@@ -184,10 +185,8 @@ export default function PublicDevicePage() {
           </button>
         </div>
 
-        <p className="pb-4 text-center text-[10px] font-medium tracking-[0.08em] text-slate-400">
-          Copyright @ 2026 - Website by IT Leon
-        </p>
       </div>
+      <SiteFooter />
     </div>
     <LoginModal
       open={loginOpen}

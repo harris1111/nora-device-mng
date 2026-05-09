@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/auth-context';
 import { useCan } from '../../hooks/use-permission';
 import NotificationBell from '../notification/notification-bell';
+import SiteFooter from './site-footer';
 
 interface Props {
   children: ReactNode;
@@ -158,180 +159,178 @@ export default function AppLayout({ children }: Props) {
   const roleLabel = user ? roleLabels[user.role] || user.role : '';
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans lg:flex">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur lg:hidden">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3">
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:border-indigo-200 hover:text-indigo-600"
-              aria-label={isMobileMenuOpen ? 'Đóng menu' : 'Mở menu'}
-            >
-              {isMobileMenuOpen ? (
+    <div className="flex min-h-screen flex-col bg-slate-50 font-sans">
+      <div className="flex-1 lg:flex">
+        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur lg:hidden">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:border-indigo-200 hover:text-indigo-600"
+                aria-label={isMobileMenuOpen ? 'Đóng menu' : 'Mở menu'}
+              >
+                {isMobileMenuOpen ? (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                )}
+              </button>
+              <div className="min-w-0">
+                <p className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{pageMeta.eyebrow}</p>
+                <h1 className="truncate text-base font-bold text-slate-800">{pageMeta.title}</h1>
+              </div>
+            </div>
+            <ShellActionButtons canCreateDevices={canCreateDevices} compact />
+          </div>
+        </header>
+
+        {isMobileMenuOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm animate-fade-in lg:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+
+        <aside
+          className={[
+            'fixed inset-y-0 left-0 z-50 flex w-72 max-w-[88vw] flex-col border-r border-slate-200 bg-white shadow-[4px_0_24px_rgba(0,0,0,0.08)] transform transition-transform duration-300 ease-in-out',
+            isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full',
+            'lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:max-w-none lg:translate-x-0 lg:shadow-[4px_0_24px_rgba(0,0,0,0.02)]'
+          ].join(' ')}
+        >
+          <div className="border-b border-slate-100 px-5 py-5">
+            <Link to="/devices" className="flex items-center gap-3 transition-opacity hover:opacity-80">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 shadow-md shadow-indigo-200">
+                <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">BWP System</p>
+                <h1 className="text-lg font-bold tracking-tight text-slate-800">BWP<span className="text-indigo-600">Devices</span></h1>
+              </div>
+            </Link>
+          </div>
+
+          <div className="border-b border-slate-100 px-5 py-4 lg:hidden">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-700">Điều hướng</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                aria-label="Đóng menu"
+              >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              ) : (
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              )}
-            </button>
-            <div className="min-w-0">
-              <p className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{pageMeta.eyebrow}</p>
-              <h1 className="truncate text-base font-bold text-slate-800">{pageMeta.title}</h1>
+              </button>
             </div>
           </div>
-          <ShellActionButtons canCreateDevices={canCreateDevices} compact />
-        </div>
-      </header>
 
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm animate-fade-in lg:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
+          <nav className="flex-1 overflow-y-auto px-4 py-5">
+            <div className="mb-4 px-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Quản lý</div>
+            <div className="space-y-1.5">
+              {navItems.map((item) => {
+                const isActive = path.startsWith(item.path);
 
-      <aside
-        className={[
-          'fixed inset-y-0 left-0 z-50 flex w-72 max-w-[88vw] flex-col border-r border-slate-200 bg-white shadow-[4px_0_24px_rgba(0,0,0,0.08)] transform transition-transform duration-300 ease-in-out',
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full',
-          'lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:max-w-none lg:translate-x-0 lg:shadow-[4px_0_24px_rgba(0,0,0,0.02)]'
-        ].join(' ')}
-      >
-        <div className="border-b border-slate-100 px-5 py-5">
-          <Link to="/devices" className="flex items-center gap-3 transition-opacity hover:opacity-80">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 shadow-md shadow-indigo-200">
-              <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">BWP System</p>
-              <h1 className="text-lg font-bold tracking-tight text-slate-800">BWP<span className="text-indigo-600">Devices</span></h1>
-            </div>
-          </Link>
-        </div>
-
-        <div className="border-b border-slate-100 px-5 py-4 lg:hidden">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-slate-700">Điều hướng</p>
-              <p className="text-xs text-slate-500">Chuyển nhanh giữa các màn hình quản trị</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-              aria-label="Đóng menu"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto px-4 py-5">
-          <div className="mb-4 px-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Quản lý</div>
-          <div className="space-y-1.5">
-            {navItems.map((item) => {
-              const isActive = path.startsWith(item.path);
-
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={[
-                    'group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200',
-                    isActive
-                      ? 'bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-100/70 ring-1 ring-indigo-100'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600'
-                  ].join(' ')}
-                >
-                  <div
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
                     className={[
-                      'flex h-10 w-10 items-center justify-center rounded-xl border transition-colors',
+                      'group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200',
                       isActive
-                        ? 'border-indigo-100 bg-white text-indigo-600'
-                        : 'border-transparent bg-slate-100 text-slate-400 group-hover:bg-white group-hover:text-indigo-500'
+                        ? 'bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-100/70 ring-1 ring-indigo-100'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600'
                     ].join(' ')}
                   >
-                    {item.icon}
-                  </div>
-                  <div className="min-w-0 truncate">{item.label}</div>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
+                    <div
+                      className={[
+                        'flex h-10 w-10 items-center justify-center rounded-xl border transition-colors',
+                        isActive
+                          ? 'border-indigo-100 bg-white text-indigo-600'
+                          : 'border-transparent bg-slate-100 text-slate-400 group-hover:bg-white group-hover:text-indigo-500'
+                      ].join(' ')}
+                    >
+                      {item.icon}
+                    </div>
+                    <div className="min-w-0 truncate">{item.label}</div>
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
 
-        <div className="m-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
-              {userInitials}
+          <div className="m-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
+                {userInitials}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-slate-700">{user?.username || 'Admin'}</p>
+                <p className="truncate text-xs text-slate-500">{roleLabel}</p>
+              </div>
+              <button
+                onClick={logout}
+                title="Đăng xuất"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-slate-700">{user?.username || 'Admin'}</p>
-              <p className="truncate text-xs text-slate-500">{roleLabel}</p>
+          </div>
+        </aside>
+
+        <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="sticky top-0 z-20 hidden h-20 items-center justify-between border-b border-slate-200/60 bg-white/80 px-8 backdrop-blur-md lg:flex">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{pageMeta.eyebrow}</p>
+              <h2 className="text-xl font-bold text-slate-800">{pageMeta.title}</h2>
             </div>
-            <button
-              onClick={logout}
-              title="Đăng xuất"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-            </button>
+            <ShellActionButtons canCreateDevices={canCreateDevices} />
+          </header>
+
+          <main className="relative z-10 flex-1 overflow-y-auto px-4 pb-28 pt-4 animate-fade-in sm:px-5 sm:pt-5 lg:px-8 lg:pb-8 lg:pt-8">
+            <div className="mx-auto w-full max-w-6xl">{children}</div>
+          </main>
+        </div>
+
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 px-3 pb-3 lg:hidden">
+          <div className="pointer-events-auto overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/92 shadow-xl backdrop-blur-xl [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex min-w-max items-stretch gap-1 p-2">
+              {navItems.map((item) => {
+                const isActive = path.startsWith(item.path);
+
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={[
+                      'min-w-[76px] flex-1 rounded-xl px-3 py-2 text-center transition-all',
+                      isActive ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'
+                    ].join(' ')}
+                  >
+                    <div className="mx-auto mb-1 flex h-5 w-5 items-center justify-center">{item.icon}</div>
+                    <span className="block text-[10px] font-medium leading-4">{item.shortLabel}</span>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </aside>
-
-      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="sticky top-0 z-20 hidden h-20 items-center justify-between border-b border-slate-200/60 bg-white/80 px-8 backdrop-blur-md lg:flex">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{pageMeta.eyebrow}</p>
-            <h2 className="text-xl font-bold text-slate-800">{pageMeta.title}</h2>
-          </div>
-          <ShellActionButtons canCreateDevices={canCreateDevices} />
-        </header>
-
-        <main className="relative z-10 flex-1 overflow-y-auto px-4 pb-28 pt-4 animate-fade-in sm:px-5 sm:pt-5 lg:px-8 lg:pb-8 lg:pt-8">
-          <div className="mx-auto w-full max-w-6xl">
-            {children}
-            <div className="pt-8 text-center text-[10px] font-medium tracking-[0.08em] text-slate-400">
-              Copyright @ 2026 - Website by IT Leon
-            </div>
-          </div>
-        </main>
       </div>
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 px-3 pb-3 lg:hidden">
-        <div className="pointer-events-auto overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/92 shadow-xl backdrop-blur-xl [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex min-w-max items-stretch gap-1 p-2">
-            {navItems.map((item) => {
-              const isActive = path.startsWith(item.path);
-
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={[
-                    'min-w-[76px] flex-1 rounded-xl px-3 py-2 text-center transition-all',
-                    isActive ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'
-                  ].join(' ')}
-                >
-                  <div className="mx-auto mb-1 flex h-5 w-5 items-center justify-center">{item.icon}</div>
-                  <span className="block text-[10px] font-medium leading-4">{item.shortLabel}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+      <SiteFooter />
     </div>
   );
 }
