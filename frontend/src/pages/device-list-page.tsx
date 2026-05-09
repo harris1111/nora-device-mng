@@ -279,7 +279,6 @@ export default function DeviceListPage() {
         onChange={setFilters}
         areas={areas}
         transferUnits={transferUnits}
-        helperText={hasActiveFilters ? 'Điều chỉnh nhanh bộ lọc để thu hẹp danh sách.' : 'Dùng từ khóa hoặc bộ lọc nhanh để bắt đầu.'}
         isSearching={isSearchPending}
       />
 

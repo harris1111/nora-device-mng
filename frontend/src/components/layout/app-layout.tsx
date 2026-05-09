@@ -12,7 +12,6 @@ interface NavItem {
   label: string;
   shortLabel: string;
   path: string;
-  description: string;
   visible: boolean;
   icon: ReactNode;
 }
@@ -77,7 +76,6 @@ export default function AppLayout({ children }: Props) {
       label: 'Thiết bị',
       shortLabel: 'Thiết bị',
       path: '/devices',
-      description: 'Danh sách, tìm kiếm và chi tiết',
       visible: canViewDevices,
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -89,7 +87,6 @@ export default function AppLayout({ children }: Props) {
       label: 'Xuất Excel',
       shortLabel: 'Xuất',
       path: '/export',
-      description: 'Xuất dữ liệu theo điều kiện lọc',
       visible: canExportDevices,
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -101,7 +98,6 @@ export default function AppLayout({ children }: Props) {
       label: 'Đơn vị',
       shortLabel: 'Đơn vị',
       path: '/locations',
-      description: 'Quản lý đơn vị trực thuộc',
       visible: canViewLocations,
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -114,7 +110,6 @@ export default function AppLayout({ children }: Props) {
       label: 'Khu vực',
       shortLabel: 'Khu vực',
       path: '/areas',
-      description: 'Quản lý khu vực sử dụng',
       visible: canViewAreas,
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -126,7 +121,6 @@ export default function AppLayout({ children }: Props) {
       label: 'Người dùng',
       shortLabel: 'Users',
       path: '/users',
-      description: 'Tài khoản và phân công truy cập',
       visible: canViewUsers,
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -138,7 +132,6 @@ export default function AppLayout({ children }: Props) {
       label: 'Phân quyền',
       shortLabel: 'Quyền',
       path: '/permissions',
-      description: 'Phân quyền theo chức năng',
       visible: canViewPermissions,
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -150,7 +143,6 @@ export default function AppLayout({ children }: Props) {
       label: 'Nhật ký',
       shortLabel: 'Nhật ký',
       path: '/audit-logs',
-      description: 'Theo dõi thay đổi hệ thống',
       visible: user?.role === 'SADMIN',
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -269,10 +261,7 @@ export default function AppLayout({ children }: Props) {
                   >
                     {item.icon}
                   </div>
-                  <div className="min-w-0">
-                    <div className="truncate">{item.label}</div>
-                    <div className="truncate text-xs text-slate-400 group-hover:text-slate-500">{item.description}</div>
-                  </div>
+                  <div className="min-w-0 truncate">{item.label}</div>
                 </Link>
               );
             })}
@@ -311,7 +300,12 @@ export default function AppLayout({ children }: Props) {
         </header>
 
         <main className="relative z-10 flex-1 overflow-y-auto px-4 pb-28 pt-4 animate-fade-in sm:px-5 sm:pt-5 lg:px-8 lg:pb-8 lg:pt-8">
-          <div className="mx-auto w-full max-w-6xl">{children}</div>
+          <div className="mx-auto w-full max-w-6xl">
+            {children}
+            <div className="pt-8 text-center text-[10px] font-medium tracking-[0.08em] text-slate-400">
+              Copyright @ 2026 - Website by IT Leon
+            </div>
+          </div>
         </main>
       </div>
 

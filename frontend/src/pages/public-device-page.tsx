@@ -184,9 +184,8 @@ export default function PublicDevicePage() {
           </button>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-xs text-slate-400 pb-4">
-          Nora Device Manager
+        <p className="pb-4 text-center text-[10px] font-medium tracking-[0.08em] text-slate-400">
+          Copyright @ 2026 - Website by IT Leon
         </p>
       </div>
     </div>

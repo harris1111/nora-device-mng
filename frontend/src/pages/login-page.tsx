@@ -36,7 +36,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+    <div className="min-h-screen bg-slate-50 px-4 py-8">
+      <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200">
@@ -88,6 +89,10 @@ export default function LoginPage() {
             {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>
         </form>
+      </div>
+      <div className="pt-6 text-center text-[10px] font-medium tracking-[0.08em] text-slate-400">
+        Copyright @ 2026 - Website by IT Leon
+      </div>
       </div>
     </div>
   );

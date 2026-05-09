@@ -31,7 +31,6 @@ interface Props {
   transferUnits?: string[];
   trailing?: ReactNode;
   isSearching?: boolean;
-  helperText?: string;
 }
 
 export function useDeviceFilter(devices: Device[], filters: DeviceFilters) {
@@ -81,7 +80,6 @@ export default function DeviceFilterBar({
   transferUnits = [],
   trailing,
   isSearching = false,
-  helperText,
 }: Props) {
   const [locations, setLocations] = useState<Location[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -126,7 +124,6 @@ export default function DeviceFilterBar({
             <h3 className="text-sm font-semibold text-slate-800">Tìm kiếm và lọc thiết bị</h3>
             <p className="mt-1 text-sm text-slate-500">Ưu tiên tìm theo tên, mã, trạng thái và mở rộng thêm bộ lọc khi cần.</p>
           </div>
-          {helperText && <p className="text-sm text-slate-500">{helperText}</p>}
           {trailing && <div className="flex flex-wrap items-center gap-2">{trailing}</div>}
         </div>
       </div>
