@@ -41,7 +41,7 @@ export default function MaintenanceSection({ deviceId, maintenanceStatus, onChan
   const [scheduleEditing, setScheduleEditing] = useState(false);
   const [intervalDays, setIntervalDays] = useState('180');
   const [notifyDaysBefore, setNotifyDaysBefore] = useState('7');
-  const [nextDueAt, setNextDueAt] = useState('');
+  const [lastMaintenanceAt, setLastMaintenanceAt] = useState('');
 
   // Task form state
   const [taskFormOpen, setTaskFormOpen] = useState(false);
@@ -71,7 +71,7 @@ export default function MaintenanceSection({ deviceId, maintenanceStatus, onChan
     if (scheduleEditing) {
       setIntervalDays(schedule?.interval_days ? String(schedule.interval_days) : '180');
       setNotifyDaysBefore(schedule?.notify_days_before != null ? String(schedule.notify_days_before) : '7');
-      setNextDueAt(schedule?.next_due_at ? schedule.next_due_at.split('T')[0] : '');
+      setLastMaintenanceAt(schedule?.last_maintenance_at ? schedule.last_maintenance_at.split('T')[0] : '');
     }
   }, [scheduleEditing, schedule]);
 
@@ -83,12 +83,11 @@ export default function MaintenanceSection({ deviceId, maintenanceStatus, onChan
     if (!Number.isFinite(interval) || interval < 1) { setError('Chu kỳ phải là số nguyên dương'); return; }
     if (!Number.isFinite(notify) || notify < 0) { setError('Số ngày báo trước phải >= 0'); return; }
     if (notify > interval) { setError('Số ngày báo trước không được vượt chu kỳ'); return; }
-    if (!nextDueAt) { setError('Vui lòng chọn ngày bảo trì kế tiếp'); return; }
     try {
       const sched = await upsertMaintenanceSchedule(deviceId, {
         interval_days: interval,
         notify_days_before: notify,
-        next_due_at: new Date(nextDueAt).toISOString(),
+        last_maintenance_at: lastMaintenanceAt ? new Date(lastMaintenanceAt).toISOString() : undefined,
       });
       setSchedule(sched);
       setScheduleEditing(false);
@@ -249,8 +248,8 @@ export default function MaintenanceSection({ deviceId, maintenanceStatus, onChan
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
             </div>
             <div className="space-y-1">
-              <label className="block text-xs font-semibold text-slate-600">Ngày bảo trì kế tiếp</label>
-              <input type="date" value={nextDueAt} onChange={e => setNextDueAt(e.target.value)}
+              <label className="block text-xs font-semibold text-slate-600">Ngày bảo trì gần nhất</label>
+              <input type="date" value={lastMaintenanceAt} onChange={e => setLastMaintenanceAt(e.target.value)}
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
             </div>
             <div className="md:col-span-3 flex gap-2 justify-end">

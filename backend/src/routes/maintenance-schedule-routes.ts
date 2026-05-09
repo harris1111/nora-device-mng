@@ -6,7 +6,7 @@ const router: ReturnType<typeof Router> = Router();
 
 function mapSchedule(s: {
   id: string; deviceId: string; intervalDays: number;
-  notifyDaysBefore: number; nextDueAt: Date; lastNotifiedAt: Date | null;
+  notifyDaysBefore: number; nextDueAt: Date; lastMaintenanceAt: Date | null; lastNotifiedAt: Date | null;
 }) {
   return {
     id: s.id,
@@ -14,20 +14,25 @@ function mapSchedule(s: {
     interval_days: s.intervalDays,
     notify_days_before: s.notifyDaysBefore,
     next_due_at: s.nextDueAt.toISOString(),
+    last_maintenance_at: s.lastMaintenanceAt?.toISOString() || null,
     last_notified_at: s.lastNotifiedAt?.toISOString() || null,
   };
 }
 
-function parseScheduleInput(body: { interval_days?: unknown; notify_days_before?: unknown; next_due_at?: unknown }) {
+function parseScheduleInput(body: { interval_days?: unknown; notify_days_before?: unknown; last_maintenance_at?: unknown }) {
   const interval = Number(body.interval_days);
   const notify = Number(body.notify_days_before);
   if (!Number.isFinite(interval) || interval < 1) throw new Error('interval_days must be a positive integer');
   if (!Number.isFinite(notify) || notify < 0) throw new Error('notify_days_before must be a non-negative integer');
   if (notify > interval) throw new Error('notify_days_before cannot exceed interval_days');
-  if (!body.next_due_at || typeof body.next_due_at !== 'string') throw new Error('next_due_at is required');
-  const dueAt = new Date(body.next_due_at);
-  if (Number.isNaN(dueAt.getTime())) throw new Error('next_due_at must be a valid ISO date');
-  return { intervalDays: Math.floor(interval), notifyDaysBefore: Math.floor(notify), nextDueAt: dueAt };
+  let lastMaintenanceAt: Date | null = null;
+  if (body.last_maintenance_at !== undefined && body.last_maintenance_at !== null && body.last_maintenance_at !== '') {
+    if (typeof body.last_maintenance_at !== 'string') throw new Error('last_maintenance_at must be an ISO date string');
+    const parsed = new Date(body.last_maintenance_at);
+    if (Number.isNaN(parsed.getTime())) throw new Error('last_maintenance_at must be a valid ISO date');
+    lastMaintenanceAt = parsed;
+  }
+  return { intervalDays: Math.floor(interval), notifyDaysBefore: Math.floor(notify), lastMaintenanceAt };
 }
 
 // GET /api/devices/:deviceId/maintenance-schedule
@@ -53,10 +58,21 @@ router.put('/devices/:deviceId/maintenance-schedule', requirePermission('mainten
     try { parsed = parseScheduleInput(req.body); }
     catch (e) { return res.status(400).json({ error: (e as Error).message }); }
 
+    // Compute nextDueAt = (lastMaintenanceAt ?? device.createdAt) + intervalDays
+    const anchor = parsed.lastMaintenanceAt ?? device.createdAt;
+    const nextDueAt = new Date(anchor);
+    nextDueAt.setDate(nextDueAt.getDate() + parsed.intervalDays);
+    const data = {
+      intervalDays: parsed.intervalDays,
+      notifyDaysBefore: parsed.notifyDaysBefore,
+      lastMaintenanceAt: parsed.lastMaintenanceAt,
+      nextDueAt,
+    };
+
     const sched = await prisma.scheduledMaintenance.upsert({
       where: { deviceId },
-      create: { deviceId, ...parsed, createdById: req.user!.id },
-      update: { ...parsed, lastNotifiedAt: null, updatedById: req.user!.id },
+      create: { deviceId, ...data, createdById: req.user!.id },
+      update: { ...data, lastNotifiedAt: null, updatedById: req.user!.id },
     });
     // Setting/changing the schedule resets the maintenance status to 'in_use'
     await prisma.device.update({ where: { id: deviceId }, data: { maintenanceStatus: 'in_use' } });

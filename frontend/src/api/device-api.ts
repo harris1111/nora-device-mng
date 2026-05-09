@@ -183,13 +183,14 @@ export interface MaintenanceSchedule {
   interval_days: number;
   notify_days_before: number;
   next_due_at: string;
+  last_maintenance_at: string | null;
   last_notified_at: string | null;
 }
 
 export interface MaintenanceSchedulePayload {
   interval_days: number;
   notify_days_before: number;
-  next_due_at: string; // YYYY-MM-DD or ISO
+  last_maintenance_at?: string; // YYYY-MM-DD or ISO; omit/empty to use device.createdAt as anchor
 }
 
 export const getMaintenanceSchedule = (deviceId: string): Promise<MaintenanceSchedule | null> =>

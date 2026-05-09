@@ -262,6 +262,7 @@ model ScheduledMaintenance {
   intervalDays     Int      @map("interval_days")            // recurrence period in days
   notifyDaysBefore Int      @default(7) @map("notify_days_before")
   nextDueAt        DateTime @map("next_due_at")
+  lastMaintenanceAt DateTime? @map("last_maintenance_at")    // anchor date used to compute nextDueAt; null => fall back to device.createdAt
   lastNotifiedAt   DateTime? @map("last_notified_at")        // dedupe — null => not yet notified for current cycle
   createdAt        DateTime @default(now()) @map("created_at")
   createdById      String?  @map("created_by")

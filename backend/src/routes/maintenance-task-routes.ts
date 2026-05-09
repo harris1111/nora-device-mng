@@ -123,7 +123,7 @@ router.post('/devices/:deviceId/maintenance-tasks', requirePermission('maintenan
         nextDue.setDate(nextDue.getDate() + sched.intervalDays);
         await prisma.scheduledMaintenance.update({
           where: { deviceId },
-          data: { nextDueAt: nextDue, lastNotifiedAt: null, updatedById: req.user!.id },
+          data: { nextDueAt: nextDue, lastMaintenanceAt: task.date, lastNotifiedAt: null, updatedById: req.user!.id },
         });
       }
       await prisma.device.update({ where: { id: deviceId }, data: { maintenanceStatus: 'in_use' } });
@@ -166,7 +166,7 @@ router.put('/maintenance-tasks/:id', requirePermission('maintenance', 'update'),
         nextDue.setDate(nextDue.getDate() + sched.intervalDays);
         await prisma.scheduledMaintenance.update({
           where: { deviceId: updated.deviceId },
-          data: { nextDueAt: nextDue, lastNotifiedAt: null, updatedById: req.user!.id },
+          data: { nextDueAt: nextDue, lastMaintenanceAt: updated.date, lastNotifiedAt: null, updatedById: req.user!.id },
         });
       }
       await prisma.device.update({ where: { id: updated.deviceId }, data: { maintenanceStatus: 'in_use' } });
