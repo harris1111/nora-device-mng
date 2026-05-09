@@ -121,51 +121,50 @@ export default function DeviceFilterBar({
   return (
     <section className="rounded-3xl border border-slate-200 bg-white shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)]">
       <div className="border-b border-slate-100 px-4 py-4 sm:px-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-2">
           <div>
             <h3 className="text-sm font-semibold text-slate-800">Tìm kiếm và lọc thiết bị</h3>
             <p className="mt-1 text-sm text-slate-500">Ưu tiên tìm theo tên, mã, trạng thái và mở rộng thêm bộ lọc khi cần.</p>
           </div>
-          {(helperText || trailing) && (
-            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center lg:justify-end">
-              {helperText && <p className="text-sm text-slate-500">{helperText}</p>}
-              {trailing}
-            </div>
-          )}
+          {helperText && <p className="text-sm text-slate-500">{helperText}</p>}
+          {trailing && <div className="flex flex-wrap items-center gap-2">{trailing}</div>}
         </div>
       </div>
 
       <div className="space-y-4 px-4 py-4 sm:px-5 sm:py-5">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,2.2fr)_minmax(180px,0.75fr)_minmax(200px,0.85fr)]">
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-              <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+          <label className="space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Tìm kiếm</span>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={filters.search}
+                onChange={(event) => set({ search: event.target.value })}
+                className="block w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-20 text-sm text-slate-800 transition-shadow placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
+                placeholder="Tìm theo tên, mã thiết bị, đơn vị, serial hoặc nhà sản xuất..."
+              />
+              <div className="absolute inset-y-0 right-0 flex items-center gap-1 pr-3">
+                {isSearching && <span className="text-xs font-medium text-indigo-600">Đang tìm...</span>}
+                {filters.search && (
+                  <button
+                    type="button"
+                    onClick={() => set({ search: '' })}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600"
+                    aria-label="Xóa từ khóa tìm kiếm"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
-            <input
-              type="text"
-              value={filters.search}
-              onChange={(event) => set({ search: event.target.value })}
-              className="block w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-20 text-sm text-slate-800 transition-shadow placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
-              placeholder="Tìm theo tên, mã thiết bị, đơn vị, serial hoặc nhà sản xuất..."
-            />
-            <div className="absolute inset-y-0 right-0 flex items-center gap-1 pr-3">
-              {isSearching && <span className="text-xs font-medium text-indigo-600">Đang tìm...</span>}
-              {filters.search && (
-                <button
-                  type="button"
-                  onClick={() => set({ search: '' })}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600"
-                  aria-label="Xóa từ khóa tìm kiếm"
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          </div>
+          </label>
 
           <label className="space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Loại thiết bị</span>
