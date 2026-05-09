@@ -26,8 +26,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
   const [transferDate, setTransferDate] = useState(initialData?.transfer_date?.split('T')[0] || '');
   const [disposalDate, setDisposalDate] = useState(initialData?.disposal_date?.split('T')[0] || '');
   const [lossDate, setLossDate] = useState(initialData?.loss_date?.split('T')[0] || '');
-  const [warrantyValue, setWarrantyValue] = useState<string>(initialData?.warranty_value != null ? String(initialData.warranty_value) : '');
-  const [warrantyUnit, setWarrantyUnit] = useState<'' | 'month' | 'year'>(initialData?.warranty_unit ?? '');
+  const [warrantyPeriod, setWarrantyPeriod] = useState<string>(initialData?.warranty_period || '');
   const [locations, setLocations] = useState<Location[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -56,15 +55,6 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
     if (!storeId.trim()) { setError('Mã thiết bị là bắt buộc'); return; }
     if (!name.trim()) { setError('Tên là bắt buộc'); return; }
     if (!locationId) { setError('Đơn vị trực thuộc là bắt buộc'); return; }
-    const warrantyFilled = warrantyValue.trim() || warrantyUnit;
-    if (warrantyFilled && (!warrantyValue.trim() || !warrantyUnit)) {
-      setError('Vui lòng nhập đủ thời hạn bảo hành (số và đơn vị)'); return;
-    }
-    if (warrantyValue.trim()) {
-      const v = Number.parseInt(warrantyValue, 10);
-      if (!Number.isFinite(v) || v < 1) { setError('Thời hạn bảo hành phải là số nguyên dương'); return; }
-      if (warrantyUnit === 'year' && v > 5) { setError('Thời hạn theo năm chỉ từ 1 đến 5'); return; }
-    }
     setSubmitting(true);
     setError(null);
     try {
@@ -82,14 +72,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
       fd.append('status', status);
       if (transferTo.trim()) fd.append('transfer_to', transferTo.trim());
       if (transferDate) fd.append('transfer_date', transferDate);
-      // Warranty: send both fields together (backend requires pair or none)
-      if (warrantyValue.trim() && warrantyUnit) {
-        fd.append('warranty_value', warrantyValue.trim());
-        fd.append('warranty_unit', warrantyUnit);
-      } else {
-        fd.append('warranty_value', '');
-        fd.append('warranty_unit', '');
-      }
+      fd.append('warranty_period', warrantyPeriod.trim());
       if (type === 'cong_cu_dung_cu' && disposalDate) fd.append('disposal_date', disposalDate);
       if (type === 'cong_cu_dung_cu' && lossDate) fd.append('loss_date', lossDate);
       if (primaryImage) fd.append('primary_image', primaryImage);
@@ -214,34 +197,17 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
               </p>
             </div>
 
-            {/* Warranty (optional, nullable) */}
+            {/* Warranty (optional, free text) */}
             <div className="md:col-span-2 pt-4 border-t border-slate-100 mt-2">
               <p className="text-sm font-semibold text-slate-700 mb-3">Thời hạn bảo hành (tùy chọn)</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label htmlFor="warranty_value" className="block text-sm text-slate-700 font-semibold mb-1">Số lượng</label>
-                  <input id="warranty_value" type="number" min={1} max={warrantyUnit === 'year' ? 5 : undefined}
-                    value={warrantyValue} onChange={(e) => setWarrantyValue(e.target.value)}
-                    placeholder="Ví dụ: 6"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" />
-                </div>
-                <div className="space-y-1.5">
-                  <label htmlFor="warranty_unit" className="block text-sm text-slate-700 font-semibold mb-1">Đơn vị</label>
-                  <div className="relative">
-                    <select id="warranty_unit" value={warrantyUnit}
-                      onChange={(e) => setWarrantyUnit(e.target.value as '' | 'month' | 'year')}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all appearance-none cursor-pointer">
-                      <option value="">-- Chọn đơn vị --</option>
-                      <option value="month">Tháng</option>
-                      <option value="year">Năm</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                    </div>
-                  </div>
-                </div>
+              <div className="space-y-1.5">
+                <label htmlFor="warranty_period" className="block text-sm text-slate-700 font-semibold mb-1">Thời hạn bảo hành</label>
+                <input id="warranty_period" type="text" value={warrantyPeriod}
+                  onChange={(e) => setWarrantyPeriod(e.target.value)}
+                  placeholder="Ví dụ: 12 tháng, 2 năm, trọn đời..."
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" />
               </div>
-              <p className="text-xs text-slate-400 mt-2">Để trống nếu chưa xác định. Theo năm: 1–5; theo tháng: số nguyên dương.</p>
+              <p className="text-xs text-slate-400 mt-2">Để trống nếu chưa xác định.</p>
             </div>
 
             {/* CCDC-specific date fields */}

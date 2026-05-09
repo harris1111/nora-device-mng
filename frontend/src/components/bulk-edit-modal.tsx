@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { bulkEditDevices, getLocations, Location, Device } from '../api/device-api';
+import { bulkEditDevices, getLocations, getAreas, Location, Area, Device } from '../api/device-api';
 import { STATUS_BY_TYPE } from './device/device-constants';
 
 interface Props {
@@ -10,17 +10,20 @@ interface Props {
 }
 
 export default function BulkEditModal({ devices, onClose, onSuccess }: Props) {
-  const [tab, setTab] = useState<'status' | 'transfer'>('status');
+  const [tab, setTab] = useState<'status' | 'transfer' | 'area'>('status');
   const [status, setStatus] = useState('');
   const [ownedBy, setOwnedBy] = useState('');
   const [transferTo, setTransferTo] = useState('');
   const [transferDate, setTransferDate] = useState('');
+  const [areaId, setAreaId] = useState('');
   const [locations, setLocations] = useState<Location[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getLocations().then(setLocations).catch(() => {});
+    getAreas().then(setAreas).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -47,7 +50,7 @@ export default function BulkEditModal({ devices, onClose, onSuccess }: Props) {
       if (tab === 'status') {
         if (!status) { setError('Vui lòng chọn trạng thái'); setSaving(false); return; }
         payload.status = status;
-      } else {
+      } else if (tab === 'transfer') {
         if (!ownedBy && !transferTo && !transferDate) {
           setError('Vui lòng nhập ít nhất một trường chuyển giao');
           setSaving(false);
@@ -56,6 +59,9 @@ export default function BulkEditModal({ devices, onClose, onSuccess }: Props) {
         if (ownedBy) payload.owned_by = ownedBy;
         if (transferTo !== undefined) payload.transfer_to = transferTo || null;
         if (transferDate) payload.transfer_date = transferDate;
+      } else {
+        // area tab — always send (empty string clears area)
+        payload.area_id = areaId || null;
       }
 
       await bulkEditDevices(payload as unknown as Parameters<typeof bulkEditDevices>[0]);
@@ -117,6 +123,16 @@ export default function BulkEditModal({ devices, onClose, onSuccess }: Props) {
             }`}
           >
             Chuyển giao
+          </button>
+          <button
+            onClick={() => setTab('area')}
+            className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
+              tab === 'area'
+                ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Khu vực
           </button>
         </div>
 
@@ -188,6 +204,23 @@ export default function BulkEditModal({ devices, onClose, onSuccess }: Props) {
                 />
               </div>
             </>
+          )}
+
+          {tab === 'area' && (
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Khu vực mới</label>
+              <select
+                value={areaId}
+                onChange={e => setAreaId(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              >
+                <option value="">— Xóa khu vực —</option>
+                {areas.map(a => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-400 mt-2">Chọn “— Xóa khu vực —” để gỡ khu vực khỏi các thiết bị đã chọn.</p>
+            </div>
           )}
         </div>
 

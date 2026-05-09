@@ -109,19 +109,32 @@ router.post('/bulk-delete', requirePermission('devices', 'delete'), async (req: 
 // POST /api/devices/bulk-edit — update status and/or transfer fields on multiple devices
 router.post('/bulk-edit', requirePermission('devices', 'update'), async (req: Request, res: Response) => {
   try {
-    const { ids, status, owned_by, transfer_to, transfer_date } = req.body as {
+    const { ids, status, owned_by, transfer_to, transfer_date, area_id } = req.body as {
       ids?: string[];
       status?: string;
       owned_by?: string;
       transfer_to?: string | null;
       transfer_date?: string | null;
+      area_id?: string | null;
     };
     if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array is required' });
     if (ids.length > 100) return res.status(400).json({ error: 'Maximum 100 devices per bulk edit' });
 
     const hasStatusChange = status !== undefined && status !== '';
     const hasTransferChange = owned_by !== undefined || transfer_to !== undefined || transfer_date !== undefined;
-    if (!hasStatusChange && !hasTransferChange) return res.status(400).json({ error: 'Nothing to update' });
+    const hasAreaChange = area_id !== undefined;
+    if (!hasStatusChange && !hasTransferChange && !hasAreaChange) return res.status(400).json({ error: 'Nothing to update' });
+
+    // Validate area_id if provided
+    let resolvedAreaId: string | null = null;
+    if (hasAreaChange && area_id) {
+      const trimmed = typeof area_id === 'string' ? area_id.trim() : '';
+      if (trimmed) {
+        const area = await prisma.area.findUnique({ where: { id: trimmed } });
+        if (!area) return res.status(400).json({ error: 'Invalid area selected' });
+        resolvedAreaId = area.id;
+      }
+    }
 
     const devices = await prisma.device.findMany({ where: { id: { in: ids } }, select: { id: true, type: true, status: true } });
     if (devices.length === 0) return res.status(404).json({ error: 'No devices found' });
@@ -149,6 +162,7 @@ router.post('/bulk-edit', requirePermission('devices', 'update'), async (req: Re
     if (owned_by !== undefined) updateData.ownedBy = owned_by.trim();
     if (transfer_to !== undefined) updateData.transferTo = transfer_to ? transfer_to.trim() : null;
     if (transfer_date !== undefined) updateData.transferDate = transfer_date ? new Date(transfer_date) : null;
+    if (hasAreaChange) updateData.areaId = resolvedAreaId;
 
     await prisma.$transaction(async (tx) => {
       await tx.device.updateMany({ where: { id: { in: validIds } }, data: updateData });
@@ -318,23 +332,10 @@ router.get('/:id', requirePermission('devices', 'view'), async (req: Request, re
   }
 });
 
-// Parse and validate warranty input. Returns { value, unit } (both null if blank/missing) or throws.
-function parseWarranty(rawValue: unknown, rawUnit: unknown): { value: number | null; unit: string | null } {
-  const valStr = typeof rawValue === 'string' ? rawValue.trim() : '';
-  const unit = typeof rawUnit === 'string' ? rawUnit.trim() : '';
-  if (!valStr && !unit) return { value: null, unit: null };
-  if (!valStr || !unit) throw new Error('Warranty value and unit must both be provided');
-  if (unit !== 'month' && unit !== 'year') throw new Error('Warranty unit must be "month" or "year"');
-  const value = Number.parseInt(valStr, 10);
-  if (!Number.isFinite(value) || value < 1) throw new Error('Warranty value must be a positive integer');
-  if (unit === 'year' && value > 5) throw new Error('Warranty value in years must be 1–5');
-  return { value, unit };
-}
-
 // POST /api/devices — create device
 router.post('/', requirePermission('devices', 'create'), deviceUpload, async (req: Request, res: Response) => {
   try {
-    const { name, store_id, location_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_value, warranty_unit } = req.body;
+    const { name, store_id, location_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_period } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
@@ -358,9 +359,7 @@ router.post('/', requirePermission('devices', 'create'), deviceUpload, async (re
     let statusData: StatusData = { type: deviceType, status: deviceStatus, disposalDate: disposal_date ? new Date(disposal_date) : null, lossDate: loss_date ? new Date(loss_date) : null };
     statusData = applyDateStatusRules(deviceType, statusData);
 
-    let warranty: { value: number | null; unit: string | null };
-    try { warranty = parseWarranty(warranty_value, warranty_unit); }
-    catch (e) { return res.status(400).json({ error: (e as Error).message }); }
+    const warrantyPeriod = typeof warranty_period === 'string' && warranty_period.trim() ? warranty_period.trim() : null;
 
     const id = uuidv4();
     const qrcode = await generateQrCode(id);
@@ -391,8 +390,7 @@ router.post('/', requirePermission('devices', 'create'), deviceUpload, async (re
           lossDate: statusData.lossDate,
           transferTo: transferSummary.transferTo,
           transferDate: transferSummary.transferDate,
-          warrantyValue: warranty.value,
-          warrantyUnit: warranty.unit,
+          warrantyPeriod,
           createdById: req.user!.id,
         },
       });
@@ -439,7 +437,7 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
     const existing = await prisma.device.findUnique({ where: { id: req.params.id as string } });
     if (!existing) return res.status(404).json({ error: 'Device not found' });
 
-    const { name, store_id, location_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_value, warranty_unit } = req.body;
+    const { name, store_id, location_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_period } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
@@ -476,9 +474,7 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
     };
     statusData = applyDateStatusRules(existing.type, statusData);
 
-    let warranty: { value: number | null; unit: string | null };
-    try { warranty = parseWarranty(warranty_value, warranty_unit); }
-    catch (e) { return res.status(400).json({ error: (e as Error).message }); }
+    const warrantyPeriod = typeof warranty_period === 'string' && warranty_period.trim() ? warranty_period.trim() : null;
 
     const qrcode = await generateQrCode(req.params.id as string);
     const transferSummary = {
@@ -504,8 +500,7 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
       lossDate: statusData.lossDate,
       transferTo: transferSummary.transferTo,
       transferDate: transferSummary.transferDate,
-      warrantyValue: warranty.value,
-      warrantyUnit: warranty.unit,
+      warrantyPeriod,
       updatedById: req.user!.id,
     };
 

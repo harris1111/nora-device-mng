@@ -113,8 +113,8 @@ export default function DeviceDetailPage() {
   const primaryAttachment = attachments.find(a => a.is_primary);
   const primaryImageUrl = primaryAttachment ? attachmentFileUrl(primaryAttachment.id) : null;
 
-  const warrantyText = device.warranty_value && device.warranty_unit
-    ? `${device.warranty_value} ${device.warranty_unit === 'year' ? 'năm' : 'tháng'}`
+  const warrantyText = device.warranty_period && device.warranty_period.trim()
+    ? device.warranty_period
     : null;
 
   const infoFields = [

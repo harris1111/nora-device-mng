@@ -21,8 +21,7 @@ export interface Device {
   transfer_record?: TransferRecordItem | null;
   disposal_date: string | null;
   loss_date: string | null;
-  warranty_value: number | null;
-  warranty_unit: 'month' | 'year' | null;
+  warranty_period: string | null;
   maintenance_status?: 'in_use' | 'needs_maintenance';
   primary_attachment_id: string | null;
   created_at: string;
@@ -130,6 +129,7 @@ export interface BulkEditPayload {
   owned_by?: string;
   transfer_to?: string | null;
   transfer_date?: string | null;
+  area_id?: string | null;
 }
 export const bulkEditDevices = (payload: BulkEditPayload): Promise<{ updated: number; errors: string[] }> =>
   api.post('/devices/bulk-edit', payload).then(r => r.data);
