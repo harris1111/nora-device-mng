@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { createMaintenanceRecord, deleteMaintenanceRecord, updateMaintenanceRecord, MaintenanceRecord, MaintenanceAttachmentItem, maintenanceAttachmentUrl } from '../../api/device-api';
 import PdfViewerModal from '../attachment/pdf-viewer-modal';
+import VnDatePicker from '../ui/vn-date-picker';
 
 interface FormState {
   date: string;
@@ -172,8 +173,12 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <input type="date" value={formData.date} onChange={e => setFormData(p => ({ ...p, date: e.target.value }))} required
-              className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+            <VnDatePicker
+              value={formData.date}
+              onChange={(v) => setFormData(p => ({ ...p, date: v }))}
+              required
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-left flex items-center justify-between gap-2"
+            />
             <input type="text" placeholder="Kỹ thuật viên" value={formData.technician} onChange={e => setFormData(p => ({ ...p, technician: e.target.value }))}
               className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
           </div>

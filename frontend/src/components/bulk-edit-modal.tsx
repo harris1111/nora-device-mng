@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { bulkEditDevices, getLocations, getAreas, Location, Area, Device } from '../api/device-api';
 import { STATUS_BY_TYPE } from './device/device-constants';
+import VnDatePicker from './ui/vn-date-picker';
 
 interface Props {
   devices: Device[];
@@ -196,11 +197,10 @@ export default function BulkEditModal({ devices, onClose, onSuccess }: Props) {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Ngày chuyển giao</label>
-                <input
-                  type="date"
+                <VnDatePicker
                   value={transferDate}
-                  onChange={e => setTransferDate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                  onChange={setTransferDate}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-left flex items-center justify-between gap-2"
                 />
               </div>
             </>

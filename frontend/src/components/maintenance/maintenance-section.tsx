@@ -14,6 +14,7 @@ import {
   MaintenancePeriod,
 } from '../../api/device-api';
 import PdfViewerModal from '../attachment/pdf-viewer-modal';
+import VnDatePicker from '../ui/vn-date-picker';
 
 interface Props {
   deviceId: string;
@@ -249,8 +250,11 @@ export default function MaintenanceSection({ deviceId, maintenanceStatus, onChan
             </div>
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-slate-600">Ngày bảo trì gần nhất</label>
-              <input type="date" value={lastMaintenanceAt} onChange={e => setLastMaintenanceAt(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
+              <VnDatePicker
+                value={lastMaintenanceAt}
+                onChange={setLastMaintenanceAt}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 text-left flex items-center justify-between gap-2"
+              />
             </div>
             <div className="md:col-span-3 flex gap-2 justify-end">
               <button type="button" onClick={() => setScheduleEditing(false)}
@@ -293,8 +297,12 @@ export default function MaintenanceSection({ deviceId, maintenanceStatus, onChan
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <input type="date" value={taskDate} onChange={e => setTaskDate(e.target.value)} required
-                className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
+              <VnDatePicker
+                value={taskDate}
+                onChange={setTaskDate}
+                required
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 text-left flex items-center justify-between gap-2"
+              />
               <input type="text" placeholder="Kỹ thuật viên" value={taskTechnician} onChange={e => setTaskTechnician(e.target.value)}
                 className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
             </div>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getLocations, type Area, type Device, type Location } from '../api/device-api';
 import { ALL_STATUSES, DEVICE_TYPES, STATUS_BY_TYPE } from './device/device-constants';
+import VnDatePicker from './ui/vn-date-picker';
 
 export interface DeviceFilters {
   search: string;
@@ -314,21 +315,19 @@ export default function DeviceFilterBar({
 
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Từ ngày</span>
-                <input
-                  type="date"
+                <VnDatePicker
                   value={filters.dateFrom}
-                  onChange={(event) => set({ dateFrom: event.target.value })}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 transition-shadow focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
+                  onChange={(v) => set({ dateFrom: v })}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 transition-shadow focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 text-left flex items-center justify-between gap-2"
                 />
               </label>
 
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Đến ngày</span>
-                <input
-                  type="date"
+                <VnDatePicker
                   value={filters.dateTo}
-                  onChange={(event) => set({ dateTo: event.target.value })}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 transition-shadow focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
+                  onChange={(v) => set({ dateTo: v })}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 transition-shadow focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 text-left flex items-center justify-between gap-2"
                 />
               </label>
             </div>

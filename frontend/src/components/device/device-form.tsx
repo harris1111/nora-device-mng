@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getLocations, getAreas, Device, Location, Area, attachmentFileUrl } from '../../api/device-api';
 import FormTextInput from '../ui/form-text-input';
+import VnDatePicker from '../ui/vn-date-picker';
 import { DEVICE_TYPES, STATUS_BY_TYPE } from './device-constants';
 
 interface Props {
@@ -187,8 +188,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
                 <FormTextInput id="transfer_to" label="Người nhận" value={transferTo} onChange={setTransferTo} placeholder="Tên người nhận" />
                 <div className="space-y-1.5">
                   <label htmlFor="transfer_date" className="block text-sm text-slate-700 font-semibold mb-1">Ngày chuyển giao</label>
-                  <input id="transfer_date" type="date" value={transferDate} onChange={e => setTransferDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" />
+                  <VnDatePicker id="transfer_date" value={transferDate} onChange={setTransferDate} />
                 </div>
               </div>
               <p className="text-xs text-slate-400 mt-2">
@@ -217,13 +217,11 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label htmlFor="disposal_date" className="block text-sm text-slate-700 font-semibold mb-1">Ngày xử lý</label>
-                    <input id="disposal_date" type="date" value={disposalDate} onChange={e => setDisposalDate(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" />
+                    <VnDatePicker id="disposal_date" value={disposalDate} onChange={setDisposalDate} />
                   </div>
                   <div className="space-y-1.5">
                     <label htmlFor="loss_date" className="block text-sm text-slate-700 font-semibold mb-1">Ngày mất</label>
-                    <input id="loss_date" type="date" value={lossDate} onChange={e => setLossDate(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" />
+                    <VnDatePicker id="loss_date" value={lossDate} onChange={setLossDate} />
                   </div>
                 </div>
               </div>
