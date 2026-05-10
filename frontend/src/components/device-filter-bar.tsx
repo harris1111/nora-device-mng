@@ -10,6 +10,7 @@ export interface DeviceFilters {
   location: string;
   area: string;
   transferUnit: string;
+  maintenance: string;
   dateFrom: string;
   dateTo: string;
 }
@@ -21,9 +22,15 @@ const EMPTY_FILTERS: DeviceFilters = {
   location: '',
   area: '',
   transferUnit: '',
+  maintenance: '',
   dateFrom: '',
   dateTo: '',
 };
+
+const MAINTENANCE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'in_use', label: 'Bình thường' },
+  { value: 'needs_maintenance', label: 'Cần bảo trì' },
+];
 
 interface Props {
   filters: DeviceFilters;
@@ -42,6 +49,7 @@ export function useDeviceFilter(devices: Device[], filters: DeviceFilters) {
       if (filters.location && device.location_name !== filters.location) return false;
       if (filters.area && (device.area_name || '') !== filters.area) return false;
       if (filters.transferUnit && (device.owned_by || '') !== filters.transferUnit) return false;
+      if (filters.maintenance && (device.maintenance_status || 'in_use') !== filters.maintenance) return false;
 
       if (filters.dateFrom) {
         const from = new Date(filters.dateFrom);
@@ -90,10 +98,10 @@ export default function DeviceFilterBar({
   }, []);
 
   useEffect(() => {
-    if (filters.location || filters.area || filters.transferUnit || filters.dateFrom || filters.dateTo) {
+    if (filters.location || filters.area || filters.transferUnit || filters.maintenance || filters.dateFrom || filters.dateTo) {
       setShowAdvanced(true);
     }
-  }, [filters.location, filters.area, filters.transferUnit, filters.dateFrom, filters.dateTo]);
+  }, [filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.dateFrom, filters.dateTo]);
 
   const set = (patch: Partial<DeviceFilters>) => {
     const next = { ...filters, ...patch };
@@ -105,14 +113,15 @@ export default function DeviceFilterBar({
     ? STATUS_BY_TYPE[filters.type] || []
     : Object.entries(ALL_STATUSES).map(([value, { label }]) => ({ value, label }));
 
-  const activeAdvancedCount = [filters.location, filters.area, filters.transferUnit, filters.dateFrom, filters.dateTo].filter(Boolean).length;
-  const hasAnyFilter = !!(filters.search || filters.type || filters.status || filters.location || filters.area || filters.transferUnit || filters.dateFrom || filters.dateTo);
+  const activeAdvancedCount = [filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.dateFrom, filters.dateTo].filter(Boolean).length;
+  const hasAnyFilter = !!(filters.search || filters.type || filters.status || filters.location || filters.area || filters.transferUnit || filters.maintenance || filters.dateFrom || filters.dateTo);
   const activeFilterLabels = [
     filters.type && `Loại: ${DEVICE_TYPES.find((item) => item.value === filters.type)?.label || filters.type}`,
     filters.status && `Trạng thái: ${statusOptions.find((item) => item.value === filters.status)?.label || filters.status}`,
     filters.location && `Đơn vị: ${filters.location}`,
     filters.area && `Khu vực: ${filters.area}`,
     filters.transferUnit && `Chuyển giao: ${filters.transferUnit}`,
+    filters.maintenance && `Bảo trì: ${MAINTENANCE_OPTIONS.find((item) => item.value === filters.maintenance)?.label || filters.maintenance}`,
     filters.dateFrom && `Từ ngày: ${filters.dateFrom}`,
     filters.dateTo && `Đến ngày: ${filters.dateTo}`,
   ].filter(Boolean) as string[];
@@ -308,6 +317,22 @@ export default function DeviceFilterBar({
                   {transferUnits.map((unit) => (
                     <option key={unit} value={unit}>
                       {unit}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Tình trạng bảo trì</span>
+                <select
+                  value={filters.maintenance}
+                  onChange={(event) => set({ maintenance: event.target.value })}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 transition-shadow focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Tất cả tình trạng bảo trì</option>
+                  {MAINTENANCE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
