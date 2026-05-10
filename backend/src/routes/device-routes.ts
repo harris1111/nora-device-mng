@@ -198,6 +198,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
     location_id,
     area_id,
     transfer_unit,
+    maintenance_status,
     date_from,
     date_to,
   } = req.query as {
@@ -207,6 +208,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
     location_id?: string;
     area_id?: string;
     transfer_unit?: string;
+    maintenance_status?: string;
     date_from?: string;
     date_to?: string;
   };
@@ -219,6 +221,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
   if (location_id) where.locationId = location_id;
   if (area_id) where.areaId = area_id;
   if (transfer_unit) where.ownedBy = transfer_unit;
+  if (maintenance_status) where.maintenanceStatus = maintenance_status;
 
   if (search && search.trim()) {
     const q = search.trim();

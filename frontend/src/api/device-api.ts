@@ -99,6 +99,7 @@ export interface DeviceListParams {
   location_id?: string;
   area_id?: string;
   transfer_unit?: string;
+  maintenance_status?: string;
   date_from?: string;
   date_to?: string;
 }

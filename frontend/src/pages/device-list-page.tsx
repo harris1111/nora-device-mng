@@ -41,6 +41,7 @@ function readStateFromParams(params: URLSearchParams): { filters: DeviceFilters;
       location: params.get('location') || '',
       area: params.get('area') || '',
       transferUnit: params.get('transfer_unit') || '',
+      maintenance: params.get('maintenance_status') || '',
       dateFrom: params.get('date_from') || '',
       dateTo: params.get('date_to') || '',
     },
@@ -57,6 +58,7 @@ function writeStateToParams(filters: DeviceFilters, page: number, limit: number)
   if (filters.location) next.set('location', filters.location);
   if (filters.area) next.set('area', filters.area);
   if (filters.transferUnit) next.set('transfer_unit', filters.transferUnit);
+  if (filters.maintenance) next.set('maintenance_status', filters.maintenance);
   if (filters.dateFrom) next.set('date_from', filters.dateFrom);
   if (filters.dateTo) next.set('date_to', filters.dateTo);
   if (page !== 1) next.set('page', String(page));
@@ -136,10 +138,11 @@ export default function DeviceListPage() {
       if (id) p.area_id = id;
     }
     if (filters.transferUnit) p.transfer_unit = filters.transferUnit;
+    if (filters.maintenance) p.maintenance_status = filters.maintenance;
     if (filters.dateFrom) p.date_from = filters.dateFrom;
     if (filters.dateTo) p.date_to = filters.dateTo;
     return p;
-  }, [page, limit, debouncedSearch, filters.type, filters.status, filters.location, filters.area, filters.transferUnit, filters.dateFrom, filters.dateTo, locationNameToId, areaNameToId]);
+  }, [page, limit, debouncedSearch, filters.type, filters.status, filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.dateFrom, filters.dateTo, locationNameToId, areaNameToId]);
 
   // Sync state → URL whenever filters or pagination change
   useEffect(() => {
@@ -166,12 +169,12 @@ export default function DeviceListPage() {
   // When any filter input (or page size) changes, reset to page 1
   const prevFilterKey = useRef<string>('');
   useEffect(() => {
-    const key = JSON.stringify([debouncedSearch, filters.type, filters.status, filters.location, filters.area, filters.transferUnit, filters.dateFrom, filters.dateTo, limit]);
+    const key = JSON.stringify([debouncedSearch, filters.type, filters.status, filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.dateFrom, filters.dateTo, limit]);
     if (prevFilterKey.current && prevFilterKey.current !== key && page !== 1) {
       setPage(1);
     }
     prevFilterKey.current = key;
-  }, [debouncedSearch, filters.type, filters.status, filters.location, filters.area, filters.transferUnit, filters.dateFrom, filters.dateTo, limit, page]);
+  }, [debouncedSearch, filters.type, filters.status, filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.dateFrom, filters.dateTo, limit, page]);
 
   const handleViewChange = (newView: string) => {
     setView(newView);
