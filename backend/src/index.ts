@@ -23,6 +23,7 @@ import transferRoutes from './routes/transfer-routes.js';
 import userRoutes from './routes/user-routes.js';
 import permissionRoutes from './routes/permission-routes.js';
 import auditLogRoutes from './routes/audit-log-routes.js';
+import settingsRoutes from './routes/settings-routes.js';
 import exportRoutes from './routes/export-routes.js';
 import { startMaintenanceScheduler } from './lib/maintenance-scheduler.js';
 
@@ -80,6 +81,7 @@ app.use('/api', requireAuth, transferRoutes);
 app.use('/api/users', requireAuth, userRoutes);
 app.use('/api/permissions', requireAuth, permissionRoutes);
 app.use('/api/audit-logs', requireAuth, auditLogRoutes);
+app.use('/api/admin', requireAuth, settingsRoutes);
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {

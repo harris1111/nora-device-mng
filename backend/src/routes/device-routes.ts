@@ -5,6 +5,7 @@ import path from 'path';
 import prisma from '../lib/prisma-client.js';
 import { mapDevice } from '../utils/response-mapper.js';
 import { generateQrCode } from '../utils/qrcode-generator.js';
+import { getEffectiveBaseUrl } from '../lib/settings.js';
 import { syncDeviceTransferRecord } from '../utils/transfer-records.js';
 import { validateTypeStatus, applyDateStatusRules, type StatusData } from '../utils/device-status-rules.js';
 import { uploadFile, deleteFile, deleteFiles } from '../lib/s3-client.js';
@@ -362,7 +363,8 @@ router.post('/', requirePermission('devices', 'create'), deviceUpload, async (re
     const warrantyPeriod = typeof warranty_period === 'string' && warranty_period.trim() ? warranty_period.trim() : null;
 
     const id = uuidv4();
-    const qrcode = await generateQrCode(id);
+    const baseUrl = await getEffectiveBaseUrl();
+    const qrcode = await generateQrCode(id, baseUrl);
     const transferSummary = {
       ownedBy: owned_by?.trim() || '',
       transferTo: transfer_to?.trim() || null,
@@ -476,7 +478,8 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
 
     const warrantyPeriod = typeof warranty_period === 'string' && warranty_period.trim() ? warranty_period.trim() : null;
 
-    const qrcode = await generateQrCode(req.params.id as string);
+    const baseUrl = await getEffectiveBaseUrl();
+    const qrcode = await generateQrCode(req.params.id as string, baseUrl);
     const transferSummary = {
       ownedBy: owned_by?.trim() || '',
       transferTo: transfer_to?.trim() || null,

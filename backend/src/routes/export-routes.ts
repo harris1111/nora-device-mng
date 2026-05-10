@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import prisma from '../lib/prisma-client.js';
 import { requirePermission } from '../middleware/require-permission.js';
 import { generateQrCode } from '../utils/qrcode-generator.js';
+import { getEffectiveBaseUrl } from '../lib/settings.js';
 import { buildDeviceListWhere } from './device-routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -105,7 +106,8 @@ async function buildDevicesWorkbook(devices: DeviceWithLocation[]): Promise<Exce
   headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
   headerRow.height = 28;
 
-  const qrBuffers = await Promise.all(devices.map(d => generateQrCode(d.id)));
+  const baseUrl = await getEffectiveBaseUrl();
+  const qrBuffers = await Promise.all(devices.map(d => generateQrCode(d.id, baseUrl)));
   const qrSize = 110;
   const qrRowHeight = 90;
 

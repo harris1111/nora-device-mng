@@ -17,6 +17,7 @@ import UsersListPage from './pages/users-list-page';
 import UserFormPage from './pages/user-form-page';
 import PermissionDashboardPage from './pages/permission-dashboard-page';
 import AuditLogPage from './pages/audit-log-page';
+import SettingsPage from './pages/settings-page';
 import ExcelExportPage from './pages/excel-export-page';
 
 function AdminLayout() {
@@ -59,6 +60,7 @@ export default function App() {
               </Route>
               <Route element={<PermissionRoute requiredRole="SADMIN" />}>
                 <Route path="/audit-logs" element={<AuditLogPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Route>
               <Route element={<PermissionRoute module="devices" action="export" />}>
                 <Route path="/export" element={<ExcelExportPage />} />
