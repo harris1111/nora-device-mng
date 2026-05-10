@@ -127,6 +127,8 @@ router.post('/devices/:deviceId/maintenance-tasks', requirePermission('maintenan
         });
       }
       await prisma.device.update({ where: { id: deviceId }, data: { maintenanceStatus: 'in_use' } });
+      // Revert user-facing status only if the scheduler had auto-flipped it to 'under_repair'.
+      await prisma.device.updateMany({ where: { id: deviceId, status: 'under_repair' }, data: { status: 'active' } });
     }
 
     res.status(201).json(mapTask({ ...task, attachments: createdAttachments }));
@@ -170,6 +172,8 @@ router.put('/maintenance-tasks/:id', requirePermission('maintenance', 'update'),
         });
       }
       await prisma.device.update({ where: { id: updated.deviceId }, data: { maintenanceStatus: 'in_use' } });
+      // Revert user-facing status only if the scheduler had auto-flipped it to 'under_repair'.
+      await prisma.device.updateMany({ where: { id: updated.deviceId, status: 'under_repair' }, data: { status: 'active' } });
     }
 
     res.json(mapTask(updated));
