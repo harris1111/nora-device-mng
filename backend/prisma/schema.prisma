@@ -43,10 +43,6 @@ model User {
   maintenanceRecordsUpdated   MaintenanceRecord[]   @relation("MaintenanceUpdatedBy")
   scheduledMaintenanceCreated ScheduledMaintenance[] @relation("ScheduledMaintenanceCreatedBy")
   scheduledMaintenanceUpdated ScheduledMaintenance[] @relation("ScheduledMaintenanceUpdatedBy")
-  maintenanceTasksCreated     MaintenanceTask[]     @relation("MaintenanceTaskCreatedBy")
-  maintenanceTasksUpdated     MaintenanceTask[]     @relation("MaintenanceTaskUpdatedBy")
-  maintenanceTaskAttachmentsCreated MaintenanceTaskAttachment[] @relation("MaintenanceTaskAttachCreatedBy")
-  maintenanceTaskAttachmentsUpdated MaintenanceTaskAttachment[] @relation("MaintenanceTaskAttachUpdatedBy")
   notifications               Notification[]
   transferRecordsCreated      TransferRecord[]      @relation("TransferCreatedBy")
   transferRecordsUpdated      TransferRecord[]      @relation("TransferUpdatedBy")
@@ -160,7 +156,6 @@ model Device {
   attachments        Attachment[]
   maintenanceRecords MaintenanceRecord[]
   scheduledMaintenance ScheduledMaintenance?
-  maintenanceTasks   MaintenanceTask[]
   transferRecord     TransferRecord?
 
   @@map("devices")
@@ -271,44 +266,6 @@ model ScheduledMaintenance {
   updatedBy        User?    @relation("ScheduledMaintenanceUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("scheduled_maintenances")
-}
-
-// Completed maintenance entries (ad-hoc or against a scheduled cycle).
-// Mirrors MaintenanceRecord shape but is the *new* feature; the old
-// MaintenanceRecord becomes the "repair history" in user-facing copy.
-model MaintenanceTask {
-  id          String   @id @default(uuid())
-  deviceId    String   @map("device_id")
-  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  date        DateTime
-  description String
-  technician  String   @default("")
-  status      String   @default("pending")
-  createdAt   DateTime @default(now()) @map("created_at")
-  createdById String?  @map("created_by")
-  createdBy   User?    @relation("MaintenanceTaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedById String?  @map("updated_by")
-  updatedBy   User?    @relation("MaintenanceTaskUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  attachments MaintenanceTaskAttachment[]
-
-  @@map("maintenance_tasks")
-}
-
-model MaintenanceTaskAttachment {
-  id            String          @id @default(uuid())
-  taskId        String          @map("task_id")
-  task          MaintenanceTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  fileKey       String          @map("file_key")
-  fileName      String          @map("file_name")
-  fileType      String          @map("file_type")
-  fileSize      Int             @map("file_size")
-  createdAt     DateTime        @default(now()) @map("created_at")
-  createdById   String?         @map("created_by")
-  createdBy     User?           @relation("MaintenanceTaskAttachCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedById   String?         @map("updated_by")
-  updatedBy     User?           @relation("MaintenanceTaskAttachUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-
-  @@map("maintenance_task_attachments")
 }
 
 // In-app notifications (delivered via SSE + REST fetch). Per-user; null userId = broadcast.

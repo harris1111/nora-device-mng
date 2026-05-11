@@ -164,7 +164,7 @@ export const transferAttachmentFileUrl = (id: string): string => `/api/transfer-
 // Maintenance API
 export const getMaintenanceRecords = (deviceId: string): Promise<MaintenanceRecord[]> => api.get(`/devices/${deviceId}/maintenance`).then(r => r.data);
 export const createMaintenanceRecord = (deviceId: string, data: FormData | Record<string, unknown>) => api.post(`/devices/${deviceId}/maintenance`, data).then(r => r.data);
-export const updateMaintenanceRecord = (id: string, data: Record<string, unknown>) => api.put(`/maintenance/${id}`, data).then(r => r.data);
+export const updateMaintenanceRecord = (id: string, data: FormData | Record<string, unknown>) => api.put(`/maintenance/${id}`, data).then(r => r.data);
 export const deleteMaintenanceRecord = (id: string) => api.delete(`/maintenance/${id}`);
 export const getMaintenanceAttachments = (recordId: string) => api.get(`/maintenance/${recordId}/attachments`).then(r => r.data);
 export const uploadMaintenanceAttachment = (recordId: string, files: File[]) => {
@@ -204,42 +204,8 @@ export const upsertMaintenanceSchedule = (deviceId: string, payload: Maintenance
 export const deleteMaintenanceSchedule = (deviceId: string) =>
   api.delete(`/devices/${deviceId}/maintenance-schedule`);
 
-// Maintenance tasks (new feature, separate from MaintenanceRecord which is now repair history)
-export interface MaintenanceTaskAttachment {
-  id: string;
-  file_name: string;
-  file_type: string;
-  file_size: number;
-  created_at: string;
-}
-
-export interface MaintenanceTask {
-  id: string;
-  device_id: string;
-  date: string;
-  description: string;
-  technician: string | null;
-  status: string;
-  created_at: string;
-  attachments: MaintenanceTaskAttachment[];
-}
-
+// Maintenance tasks have been merged into MaintenanceRecord (see above).
 export type MaintenancePeriod = 'week' | 'month' | 'year' | '';
-
-export const getMaintenanceTasks = (deviceId: string, period?: MaintenancePeriod): Promise<MaintenanceTask[]> =>
-  api.get(`/devices/${deviceId}/maintenance-tasks`, { params: period ? { period } : {} }).then(r => r.data);
-export const createMaintenanceTask = (deviceId: string, data: FormData) =>
-  api.post(`/devices/${deviceId}/maintenance-tasks`, data).then(r => r.data);
-export const updateMaintenanceTask = (id: string, data: Record<string, unknown>) =>
-  api.put(`/maintenance-tasks/${id}`, data).then(r => r.data);
-export const deleteMaintenanceTask = (id: string) => api.delete(`/maintenance-tasks/${id}`);
-export const uploadMaintenanceTaskAttachment = (id: string, files: File[]) => {
-  const fd = new FormData();
-  files.forEach(f => fd.append('files', f));
-  return api.post(`/maintenance-tasks/${id}/attachments`, fd).then(r => r.data);
-};
-export const deleteMaintenanceTaskAttachment = (id: string) => api.delete(`/maintenance-task-attachments/${id}`);
-export const maintenanceTaskAttachmentUrl = (id: string): string => `/api/maintenance-task-attachments/${id}/file`;
 
 // Notifications
 export interface NotificationItem {

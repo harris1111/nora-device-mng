@@ -20,7 +20,7 @@ const upload = multer({
 });
 
 // GET /api/devices/:deviceId/maintenance — list maintenance records
-router.get('/devices/:deviceId/maintenance', requirePermission('maintenance', 'view'), async (req: Request, res: Response) => {
+router.get('/devices/:deviceId/maintenance', requirePermission('maintenance_history', 'view'), async (req: Request, res: Response) => {
   try {
     const records = await prisma.maintenanceRecord.findMany({
       where: { deviceId: req.params.deviceId as string },
@@ -46,7 +46,7 @@ router.get('/devices/:deviceId/maintenance', requirePermission('maintenance', 'v
 });
 
 // POST /api/devices/:deviceId/maintenance — create maintenance record (multipart with files)
-router.post('/devices/:deviceId/maintenance', requirePermission('maintenance', 'create'), upload.array('files', 5), async (req: Request, res: Response) => {
+router.post('/devices/:deviceId/maintenance', requirePermission('maintenance_history', 'create'), upload.array('files', 5), async (req: Request, res: Response) => {
   try {
     const device = await prisma.device.findUnique({ where: { id: req.params.deviceId as string } });
     if (!device) return res.status(404).json({ error: 'Device not found' });
@@ -100,17 +100,44 @@ router.post('/devices/:deviceId/maintenance', requirePermission('maintenance', '
   }
 });
 
-// PUT /api/maintenance/:id — update maintenance record
-router.put('/maintenance/:id', requirePermission('maintenance', 'update'), async (req: Request, res: Response) => {
+// PUT /api/maintenance/:id — update maintenance record (multipart; supports file uploads)
+router.put('/maintenance/:id', requirePermission('maintenance_history', 'update'), upload.array('files', 5), async (req: Request, res: Response) => {
   try {
-    const existing = await prisma.maintenanceRecord.findUnique({ where: { id: req.params.id as string } });
+    const recordId = req.params.id as string;
+    const existing = await prisma.maintenanceRecord.findUnique({ where: { id: recordId } });
     if (!existing) return res.status(404).json({ error: 'Record not found' });
 
     const { date, description, technician, status } = req.body;
     if (status && !['pending', 'completed'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
 
+    // Upload any incoming files first (max 5 total per record).
+    const files = (req.files as Express.Multer.File[] | undefined) || [];
+    if (files.length) {
+      const existingCount = await prisma.maintenanceAttachment.count({ where: { maintenanceId: recordId } });
+      if (existingCount + files.length > 5) {
+        return res.status(400).json({ error: 'Maximum 5 attachments per maintenance record' });
+      }
+      for (const file of files) {
+        const attachmentId = uuidv4();
+        const ext = path.extname(file.originalname) || '.bin';
+        const key = `maintenance/${recordId}/${attachmentId}${ext}`;
+        await uploadFile(key, file.buffer, file.mimetype);
+        await prisma.maintenanceAttachment.create({
+          data: {
+            id: attachmentId,
+            maintenanceId: recordId,
+            fileKey: key,
+            fileName: file.originalname,
+            fileType: file.mimetype,
+            fileSize: file.size,
+            createdById: req.user!.id,
+          },
+        });
+      }
+    }
+
     const record = await prisma.maintenanceRecord.update({
-      where: { id: req.params.id as string },
+      where: { id: recordId },
       data: {
         ...(date && { date: new Date(date) }),
         ...(description?.trim() && { description: description.trim() }),
@@ -120,6 +147,36 @@ router.put('/maintenance/:id', requirePermission('maintenance', 'update'), async
       },
       include: { attachments: true },
     });
+
+    // Completion side-effects: revert device to 'in_use' / 'active' and
+    // advance the recurring schedule if one exists.
+    if (status === 'completed' && existing.status !== 'completed') {
+      const completedAt = new Date();
+      const device = await prisma.device.findUnique({ where: { id: existing.deviceId } });
+      if (device) {
+        await prisma.device.update({
+          where: { id: device.id },
+          data: {
+            maintenanceStatus: 'in_use',
+            ...(device.status === 'under_repair' ? { status: 'active' } : {}),
+          },
+        });
+      }
+      const sched = await prisma.scheduledMaintenance.findUnique({ where: { deviceId: existing.deviceId } });
+      if (sched) {
+        const next = new Date(completedAt);
+        next.setDate(next.getDate() + sched.intervalDays);
+        await prisma.scheduledMaintenance.update({
+          where: { id: sched.id },
+          data: {
+            lastMaintenanceAt: completedAt,
+            nextDueAt: next,
+            lastNotifiedAt: null,
+            updatedById: req.user!.id,
+          },
+        });
+      }
+    }
 
     res.json({
       id: record.id, device_id: record.deviceId, date: record.date.toISOString(),
@@ -136,7 +193,7 @@ router.put('/maintenance/:id', requirePermission('maintenance', 'update'), async
 });
 
 // DELETE /api/maintenance/:id — delete record + S3 files
-router.delete('/maintenance/:id', requirePermission('maintenance', 'delete'), async (req: Request, res: Response) => {
+router.delete('/maintenance/:id', requirePermission('maintenance_history', 'delete'), async (req: Request, res: Response) => {
   try {
     const record = await prisma.maintenanceRecord.findUnique({
       where: { id: req.params.id as string },
@@ -156,7 +213,7 @@ router.delete('/maintenance/:id', requirePermission('maintenance', 'delete'), as
 });
 
 // POST /api/maintenance/:id/attachments — upload files to record
-router.post('/maintenance/:id/attachments', requirePermission('maintenance', 'create'), upload.array('files', 5), async (req: Request, res: Response) => {
+router.post('/maintenance/:id/attachments', requirePermission('maintenance_history', 'create'), upload.array('files', 5), async (req: Request, res: Response) => {
   try {
     const record = await prisma.maintenanceRecord.findUnique({ where: { id: req.params.id as string } });
     if (!record) return res.status(404).json({ error: 'Record not found' });
@@ -200,7 +257,7 @@ router.post('/maintenance/:id/attachments', requirePermission('maintenance', 'cr
 });
 
 // GET /api/maintenance-attachments/:id/file — stream file from S3
-router.get('/maintenance-attachments/:id/file', requirePermission('maintenance', 'view'), async (req: Request, res: Response) => {
+router.get('/maintenance-attachments/:id/file', requirePermission('maintenance_history', 'view'), async (req: Request, res: Response) => {
   try {
     const attachment = await prisma.maintenanceAttachment.findUnique({ where: { id: req.params.id as string } });
     if (!attachment) return res.status(404).json({ error: 'Attachment not found' });
@@ -217,7 +274,7 @@ router.get('/maintenance-attachments/:id/file', requirePermission('maintenance',
 });
 
 // DELETE /api/maintenance-attachments/:id — delete single attachment
-router.delete('/maintenance-attachments/:id', requirePermission('maintenance', 'delete'), async (req: Request, res: Response) => {
+router.delete('/maintenance-attachments/:id', requirePermission('maintenance_history', 'delete'), async (req: Request, res: Response) => {
   try {
     const attachment = await prisma.maintenanceAttachment.findUnique({ where: { id: req.params.id as string } });
     if (!attachment) return res.status(404).json({ error: 'Attachment not found' });

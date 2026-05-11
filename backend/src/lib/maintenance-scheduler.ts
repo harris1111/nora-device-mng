@@ -44,6 +44,29 @@ async function runOnce(): Promise<void> {
         sourceId: sched.device.id,
       });
 
+      // Auto-create a pending maintenance history record so an operator can
+      // complete it later. Skip if a pending record for this cycle already
+      // exists (idempotency: keyed by deviceId + nextDueAt date).
+      const existingPending = await prisma.maintenanceRecord.findFirst({
+        where: {
+          deviceId: sched.device.id,
+          status: 'pending',
+          date: sched.nextDueAt,
+        },
+        select: { id: true },
+      });
+      if (!existingPending) {
+        await prisma.maintenanceRecord.create({
+          data: {
+            deviceId: sched.device.id,
+            date: sched.nextDueAt,
+            description: 'Bảo trì định kỳ (tự động tạo)',
+            technician: '',
+            status: 'pending',
+          },
+        });
+      }
+
       await prisma.scheduledMaintenance.update({
         where: { id: sched.id },
         data: { lastNotifiedAt: now },

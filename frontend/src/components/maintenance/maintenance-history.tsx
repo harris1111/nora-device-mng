@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { createMaintenanceRecord, deleteMaintenanceRecord, updateMaintenanceRecord, MaintenanceRecord, MaintenanceAttachmentItem, maintenanceAttachmentUrl } from '../../api/device-api';
 import PdfViewerModal from '../attachment/pdf-viewer-modal';
 import VnDatePicker from '../ui/vn-date-picker';
+import { useCan } from '../../hooks/use-permission';
 
 interface FormState {
   date: string;
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function MaintenanceHistory({ deviceId, records, onUpdate }: Props) {
+  const canUpdate = useCan('maintenance_history', 'update');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormState>({ date: '', description: '', technician: '' });
@@ -24,6 +26,53 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
   const [error, setError] = useState<string | null>(null);
   const [pdfModal, setPdfModal] = useState<{ url: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Completion modal state
+  const [completeTarget, setCompleteTarget] = useState<MaintenanceRecord | null>(null);
+  const [completeTechnician, setCompleteTechnician] = useState('');
+  const [completeNotes, setCompleteNotes] = useState('');
+  const [completeFiles, setCompleteFiles] = useState<File[]>([]);
+  const [completing, setCompleting] = useState(false);
+  const completeFileRef = useRef<HTMLInputElement>(null);
+
+  const openCompleteModal = (r: MaintenanceRecord) => {
+    setCompleteTarget(r);
+    setCompleteTechnician(r.technician || '');
+    setCompleteNotes(r.description || '');
+    setCompleteFiles([]);
+    setError(null);
+  };
+
+  const closeCompleteModal = () => {
+    setCompleteTarget(null);
+    setCompleteTechnician('');
+    setCompleteNotes('');
+    setCompleteFiles([]);
+  };
+
+  const handleComplete = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!completeTarget) return;
+    if (!completeTechnician.trim()) { setError('Kỹ thuật viên là bắt buộc'); return; }
+    if (!completeNotes.trim()) { setError('Ghi chú là bắt buộc'); return; }
+    setCompleting(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append('status', 'completed');
+      fd.append('technician', completeTechnician.trim());
+      fd.append('description', completeNotes.trim());
+      completeFiles.forEach(f => fd.append('files', f));
+      await updateMaintenanceRecord(completeTarget.id, fd);
+      closeCompleteModal();
+      onUpdate?.();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: string } } };
+      setError(axiosErr.response?.data?.error || 'Không thể hoàn thành bản ghi');
+    } finally {
+      setCompleting(false);
+    }
+  };
 
   const handleViewAttachment = (a: MaintenanceAttachmentItem) => {
     const url = maintenanceAttachmentUrl(a.id);
@@ -62,11 +111,11 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
     setError(null);
     try {
       if (editingId) {
-        await updateMaintenanceRecord(editingId, {
-          date: formData.date,
-          description: formData.description.trim(),
-          technician: formData.technician.trim() || null,
-        });
+        const fd = new FormData();
+        fd.append('date', formData.date);
+        fd.append('description', formData.description.trim());
+        fd.append('technician', formData.technician.trim());
+        await updateMaintenanceRecord(editingId, fd);
       } else {
         const fd = new FormData();
         fd.append('date', formData.date);
@@ -120,9 +169,12 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-slate-800">{r.description}</p>
-                    <div className="flex flex-wrap gap-x-4 mt-1.5 text-xs text-slate-400">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-slate-400">
                       <span>{new Date(r.date).toLocaleDateString('vi-VN')}</span>
                       {r.technician && <span>bởi {r.technician}</span>}
+                      <span className={`px-1.5 py-0.5 rounded font-semibold ${r.status === 'completed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                        {r.status === 'completed' ? 'Hoàn thành' : 'Đang chờ'}
+                      </span>
                     </div>
                     {r.attachments?.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -144,7 +196,14 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1 items-center shrink-0">
+                    {r.status !== 'completed' && canUpdate && (
+                      <button onClick={() => openCompleteModal(r)}
+                        className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors">
+                        Hoàn thành
+                      </button>
+                    )}
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => handleEdit(r)}
                       className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -153,6 +212,7 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
                       className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -235,6 +295,72 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
           Thêm sửa chữa
         </button>
+      )}
+
+      {/* Completion modal */}
+      {completeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" onClick={closeCompleteModal}>
+          <form onSubmit={handleComplete} onClick={e => e.stopPropagation()}
+            className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-800">Hoàn thành bảo trì</h3>
+              <button type="button" onClick={closeCompleteModal} className="text-slate-400 hover:text-slate-600">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            {error && (
+              <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100">{error}</div>
+            )}
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-slate-600">Kỹ thuật viên *</label>
+              <input type="text" value={completeTechnician} onChange={e => setCompleteTechnician(e.target.value)} required
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-slate-600">Ghi chú *</label>
+              <textarea value={completeNotes} onChange={e => setCompleteNotes(e.target.value)} required rows={3}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 resize-none" />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-slate-600">Tệp đính kèm</label>
+              {completeFiles.length > 0 && (
+                <div className="space-y-1 mb-2">
+                  {completeFiles.map((f, i) => (
+                    <div key={i} className="flex items-center justify-between py-1 px-2 bg-slate-50 rounded border border-slate-100 text-xs">
+                      <span className="truncate text-slate-600">{f.name} ({(f.size / 1024).toFixed(0)} KB)</span>
+                      <button type="button" onClick={() => setCompleteFiles(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <input ref={completeFileRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', opacity: 0 }}
+                onChange={e => {
+                  const sel = Array.from(e.target.files || []);
+                  if (sel.length) setCompleteFiles(prev => [...prev, ...sel].slice(0, 5));
+                  e.target.value = '';
+                }} />
+              <button type="button" onClick={() => completeFileRef.current?.click()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer border bg-white text-slate-600 border-slate-200 hover:bg-slate-50">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                Thêm tệp
+              </button>
+              <span className="text-xs text-slate-400 ml-2">Tối đa 5 tệp</span>
+            </div>
+            <div className="flex gap-2 justify-end pt-2">
+              <button type="button" onClick={closeCompleteModal}
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">
+                Hủy
+              </button>
+              <button type="submit" disabled={completing}
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-slate-300">
+                {completing ? 'Đang lưu...' : 'Hoàn thành'}
+              </button>
+            </div>
+          </form>
+        </div>
       )}
     </div>
   );
