@@ -9,6 +9,7 @@ interface FormState {
   date: string;
   description: string;
   technician: string;
+  record_type: 'maintenance' | 'repair';
 }
 
 interface Props {
@@ -21,7 +22,7 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
   const canUpdate = useCan('maintenance_history', 'update');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<FormState>({ date: '', description: '', technician: '' });
+  const [formData, setFormData] = useState<FormState>({ date: '', description: '', technician: '', record_type: 'repair' });
   const [files, setFiles] = useState<File[]>([]);
   // Existing attachments shown in the edit modal; lets users delete them.
   const [editingAttachments, setEditingAttachments] = useState<MaintenanceAttachmentItem[]>([]);
@@ -87,7 +88,7 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
   };
 
   const resetForm = () => {
-    setFormData({ date: '', description: '', technician: '' });
+    setFormData({ date: '', description: '', technician: '', record_type: 'repair' });
     setFiles([]);
     setEditingAttachments([]);
     setShowForm(false);
@@ -100,6 +101,7 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
       date: record.date?.split('T')[0] || '',
       description: record.description || '',
       technician: record.technician || '',
+      record_type: record.record_type || 'repair',
     });
     setEditingAttachments(record.attachments || []);
     setFiles([]);
@@ -131,6 +133,7 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
       fd.append('date', formData.date);
       fd.append('description', formData.description.trim());
       fd.append('technician', formData.technician.trim());
+      fd.append('record_type', formData.record_type);
       files.forEach(f => fd.append('files', f));
       if (editingId) {
         await updateMaintenanceRecord(editingId, fd);
@@ -185,6 +188,9 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-slate-400">
                       <span>{new Date(r.date).toLocaleDateString('vi-VN')}</span>
                       {r.technician && <span>bởi {r.technician}</span>}
+                      <span className={`px-1.5 py-0.5 rounded font-semibold ${r.record_type === 'maintenance' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
+                        {r.record_type === 'maintenance' ? 'Bảo trì' : 'Sửa chữa'}
+                      </span>
                       <span className={`px-1.5 py-0.5 rounded font-semibold ${r.status === 'completed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
                         {r.status === 'completed' ? 'Hoàn thành' : 'Đang chờ'}
                       </span>
@@ -272,6 +278,22 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
                   <input type="text" placeholder="Tên kỹ thuật viên" value={formData.technician} onChange={e => setFormData(p => ({ ...p, technician: e.target.value }))}
                     className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
                 </div>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-600">Loại bản ghi</label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setFormData(p => ({ ...p, record_type: 'repair' }))}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${formData.record_type === 'repair' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                    Sửa chữa
+                  </button>
+                  <button type="button" onClick={() => setFormData(p => ({ ...p, record_type: 'maintenance' }))}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${formData.record_type === 'maintenance' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                    Bảo trì định kỳ
+                  </button>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {formData.record_type === 'maintenance' ? 'Bản ghi bảo trì sẽ cập nhật lịch bảo trì khi hoàn thành.' : 'Bản ghi sửa chữa không ảnh hưởng đến lịch bảo trì.'}
+                </p>
               </div>
               <div className="space-y-1">
                 <label className="block text-xs font-semibold text-slate-600">Mô tả *</label>

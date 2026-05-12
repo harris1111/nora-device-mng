@@ -204,6 +204,7 @@ model MaintenanceRecord {
   description String
   technician  String   @default("")
   status      String   @default("pending")
+  recordType  String   @default("repair") @map("record_type")  // 'maintenance' | 'repair'
   createdAt   DateTime @default(now()) @map("created_at")
   createdById String?  @map("created_by")
   createdBy   User?    @relation("MaintenanceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)

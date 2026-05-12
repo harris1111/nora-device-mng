@@ -35,6 +35,7 @@ router.get('/devices/:deviceId/maintenance', requirePermission('maintenance_hist
       description: r.description,
       technician: r.technician,
       status: r.status,
+      record_type: r.recordType,
       created_at: r.createdAt.toISOString(),
       attachments: r.attachments.map(a => ({
         id: a.id, file_name: a.fileName, file_type: a.fileType, file_size: a.fileSize, created_at: a.createdAt.toISOString(),
@@ -53,12 +54,14 @@ router.post('/devices/:deviceId/maintenance', requirePermission('maintenance_his
     if (!device) return res.status(404).json({ error: 'Device not found' });
     if (device.type !== 'tai_san') return res.status(400).json({ error: 'Maintenance only for tài sản devices' });
 
-    const { date, description, technician, status } = req.body;
+    const { date, description, technician, status, record_type } = req.body;
     if (!date) return res.status(400).json({ error: 'Date is required' });
     if (!description?.trim()) return res.status(400).json({ error: 'Description is required' });
     if (status && !['pending', 'completed'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    if (record_type && !['maintenance', 'repair'].includes(record_type)) return res.status(400).json({ error: 'Invalid record_type' });
 
     const recordId = uuidv4();
+    const recordType = record_type || 'repair';
     const record = await prisma.maintenanceRecord.create({
       data: {
         id: recordId,
@@ -67,6 +70,7 @@ router.post('/devices/:deviceId/maintenance', requirePermission('maintenance_his
         description: description.trim(),
         technician: technician?.trim() || '',
         status: status || 'pending',
+        recordType,
         createdById: req.user!.id,
       },
     });
@@ -87,11 +91,43 @@ router.post('/devices/:deviceId/maintenance', requirePermission('maintenance_his
       }
     }
 
+    // Completion side-effects: revert device to 'in_use' / 'active' and
+    // advance the recurring schedule if one exists.
+    // Only 'maintenance' type records advance the schedule; 'repair' records don't.
+    if (record.status === 'completed' && recordType === 'maintenance') {
+      const completedAt = record.date;
+      const existingDevice = await prisma.device.findUnique({ where: { id: req.params.deviceId as string } });
+      if (existingDevice) {
+        await prisma.device.update({
+          where: { id: existingDevice.id },
+          data: {
+            maintenanceStatus: 'in_use',
+            ...(existingDevice.status === 'under_repair' ? { status: 'active' } : {}),
+          },
+        });
+      }
+      const sched = await prisma.scheduledMaintenance.findUnique({ where: { deviceId: req.params.deviceId as string } });
+      if (sched) {
+        const next = new Date(completedAt);
+        next.setDate(next.getDate() + sched.intervalDays);
+        await prisma.scheduledMaintenance.update({
+          where: { id: sched.id },
+          data: {
+            lastMaintenanceAt: completedAt,
+            nextDueAt: next,
+            lastNotifiedAt: null,
+            updatedById: req.user!.id,
+          },
+        });
+      }
+    }
+
     await syncDeviceStatusFromMaintenance(req.params.deviceId as string);
 
     res.status(201).json({
       id: record.id, device_id: record.deviceId, date: record.date.toISOString(),
       description: record.description, technician: record.technician, status: record.status,
+      record_type: record.recordType,
       created_at: record.createdAt.toISOString(),
       attachments: createdAttachments.map(a => ({
         id: a.id, file_name: a.fileName, file_type: a.fileType, file_size: a.fileSize, created_at: a.createdAt.toISOString(),
@@ -110,8 +146,9 @@ router.put('/maintenance/:id', requirePermission('maintenance_history', 'update'
     const existing = await prisma.maintenanceRecord.findUnique({ where: { id: recordId } });
     if (!existing) return res.status(404).json({ error: 'Record not found' });
 
-    const { date, description, technician, status } = req.body;
+    const { date, description, technician, status, record_type } = req.body;
     if (status && !['pending', 'completed'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    if (record_type && !['maintenance', 'repair'].includes(record_type)) return res.status(400).json({ error: 'Invalid record_type' });
 
     // Upload any incoming files first (max 5 total per record).
     const files = (req.files as Express.Multer.File[] | undefined) || [];
@@ -146,6 +183,7 @@ router.put('/maintenance/:id', requirePermission('maintenance_history', 'update'
         ...(description?.trim() && { description: description.trim() }),
         ...(technician !== undefined && { technician: technician?.trim() || '' }),
         ...(status && { status }),
+        ...(record_type && { recordType: record_type }),
         updatedById: req.user!.id,
       },
       include: { attachments: true },
@@ -153,8 +191,9 @@ router.put('/maintenance/:id', requirePermission('maintenance_history', 'update'
 
     // Completion side-effects: revert device to 'in_use' / 'active' and
     // advance the recurring schedule if one exists.
-    if (status === 'completed' && existing.status !== 'completed') {
-      const completedAt = new Date();
+    // Only 'maintenance' type records advance the schedule; 'repair' records don't.
+    if (status === 'completed' && existing.status !== 'completed' && record.recordType === 'maintenance') {
+      const completedAt = record.date;
       const device = await prisma.device.findUnique({ where: { id: existing.deviceId } });
       if (device) {
         await prisma.device.update({
@@ -189,6 +228,7 @@ router.put('/maintenance/:id', requirePermission('maintenance_history', 'update'
     res.json({
       id: record.id, device_id: record.deviceId, date: record.date.toISOString(),
       description: record.description, technician: record.technician, status: record.status,
+      record_type: record.recordType,
       created_at: record.createdAt.toISOString(),
       attachments: record.attachments.map(a => ({
         id: a.id, file_name: a.fileName, file_type: a.fileType, file_size: a.fileSize, created_at: a.createdAt.toISOString(),
