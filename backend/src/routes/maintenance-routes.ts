@@ -5,6 +5,7 @@ import path from 'path';
 import prisma from '../lib/prisma-client.js';
 import { uploadFile, downloadFile, deleteFile, deleteFiles } from '../lib/s3-client.js';
 import { requirePermission } from '../middleware/require-permission.js';
+import { syncDeviceStatusFromMaintenance } from '../utils/device-status-sync.js';
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -85,6 +86,8 @@ router.post('/devices/:deviceId/maintenance', requirePermission('maintenance_his
         createdAttachments.push(attachment);
       }
     }
+
+    await syncDeviceStatusFromMaintenance(req.params.deviceId as string);
 
     res.status(201).json({
       id: record.id, device_id: record.deviceId, date: record.date.toISOString(),
@@ -178,6 +181,11 @@ router.put('/maintenance/:id', requirePermission('maintenance_history', 'update'
       }
     }
 
+    // Re-evaluate device.status from the full pending-record set. Corrects
+    // edge cases the dedicated completion branch above can't see: completing
+    // one record while OTHERS remain pending, or re-opening a completed record.
+    await syncDeviceStatusFromMaintenance(existing.deviceId);
+
     res.json({
       id: record.id, device_id: record.deviceId, date: record.date.toISOString(),
       description: record.description, technician: record.technician, status: record.status,
@@ -205,6 +213,7 @@ router.delete('/maintenance/:id', requirePermission('maintenance_history', 'dele
       try { await deleteFiles(record.attachments.map((a: { fileKey: string }) => a.fileKey)); } catch (e: unknown) { console.warn('S3 cleanup warning:', (e as Error).message); }
     }
     await prisma.maintenanceRecord.delete({ where: { id: req.params.id as string } });
+    await syncDeviceStatusFromMaintenance(record.deviceId);
     res.status(204).send();
   } catch (err) {
     console.error('Delete maintenance error:', err);

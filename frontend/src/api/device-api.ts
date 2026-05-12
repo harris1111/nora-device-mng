@@ -172,6 +172,7 @@ export const uploadMaintenanceAttachment = (recordId: string, files: File[]) => 
   files.forEach(f => fd.append('files', f));
   return api.post(`/maintenance/${recordId}/attachments`, fd).then(r => r.data);
 };
+export const deleteMaintenanceAttachment = (id: string) => api.delete(`/maintenance-attachments/${id}`);
 export const maintenanceAttachmentUrl = (id: string): string => `/api/maintenance-attachments/${id}/file`;
 
 // Distinct transfer-unit values (device.owned_by) for filter dropdowns

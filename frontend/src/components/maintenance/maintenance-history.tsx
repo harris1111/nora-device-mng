@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { createMaintenanceRecord, deleteMaintenanceRecord, updateMaintenanceRecord, MaintenanceRecord, MaintenanceAttachmentItem, maintenanceAttachmentUrl } from '../../api/device-api';
+import { createMaintenanceRecord, deleteMaintenanceRecord, updateMaintenanceRecord, deleteMaintenanceAttachment, MaintenanceRecord, MaintenanceAttachmentItem, maintenanceAttachmentUrl } from '../../api/device-api';
 import PdfViewerModal from '../attachment/pdf-viewer-modal';
 import VnDatePicker from '../ui/vn-date-picker';
 import { useCan } from '../../hooks/use-permission';
@@ -22,6 +22,8 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormState>({ date: '', description: '', technician: '' });
   const [files, setFiles] = useState<File[]>([]);
+  // Existing attachments shown in the edit modal; lets users delete them.
+  const [editingAttachments, setEditingAttachments] = useState<MaintenanceAttachmentItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pdfModal, setPdfModal] = useState<{ url: string; name: string } | null>(null);
@@ -86,6 +88,7 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
   const resetForm = () => {
     setFormData({ date: '', description: '', technician: '' });
     setFiles([]);
+    setEditingAttachments([]);
     setShowForm(false);
     setEditingId(null);
     setError(null);
@@ -97,8 +100,21 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
       description: record.description || '',
       technician: record.technician || '',
     });
+    setEditingAttachments(record.attachments || []);
+    setFiles([]);
     setEditingId(record.id);
     setShowForm(true);
+  };
+
+  const handleRemoveExistingAttachment = async (id: string) => {
+    if (!window.confirm('Xóa tệp đính kèm này?')) return;
+    try {
+      await deleteMaintenanceAttachment(id);
+      setEditingAttachments(prev => prev.filter(a => a.id !== id));
+      onUpdate?.();
+    } catch {
+      setError('Không thể xóa tệp đính kèm');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -110,18 +126,14 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
     setSubmitting(true);
     setError(null);
     try {
+      const fd = new FormData();
+      fd.append('date', formData.date);
+      fd.append('description', formData.description.trim());
+      fd.append('technician', formData.technician.trim());
+      files.forEach(f => fd.append('files', f));
       if (editingId) {
-        const fd = new FormData();
-        fd.append('date', formData.date);
-        fd.append('description', formData.description.trim());
-        fd.append('technician', formData.technician.trim());
         await updateMaintenanceRecord(editingId, fd);
       } else {
-        const fd = new FormData();
-        fd.append('date', formData.date);
-        fd.append('description', formData.description.trim());
-        if (formData.technician.trim()) fd.append('technician', formData.technician.trim());
-        files.forEach(f => fd.append('files', f));
         await createMaintenanceRecord(deviceId, fd);
       }
       resetForm();
@@ -223,78 +235,117 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
         !showForm && <p className="text-sm text-slate-400 italic">Chưa có lịch sử sửa chữa.</p>
       )}
 
-      {/* Form */}
-      {showForm ? (
-        <form onSubmit={handleSubmit} className="bg-blue-50/50 rounded-2xl p-5 border border-blue-100 space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-sm font-bold text-slate-800">{editingId ? 'Chỉnh sửa' : 'Thêm'} sửa chữa</h3>
-            <button type="button" onClick={resetForm} className="text-slate-400 hover:text-slate-600">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <VnDatePicker
-              value={formData.date}
-              onChange={(v) => setFormData(p => ({ ...p, date: v }))}
-              required
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-left flex items-center justify-between gap-2"
-            />
-            <input type="text" placeholder="Kỹ thuật viên" value={formData.technician} onChange={e => setFormData(p => ({ ...p, technician: e.target.value }))}
-              className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-          </div>
-          <textarea placeholder="Mô tả công việc sửa chữa *" value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} required rows={2}
-            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none" />
+      <button onClick={() => { resetForm(); setShowForm(true); }}
+        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 text-sm font-semibold rounded-xl hover:bg-blue-100 active:scale-95 transition-all border border-blue-200">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+        Thêm sửa chữa
+      </button>
 
-          {/* File upload (create mode only) */}
-          {!editingId && (
-            <div>
-              {files.length > 0 && (
-                <div className="space-y-1 mb-2">
-                  {files.map((f, i) => (
-                    <div key={i} className="flex items-center justify-between py-1 px-2 bg-white rounded border border-slate-100 text-xs">
-                      <span className="truncate text-slate-600">{f.name} ({(f.size / 1024).toFixed(0)} KB)</span>
-                      <button type="button" onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500 ml-1">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                      </button>
-                    </div>
-                  ))}
+      {/* Add/Edit modal — full-screen overlay so the form is easy to see (brief-v5) */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" onClick={resetForm}>
+          <form onSubmit={handleSubmit} onClick={e => e.stopPropagation()}
+            className="w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-xl flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <h3 className="text-base font-bold text-slate-800">{editingId ? 'Chỉnh sửa' : 'Thêm'} sửa chữa</h3>
+              <button type="button" onClick={resetForm} className="text-slate-400 hover:text-slate-700">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              {error && (
+                <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100">{error}</div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-slate-600">Ngày *</label>
+                  <VnDatePicker
+                    value={formData.date}
+                    onChange={(v) => setFormData(p => ({ ...p, date: v }))}
+                    required
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-left flex items-center justify-between gap-2"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-slate-600">Kỹ thuật viên</label>
+                  <input type="text" placeholder="Tên kỹ thuật viên" value={formData.technician} onChange={e => setFormData(p => ({ ...p, technician: e.target.value }))}
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-600">Mô tả *</label>
+                <textarea placeholder="Mô tả công việc sửa chữa" value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} required rows={3}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none" />
+              </div>
+
+              {/* Existing attachments — only in edit mode */}
+              {editingId && editingAttachments.length > 0 && (
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-slate-600">Tệp đính kèm hiện có</label>
+                  <div className="space-y-1">
+                    {editingAttachments.map(a => (
+                      <div key={a.id} className="flex items-center justify-between gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+                        <button type="button" onClick={() => handleViewAttachment(a)}
+                          className="flex-1 min-w-0 text-left text-slate-700 hover:text-indigo-600 truncate">
+                          {a.file_name}
+                        </button>
+                        <span className="text-xs text-slate-400 shrink-0">{(a.file_size / 1024).toFixed(0)} KB</span>
+                        <button type="button" onClick={() => handleRemoveExistingAttachment(a.id)}
+                          className="p-1 text-slate-400 hover:text-red-600 rounded shrink-0" title="Xóa tệp đính kèm">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
-              <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
-                style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', opacity: 0 }}
-                onChange={e => {
-                  const selected = Array.from(e.target.files || []);
-                  if (selected.length > 0) {
-                    setFiles(prev => [...prev, ...selected].slice(0, 5));
-                  }
-                  e.target.value = '';
-                }} />
-              <button type="button" onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer border bg-white text-slate-600 border-slate-200 hover:bg-slate-50 transition-all">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                Đính kèm tệp
-              </button>
-              <span className="text-xs text-slate-400 ml-2">Tối đa 5 tệp</span>
-            </div>
-          )}
 
-          <div className="flex gap-2">
-            <button type="submit" disabled={submitting}
-              className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:bg-slate-300 transition-colors">
-              {submitting ? 'Đang lưu...' : (editingId ? 'Cập nhật' : 'Thêm')}
-            </button>
-            <button type="button" onClick={resetForm}
-              className="px-4 py-2 bg-white text-slate-600 text-sm font-semibold rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-              Hủy
-            </button>
-          </div>
-        </form>
-      ) : (
-        <button onClick={() => setShowForm(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 text-sm font-semibold rounded-xl hover:bg-blue-100 active:scale-95 transition-all border border-blue-200">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-          Thêm sửa chữa
-        </button>
+              {/* New file upload (available in both create AND edit modes per brief-v5) */}
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-600">{editingId ? 'Thêm tệp đính kèm mới' : 'Tệp đính kèm'}</label>
+                {files.length > 0 && (
+                  <div className="space-y-1 mb-2">
+                    {files.map((f, i) => (
+                      <div key={i} className="flex items-center justify-between py-1 px-2 bg-emerald-50 rounded border border-emerald-100 text-xs">
+                        <span className="truncate text-slate-700">{f.name} ({(f.size / 1024).toFixed(0)} KB)</span>
+                        <button type="button" onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500 ml-1">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                  style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', opacity: 0 }}
+                  onChange={e => {
+                    const selected = Array.from(e.target.files || []);
+                    if (selected.length > 0) {
+                      const remaining = Math.max(0, 5 - editingAttachments.length - files.length);
+                      setFiles(prev => [...prev, ...selected.slice(0, remaining)]);
+                    }
+                    e.target.value = '';
+                  }} />
+                <button type="button" onClick={() => fileInputRef.current?.click()}
+                  disabled={editingAttachments.length + files.length >= 5}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer border bg-white text-slate-600 border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                  Đính kèm tệp
+                </button>
+                <span className="text-xs text-slate-400 ml-2">Tối đa 5 tệp tổng cộng</span>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
+              <button type="button" onClick={resetForm}
+                className="px-4 py-2 bg-white text-slate-600 text-sm font-semibold rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
+                Hủy
+              </button>
+              <button type="submit" disabled={submitting}
+                className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:bg-slate-300 transition-colors">
+                {submitting ? 'Đang lưu...' : (editingId ? 'Cập nhật' : 'Thêm')}
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
       {/* Completion modal */}
