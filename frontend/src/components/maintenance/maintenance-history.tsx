@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { createMaintenanceRecord, deleteMaintenanceRecord, updateMaintenanceRecord, deleteMaintenanceAttachment, MaintenanceRecord, MaintenanceAttachmentItem, maintenanceAttachmentUrl } from '../../api/device-api';
 import PdfViewerModal from '../attachment/pdf-viewer-modal';
 import VnDatePicker from '../ui/vn-date-picker';
@@ -241,8 +242,8 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
         Thêm sửa chữa
       </button>
 
-      {/* Add/Edit modal — full-screen overlay so the form is easy to see (brief-v5) */}
-      {showForm && (
+      {/* Add/Edit modal — full-screen overlay via portal (brief-v5) */}
+      {showForm && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" onClick={resetForm}>
           <form onSubmit={handleSubmit} onClick={e => e.stopPropagation()}
             className="w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-xl flex flex-col">
@@ -345,11 +346,12 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
               </button>
             </div>
           </form>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Completion modal */}
-      {completeTarget && (
+      {/* Completion modal — full-screen overlay via portal (brief-v5) */}
+      {completeTarget && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" onClick={closeCompleteModal}>
           <form onSubmit={handleComplete} onClick={e => e.stopPropagation()}
             className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-6 space-y-4">
@@ -411,7 +413,8 @@ export default function MaintenanceHistory({ deviceId, records, onUpdate }: Prop
               </button>
             </div>
           </form>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

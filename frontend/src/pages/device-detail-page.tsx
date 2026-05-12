@@ -292,7 +292,7 @@ export default function DeviceDetailPage() {
             </svg>
             Lịch sử sửa chữa ({maintenanceRecords.length})
           </h2>
-          <MaintenanceHistory deviceId={device.id} records={maintenanceRecords} onUpdate={loadMaintenance} />
+          <MaintenanceHistory deviceId={device.id} records={maintenanceRecords} onUpdate={() => { loadMaintenance(); loadDevice(); }} />
         </div>
       )}
     </div>
