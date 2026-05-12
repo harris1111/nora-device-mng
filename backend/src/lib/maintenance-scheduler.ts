@@ -52,6 +52,7 @@ async function runOnce(): Promise<void> {
           deviceId: sched.device.id,
           status: 'pending',
           date: sched.nextDueAt,
+          recordType: 'maintenance',
         },
         select: { id: true },
       });
