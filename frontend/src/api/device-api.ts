@@ -73,16 +73,16 @@ export interface TransferRecordItem {
   attachments: TransferAttachmentItem[];
 }
 
-export interface MaintenanceRecord {\r
-  id: string;\r
-  device_id: string;\r
-  date: string;\r
-  description: string;\r
-  technician: string | null;\r
-  status: string;\r
-  record_type: 'maintenance' | 'repair';\r
-  created_at: string;\r
-  attachments: MaintenanceAttachmentItem[];\r
+export interface MaintenanceRecord {
+  id: string;
+  device_id: string;
+  date: string;
+  description: string;
+  technician: string | null;
+  status: string;
+  record_type: 'maintenance' | 'repair';
+  created_at: string;
+  attachments: MaintenanceAttachmentItem[];
 }
 
 export interface PublicDevice extends Device {

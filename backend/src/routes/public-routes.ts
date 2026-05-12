@@ -80,20 +80,20 @@ router.get('/device/:id', async (req: Request, res: Response) => {
         is_primary: a.isPrimary,
         created_at: a.createdAt.toISOString(),
       })),
-      maintenance_records: device.type === 'tai_san' ? device.maintenanceRecords.map(r => ({\r
-        id: r.id,\r
-        date: r.date.toISOString(),\r
-        description: r.description,\r
-        technician: r.technician,\r
-        status: r.status,\r
-        record_type: r.recordType,\r
-        attachments: r.attachments.map(a => ({\r
-          id: a.id,\r
-          file_name: a.fileName,\r
-          file_type: a.fileType,\r
-          file_size: a.fileSize,\r
-          created_at: a.createdAt.toISOString(),\r
-        })),\r
+      maintenance_records: device.type === 'tai_san' ? device.maintenanceRecords.map(r => ({
+        id: r.id,
+        date: r.date.toISOString(),
+        description: r.description,
+        technician: r.technician,
+        status: r.status,
+        record_type: r.recordType,
+        attachments: r.attachments.map(a => ({
+          id: a.id,
+          file_name: a.fileName,
+          file_type: a.fileType,
+          file_size: a.fileSize,
+          created_at: a.createdAt.toISOString(),
+        })),
       })) : undefined,
     };
 

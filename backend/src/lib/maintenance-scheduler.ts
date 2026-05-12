@@ -56,15 +56,15 @@ async function runOnce(): Promise<void> {
         select: { id: true },
       });
       if (!existingPending) {
-        await prisma.maintenanceRecord.create({\r
-          data: {\r
-            deviceId: sched.device.id,\r
-            date: sched.nextDueAt,\r
-            description: 'Bảo trì định kỳ (tự động tạo)',\r
-            technician: '',\r
-            status: 'pending',\r
-            recordType: 'maintenance',\r
-          },\r
+        await prisma.maintenanceRecord.create({
+          data: {
+            deviceId: sched.device.id,
+            date: sched.nextDueAt,
+            description: 'Bảo trì định kỳ (tự động tạo)',
+            technician: '',
+            status: 'pending',
+            recordType: 'maintenance',
+          },
         });
       }
 
