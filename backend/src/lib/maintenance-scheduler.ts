@@ -79,14 +79,15 @@ async function runOnce(): Promise<void> {
     // Any schedule whose nextDueAt has arrived must mark its device as
     // 'needs_maintenance'. Decoupled from notification: status flips strictly
     // on the due date, regardless of whether a notification was sent earlier.
-    // Also flip the user-facing device.status from 'active' -> 'under_repair'
-    // (skip devices that are not currently 'active', e.g. decommissioned).
+    // Maintenance has the highest priority among workflow states, so we
+    // promote BOTH 'active' AND 'needs_inventory' to 'under_repair'. Leave
+    // 'decommissioned' / other terminal statuses alone.
     const overdue = await prisma.scheduledMaintenance.findMany({
       where: {
         nextDueAt: { lte: now },
         OR: [
           { device: { maintenanceStatus: { not: 'needs_maintenance' } } },
-          { device: { status: 'active' } },
+          { device: { status: { in: ['active', 'needs_inventory'] } } },
         ],
       },
       select: { deviceId: true },
@@ -98,9 +99,12 @@ async function runOnce(): Promise<void> {
         where: { id: { in: ids } },
         data: { maintenanceStatus: 'needs_maintenance' },
       });
-      // Promote 'active' -> 'under_repair' only; leave other statuses alone.
+      // Maintenance outranks inventory: lift 'active' and 'needs_inventory'
+      // to 'under_repair'. When the maintenance task completes,
+      // recomputeDeviceStatus will fall back to 'needs_inventory' if any
+      // inventory record is still pending.
       await prisma.device.updateMany({
-        where: { id: { in: ids }, status: 'active' },
+        where: { id: { in: ids }, status: { in: ['active', 'needs_inventory'] } },
         data: { status: 'under_repair' },
       });
     }
