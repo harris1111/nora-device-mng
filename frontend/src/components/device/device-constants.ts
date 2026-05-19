@@ -18,6 +18,7 @@ export const STATUS_BY_TYPE: Record<string, StatusOption[]> = {
   tai_san: [
     { value: 'active', label: 'Đang sử dụng', color: 'emerald' },
     { value: 'under_repair', label: 'Đang sửa chữa', color: 'amber' },
+    { value: 'needs_inventory', label: 'Cần kiểm kê', color: 'sky' },
     { value: 'decommissioned', label: 'Đã thanh lý', color: 'slate' },
   ],
   cong_cu_dung_cu: [
@@ -30,6 +31,7 @@ export const STATUS_BY_TYPE: Record<string, StatusOption[]> = {
 export const ALL_STATUSES: Record<string, StatusInfo> = {
   active: { label: 'Đang sử dụng', color: 'emerald' },
   under_repair: { label: 'Đang sửa chữa', color: 'amber' },
+  needs_inventory: { label: 'Cần kiểm kê', color: 'sky' },
   decommissioned: { label: 'Đã thanh lý', color: 'slate' },
   disposed: { label: 'Đã xử lý', color: 'slate' },
   lost: { label: 'Đã mất', color: 'red' },

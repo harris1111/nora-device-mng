@@ -85,6 +85,7 @@ router.post('/bulk-delete', requirePermission('devices', 'delete'), async (req: 
         attachments: { select: { fileKey: true } },
         transferRecord: { include: { attachments: { select: { fileKey: true } } } },
         maintenanceRecords: { include: { attachments: { select: { fileKey: true } } } },
+        inventoryRecords: { include: { attachments: { select: { fileKey: true } } } },
       },
     });
 
@@ -92,6 +93,7 @@ router.post('/bulk-delete', requirePermission('devices', 'delete'), async (req: 
       ...d.attachments.map((a: { fileKey: string }) => a.fileKey),
       ...(d.transferRecord?.attachments.map((a: { fileKey: string }) => a.fileKey) || []),
       ...d.maintenanceRecords.flatMap((r: { attachments: { fileKey: string }[] }) => r.attachments.map((a: { fileKey: string }) => a.fileKey)),
+      ...d.inventoryRecords.flatMap((r: { attachments: { fileKey: string }[] }) => r.attachments.map((a: { fileKey: string }) => a.fileKey)),
     ]);
 
     const result = await prisma.device.deleteMany({ where: { id: { in: ids } } });
@@ -199,6 +201,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
     area_id,
     transfer_unit,
     maintenance_status,
+    inventory_status,
     date_from,
     date_to,
   } = req.query as {
@@ -209,6 +212,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
     area_id?: string;
     transfer_unit?: string;
     maintenance_status?: string;
+    inventory_status?: string;
     date_from?: string;
     date_to?: string;
   };
@@ -222,6 +226,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
   if (area_id) where.areaId = area_id;
   if (transfer_unit) where.ownedBy = transfer_unit;
   if (maintenance_status) where.maintenanceStatus = maintenance_status;
+  if (inventory_status) where.inventoryStatus = inventory_status;
 
   if (search && search.trim()) {
     const q = search.trim();

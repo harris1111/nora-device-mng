@@ -30,6 +30,12 @@ router.get('/device/:id', async (req: Request, res: Response) => {
           },
           orderBy: { date: 'desc' },
         },
+        inventoryRecords: {
+          include: {
+            attachments: { select: { id: true, fileName: true, fileType: true, fileSize: true, createdAt: true } },
+          },
+          orderBy: { date: 'desc' },
+        },
       },
     });
 
@@ -87,6 +93,20 @@ router.get('/device/:id', async (req: Request, res: Response) => {
         technician: r.technician,
         status: r.status,
         record_type: r.recordType,
+        attachments: r.attachments.map(a => ({
+          id: a.id,
+          file_name: a.fileName,
+          file_type: a.fileType,
+          file_size: a.fileSize,
+          created_at: a.createdAt.toISOString(),
+        })),
+      })) : undefined,
+      inventory_records: device.type === 'tai_san' ? device.inventoryRecords.map(r => ({
+        id: r.id,
+        date: r.date.toISOString(),
+        description: r.description,
+        technician: r.technician,
+        status: r.status,
         attachments: r.attachments.map(a => ({
           id: a.id,
           file_name: a.fileName,
@@ -154,6 +174,24 @@ router.get('/maintenance-attachments/:id/file', async (req: Request, res: Respon
     stream.pipe(res);
   } catch (err: unknown) {
     console.error('Public maintenance attachment download error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/public/inventory-attachments/:id/file — stream inventory attachment file (read-only, no auth)
+router.get('/inventory-attachments/:id/file', async (req: Request, res: Response) => {
+  try {
+    const attachment = await prisma.inventoryAttachment.findUnique({ where: { id: req.params.id as string } });
+    if (!attachment) return res.status(404).json({ error: 'Attachment not found' });
+
+    const { stream, contentType } = await downloadFile(attachment.fileKey);
+    res.set('Content-Type', attachment.fileType || contentType);
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Content-Disposition', `inline; filename="${attachment.fileName}"`);
+    res.set('Cache-Control', 'public, max-age=3600');
+    stream.pipe(res);
+  } catch (err: unknown) {
+    console.error('Public inventory attachment download error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

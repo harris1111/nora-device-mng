@@ -3,6 +3,7 @@ import { getStatusInfo } from './device-constants';
 const COLOR_MAP: Record<string, string> = {
   emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   amber: 'bg-amber-50 text-amber-700 border-amber-200',
+  sky: 'bg-sky-50 text-sky-700 border-sky-200',
   slate: 'bg-slate-100 text-slate-600 border-slate-200',
   red: 'bg-red-50 text-red-700 border-red-200',
 };
@@ -10,6 +11,7 @@ const COLOR_MAP: Record<string, string> = {
 const DOT_MAP: Record<string, string> = {
   emerald: 'bg-emerald-500',
   amber: 'bg-amber-500',
+  sky: 'bg-sky-500',
   slate: 'bg-slate-400',
   red: 'bg-red-500',
 };

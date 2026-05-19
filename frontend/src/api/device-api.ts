@@ -23,6 +23,7 @@ export interface Device {
   loss_date: string | null;
   warranty_period: string | null;
   maintenance_status?: 'in_use' | 'needs_maintenance';
+  inventory_status?: 'in_use' | 'needs_inventory';
   primary_attachment_id: string | null;
   created_at: string;
 }
@@ -57,6 +58,25 @@ export interface MaintenanceAttachmentItem {
   created_at: string;
 }
 
+export interface InventoryAttachmentItem {
+  id: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
+  created_at: string;
+}
+
+export interface InventoryRecord {
+  id: string;
+  device_id: string;
+  date: string;
+  description: string;
+  technician: string | null;
+  status: string;
+  created_at: string;
+  attachments: InventoryAttachmentItem[];
+}
+
 export interface TransferAttachmentItem {
   id: string;
   file_name: string;
@@ -88,6 +108,7 @@ export interface MaintenanceRecord {
 export interface PublicDevice extends Device {
   attachments: Attachment[];
   maintenance_records: MaintenanceRecord[];
+  inventory_records?: InventoryRecord[];
 }
 
 // Device list pagination
@@ -101,6 +122,7 @@ export interface DeviceListParams {
   area_id?: string;
   transfer_unit?: string;
   maintenance_status?: string;
+  inventory_status?: string;
   date_from?: string;
   date_to?: string;
 }
@@ -143,6 +165,7 @@ export const getPublicDevice = (id: string | undefined): Promise<PublicDevice> =
 export const publicAttachmentFileUrl = (id: string): string => `/api/public/attachments/${id}/file`;
 export const publicTransferAttachmentFileUrl = (id: string): string => `/api/public/transfer-attachments/${id}/file`;
 export const publicMaintenanceAttachmentFileUrl = (id: string): string => `/api/public/maintenance-attachments/${id}/file`;
+export const publicInventoryAttachmentFileUrl = (id: string): string => `/api/public/inventory-attachments/${id}/file`;
 
 // Attachment API
 export const getAttachments = (deviceId: string): Promise<Attachment[]> => api.get(`/devices/${deviceId}/attachments`).then(r => r.data);
@@ -175,6 +198,46 @@ export const uploadMaintenanceAttachment = (recordId: string, files: File[]) => 
 };
 export const deleteMaintenanceAttachment = (id: string) => api.delete(`/maintenance-attachments/${id}`);
 export const maintenanceAttachmentUrl = (id: string): string => `/api/maintenance-attachments/${id}/file`;
+
+// Inventory API (kiểm kê)
+export const getInventoryRecords = (deviceId: string): Promise<InventoryRecord[]> => api.get(`/devices/${deviceId}/inventory`).then(r => r.data);
+export const createInventoryRecord = (deviceId: string, data: FormData | Record<string, unknown>) => api.post(`/devices/${deviceId}/inventory`, data).then(r => r.data);
+export const updateInventoryRecord = (id: string, data: FormData | Record<string, unknown>) => api.put(`/inventory/${id}`, data).then(r => r.data);
+export const deleteInventoryRecord = (id: string) => api.delete(`/inventory/${id}`);
+export const uploadInventoryAttachment = (recordId: string, files: File[]) => {
+  const fd = new FormData();
+  files.forEach(f => fd.append('files', f));
+  return api.post(`/inventory/${recordId}/attachments`, fd).then(r => r.data);
+};
+export const deleteInventoryAttachment = (id: string) => api.delete(`/inventory-attachments/${id}`);
+export const inventoryAttachmentUrl = (id: string): string => `/api/inventory-attachments/${id}/file`;
+
+// Inventory schedule (per-device, single row)
+export interface InventorySchedule {
+  id: string;
+  device_id: string;
+  interval_days: number;
+  notify_days_before: number;
+  next_due_at: string;
+  last_inventory_at: string | null;
+  last_notified_at: string | null;
+}
+
+export interface InventorySchedulePayload {
+  interval_days: number;
+  notify_days_before: number;
+  last_inventory_at?: string;
+}
+
+export const getInventorySchedule = (deviceId: string): Promise<InventorySchedule | null> =>
+  api.get(`/devices/${deviceId}/inventory-schedule`).then(r => r.data).catch((e) => {
+    if (e?.response?.status === 404) return null;
+    throw e;
+  });
+export const upsertInventorySchedule = (deviceId: string, payload: InventorySchedulePayload): Promise<InventorySchedule> =>
+  api.put(`/devices/${deviceId}/inventory-schedule`, payload).then(r => r.data);
+export const deleteInventorySchedule = (deviceId: string) =>
+  api.delete(`/devices/${deviceId}/inventory-schedule`);
 
 // Distinct transfer-unit values (device.owned_by) for filter dropdowns
 export const getTransferUnits = (): Promise<string[]> => api.get('/devices/transfer-units').then(r => r.data);

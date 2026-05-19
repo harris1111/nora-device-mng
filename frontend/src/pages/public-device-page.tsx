@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getPublicDevice, publicAttachmentFileUrl, publicTransferAttachmentFileUrl, publicMaintenanceAttachmentFileUrl, PublicDevice } from '../api/device-api';
+import { getPublicDevice, publicAttachmentFileUrl, publicTransferAttachmentFileUrl, publicMaintenanceAttachmentFileUrl, publicInventoryAttachmentFileUrl, PublicDevice } from '../api/device-api';
 import { getTypeName, getStatusInfo } from '../components/device/device-constants';
 import AttachmentList from '../components/attachment/attachment-list';
 import TransferInfoSection from '../components/transfer/transfer-info-section';
@@ -159,6 +159,37 @@ export default function PublicDevicePage() {
                     {r.attachments?.length > 0 && (
                       <div className="mt-2">
                         <AttachmentList attachments={r.attachments} maintenanceMode fileUrlResolver={(a) => publicMaintenanceAttachmentFileUrl(a.id)} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Inventory timeline (read only, tai_san only) */}
+        {device.inventory_records && device.inventory_records.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-4">Lịch sử kiểm kê</h2>
+            <div className="space-y-0">
+              {device.inventory_records.map((r, i) => (
+                <div key={r.id} className="relative pl-7 pb-4 last:pb-0">
+                  {device.inventory_records && i < device.inventory_records.length - 1 && (
+                    <div className="absolute left-[9px] top-5 bottom-0 w-0.5 bg-slate-200"></div>
+                  )}
+                  <div className="absolute left-0 top-0.5 w-5 h-5 rounded-full bg-sky-100 border-2 border-sky-400 flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 bg-sky-500 rounded-full"></div>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-slate-800">{r.description}</p>
+                    <div className="flex flex-wrap gap-x-3 mt-1 text-xs text-slate-400">
+                      <span>{new Date(r.date).toLocaleDateString('vi-VN')}</span>
+                      {r.technician && <span>bởi {r.technician}</span>}
+                    </div>
+                    {r.attachments?.length > 0 && (
+                      <div className="mt-2">
+                        <AttachmentList attachments={r.attachments} maintenanceMode fileUrlResolver={(a) => publicInventoryAttachmentFileUrl(a.id)} />
                       </div>
                     )}
                   </div>

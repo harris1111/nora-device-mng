@@ -1,7 +1,7 @@
 export const DEVICE_TYPES: string[] = ['tai_san', 'cong_cu_dung_cu'];
 
 export const STATUS_BY_TYPE: Record<string, string[]> = {
-  tai_san: ['active', 'under_repair', 'decommissioned'],
+  tai_san: ['active', 'under_repair', 'needs_inventory', 'decommissioned'],
   cong_cu_dung_cu: ['active', 'disposed', 'lost'],
 };
 
@@ -13,6 +13,7 @@ export const TYPE_LABELS: Record<string, string> = {
 export const STATUS_LABELS: Record<string, string> = {
   active: 'Đang sử dụng',
   under_repair: 'Đang sửa chữa',
+  needs_inventory: 'Cần kiểm kê',
   decommissioned: 'Đã thanh lý',
   disposed: 'Đã xử lý',
   lost: 'Đã mất',

@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getDevice, deleteDevice, getAttachments, uploadAttachments, deleteAttachment, setAttachmentPrimary, attachmentFileUrl, getMaintenanceRecords, uploadTransferAttachments, deleteTransferAttachment, Device, Attachment, MaintenanceRecord } from '../api/device-api';
+import { getDevice, deleteDevice, getAttachments, uploadAttachments, deleteAttachment, setAttachmentPrimary, attachmentFileUrl, getMaintenanceRecords, getInventoryRecords, uploadTransferAttachments, deleteTransferAttachment, Device, Attachment, MaintenanceRecord, InventoryRecord } from '../api/device-api';
 import QrcodeDisplay from '../components/qrcode/qrcode-display';
 import PrintQrcodeButton from '../components/qrcode/print-qrcode-button';
 import DeviceStatusBadge from '../components/device/device-status-badge';
 import AttachmentList from '../components/attachment/attachment-list';
 import MaintenanceHistory from '../components/maintenance/maintenance-history';
 import MaintenanceSection from '../components/maintenance/maintenance-section';
+import InventoryHistory from '../components/inventory/inventory-history';
+import InventorySection from '../components/inventory/inventory-section';
 import TransferInfoSection from '../components/transfer/transfer-info-section';
 import { getTypeName } from '../components/device/device-constants';
 
@@ -16,6 +18,7 @@ export default function DeviceDetailPage() {
   const [device, setDevice] = useState<Device | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
+  const [inventoryRecords, setInventoryRecords] = useState<InventoryRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -24,12 +27,13 @@ export default function DeviceDetailPage() {
   const loadDevice = useCallback(() => getDevice(id).then(setDevice), [id]);
   const loadAttachments = useCallback(() => getAttachments(id!).then(setAttachments).catch(() => setAttachments([])), [id]);
   const loadMaintenance = useCallback(() => getMaintenanceRecords(id!).then(setMaintenanceRecords).catch(() => setMaintenanceRecords([])), [id]);
+  const loadInventory = useCallback(() => getInventoryRecords(id!).then(setInventoryRecords).catch(() => setInventoryRecords([])), [id]);
 
   useEffect(() => {
-    Promise.all([loadDevice(), loadAttachments(), loadMaintenance()])
+    Promise.all([loadDevice(), loadAttachments(), loadMaintenance(), loadInventory()])
       .catch(() => setError('Không tìm thấy thiết bị'))
       .finally(() => setLoading(false));
-  }, [loadDevice, loadAttachments, loadMaintenance]);
+  }, [loadDevice, loadAttachments, loadMaintenance, loadInventory]);
 
   const handleDelete = async () => {
     if (!device || !window.confirm(`Xử lý không thể hoàn tác. Bạn chắc chắn muốn xóa "${device.name}"?`)) return;
@@ -293,6 +297,27 @@ export default function DeviceDetailPage() {
             Lịch sử sửa chữa ({maintenanceRecords.length})
           </h2>
           <MaintenanceHistory deviceId={device.id} records={maintenanceRecords} onUpdate={() => { loadMaintenance(); loadDevice(); }} />
+        </div>
+      )}
+
+      {/* Inventory (kiểm kê) scheduled + history — only for tai_san */}
+      {device.type === 'tai_san' && (
+        <InventorySection
+          deviceId={device.id}
+          inventoryStatus={device.inventory_status}
+          onChange={loadDevice}
+        />
+      )}
+
+      {device.type === 'tai_san' && (
+        <div className="card-glass border border-slate-100 shadow-sm p-6 md:p-8 space-y-4">
+          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <svg className="w-5 h-5 text-sky-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+            Lịch sử kiểm kê ({inventoryRecords.length})
+          </h2>
+          <InventoryHistory deviceId={device.id} records={inventoryRecords} onUpdate={() => { loadInventory(); loadDevice(); }} />
         </div>
       )}
     </div>
