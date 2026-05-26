@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
+    "lint": "tsc --noEmit",
     "build": "tsc --noEmit",
     "db:migrate": "npx prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",

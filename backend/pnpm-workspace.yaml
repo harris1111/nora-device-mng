@@ -1,3 +1,6 @@
+packages:
+  - .
+
 allowBuilds:
   '@prisma/engines': false
   better-sqlite3: true
