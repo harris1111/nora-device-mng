@@ -24,6 +24,8 @@ export interface Device {
   warranty_period: string | null;
   maintenance_status?: 'in_use' | 'needs_maintenance';
   inventory_status?: 'in_use' | 'needs_inventory';
+  room_id: string | null;
+  is_room_device: boolean;
   primary_attachment_id: string | null;
   created_at: string;
 }
@@ -123,6 +125,7 @@ export interface DeviceListParams {
   transfer_unit?: string;
   maintenance_status?: string;
   inventory_status?: string;
+  room_id?: string;
   date_from?: string;
   date_to?: string;
 }

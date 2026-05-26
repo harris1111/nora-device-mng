@@ -19,6 +19,7 @@ import PermissionDashboardPage from './pages/permission-dashboard-page';
 import AuditLogPage from './pages/audit-log-page';
 import SettingsPage from './pages/settings-page';
 import ExcelExportPage from './pages/excel-export-page';
+import RoomListPage from './pages/room-list-page';
 
 function AdminLayout() {
   return (
@@ -64,6 +65,9 @@ export default function App() {
               </Route>
               <Route element={<PermissionRoute module="devices" action="export" />}>
                 <Route path="/export" element={<ExcelExportPage />} />
+              </Route>
+              <Route element={<PermissionRoute module="rooms" action="view" />}>
+                <Route path="/rooms" element={<RoomListPage />} />
               </Route>
             </Route>
           </Route>

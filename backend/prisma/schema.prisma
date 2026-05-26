@@ -39,6 +39,8 @@ model User {
   locationsUpdated            Location[]            @relation("LocationUpdatedBy")
   areasCreated                Area[]                @relation("AreaCreatedBy")
   areasUpdated                Area[]                @relation("AreaUpdatedBy")
+  roomNodesCreated            RoomNode[]            @relation("RoomNodeCreatedBy")
+  roomNodesUpdated            RoomNode[]            @relation("RoomNodeUpdatedBy")
   maintenanceRecordsCreated   MaintenanceRecord[]   @relation("MaintenanceCreatedBy")
   maintenanceRecordsUpdated   MaintenanceRecord[]   @relation("MaintenanceUpdatedBy")
   scheduledMaintenanceCreated ScheduledMaintenance[] @relation("ScheduledMaintenanceCreatedBy")
@@ -160,6 +162,9 @@ model Device {
   createdBy    User?    @relation("DeviceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedById  String?  @map("updated_by")
   updatedBy    User?    @relation("DeviceUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  roomId       String?  @map("room_id")
+  room         RoomNode? @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  isRoomDevice Boolean  @default(false) @map("is_room_device")
   attachments        Attachment[]
   maintenanceRecords MaintenanceRecord[]
   scheduledMaintenance ScheduledMaintenance?
@@ -167,6 +172,7 @@ model Device {
   scheduledInventory ScheduledInventory?
   transferRecord     TransferRecord?
 
+  @@index([roomId])
   @@map("devices")
 }
 
@@ -351,6 +357,37 @@ model ScheduledInventory {
   updatedBy        User?    @relation("ScheduledInventoryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("scheduled_inventories")
+}
+
+model RoomNode {
+  id          String     @id @default(uuid())
+  name        String
+  parentId    String?    @map("parent_id")
+  parent      RoomNode?  @relation("RoomNodeHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    RoomNode[] @relation("RoomNodeHierarchy")
+  path        String     @default("")
+
+  // Metadata
+  code        String?
+  description String     @default("")
+
+  // Status (cached from device aggregation)
+  status      String     @default("in_use")
+
+  // Audit
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  createdById String?    @map("created_by")
+  createdBy   User?      @relation("RoomNodeCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?    @map("updated_by")
+  updatedBy   User?      @relation("RoomNodeUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  // Devices assigned to this node
+  devices     Device[]
+
+  @@index([parentId])
+  @@index([path])
+  @@map("room_nodes")
 }
 
 model Setting {

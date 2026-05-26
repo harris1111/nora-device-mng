@@ -52,6 +52,7 @@ function getPageMeta(path: string): { title: string; eyebrow: string } {
   if (path.startsWith('/audit-logs')) return { title: 'Nhật ký hệ thống', eyebrow: 'Quản trị' };
   if (path.startsWith('/settings')) return { title: 'Cài đặt hệ thống', eyebrow: 'Quản trị' };
   if (path.startsWith('/export')) return { title: 'Xuất Excel', eyebrow: 'Tiện ích' };
+  if (path.startsWith('/rooms')) return { title: 'Quản lý phòng', eyebrow: 'Buồng phòng' };
   return { title: 'Nora Device Manager', eyebrow: 'BWP Devices' };
 }
 
@@ -67,6 +68,7 @@ export default function AppLayout({ children }: Props) {
   const canViewPermissions = useCan('permissions', 'view');
   const canCreateDevices = useCan('devices', 'create');
   const canExportDevices = useCan('devices', 'export');
+  const canViewRooms = useCan('rooms', 'view');
   const pageMeta = getPageMeta(path);
 
   useEffect(() => {
@@ -116,6 +118,17 @@ export default function AppLayout({ children }: Props) {
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+        </svg>
+      )
+    },
+    {
+      label: 'Buồng phòng',
+      shortLabel: 'Phòng',
+      path: '/rooms',
+      visible: canViewRooms,
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
         </svg>
       )
     },

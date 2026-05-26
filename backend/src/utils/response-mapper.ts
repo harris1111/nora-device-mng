@@ -61,6 +61,8 @@ export function mapDevice(d: DeviceWithRelations) {
     warranty_period: d.warrantyPeriod ?? null,
     maintenance_status: d.maintenanceStatus,
     inventory_status: d.inventoryStatus,
+    room_id: d.roomId ?? null,
+    is_room_device: d.isRoomDevice,
     transfer_record: mapTransferRecord(d),
     primary_attachment_id: d.attachments?.find(a => a.isPrimary)?.id || null,
     created_at: d.createdAt?.toISOString(),
