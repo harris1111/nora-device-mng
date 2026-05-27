@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap");
+@import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", system-ui, sans-serif;
@@ -68,7 +68,7 @@
 
   /* ── Legacy alias (keep compatibility) ─────────────────── */
   .card-glass {
-    @apply panel;
+    @apply bg-white rounded-2xl border border-slate-100 shadow-[0_1px_8px_-2px_rgba(0,0,0,0.06)];
   }
 
   /* ── Form Elements ─────────────────────────────────────── */
@@ -132,7 +132,7 @@
 
   /* Legacy alias */
   .data-table-container {
-    @apply data-table-wrap;
+    @apply overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-[0_1px_8px_-2px_rgba(0,0,0,0.06)];
   }
 
   /* ── Filter Bar (open, not boxed) ────────────────────────── */
