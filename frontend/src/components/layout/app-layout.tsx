@@ -41,6 +41,10 @@ function ShellActionButtons({ canCreateDevices, compact = false }: { canCreateDe
 }
 
 function getPageMeta(path: string): { title: string; eyebrow: string } {
+  if (path.includes('/rooms/') && path.includes('/devices/new')) return { title: 'Thêm thiết bị vào phòng', eyebrow: 'Phòng' };
+  if (path.includes('/rooms/') && path.includes('/devices/') && path.includes('/edit')) return { title: 'Sửa thiết bị trong phòng', eyebrow: 'Phòng' };
+  if (path.includes('/rooms/') && path.includes('/devices/')) return { title: 'Chi tiết thiết bị trong phòng', eyebrow: 'Phòng' };
+  if (path.startsWith('/rooms')) return { title: 'Quản lý phòng', eyebrow: 'Phòng' };
   if (path.includes('/devices/new')) return { title: 'Thêm thiết bị', eyebrow: 'Thiết bị' };
   if (path.includes('/devices/') && path.includes('/edit')) return { title: 'Sửa thiết bị', eyebrow: 'Thiết bị' };
   if (path.includes('/devices/') && path !== '/devices') return { title: 'Chi tiết thiết bị', eyebrow: 'Thiết bị' };
@@ -61,6 +65,7 @@ export default function AppLayout({ children }: Props) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
   const canViewDevices = useCan('devices', 'view');
+  const canViewRooms = useCan('rooms', 'view');
   const canViewLocations = useCan('locations', 'view');
   const canViewAreas = useCan('areas', 'view');
   const canViewUsers = useCan('users', 'view');
@@ -82,6 +87,17 @@ export default function AppLayout({ children }: Props) {
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+      )
+    },
+    {
+      label: 'Phòng',
+      shortLabel: 'Phòng',
+      path: '/rooms',
+      visible: canViewRooms,
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
         </svg>
       )
     },

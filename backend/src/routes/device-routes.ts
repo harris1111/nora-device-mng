@@ -80,7 +80,7 @@ router.post('/bulk-delete', requirePermission('devices', 'delete'), async (req: 
 
     // Gather S3 keys before deletion
     const devices = await prisma.device.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, roomId: null },
       include: {
         attachments: { select: { fileKey: true } },
         transferRecord: { include: { attachments: { select: { fileKey: true } } } },
@@ -96,7 +96,7 @@ router.post('/bulk-delete', requirePermission('devices', 'delete'), async (req: 
       ...d.inventoryRecords.flatMap((r: { attachments: { fileKey: string }[] }) => r.attachments.map((a: { fileKey: string }) => a.fileKey)),
     ]);
 
-    const result = await prisma.device.deleteMany({ where: { id: { in: ids } } });
+    const result = await prisma.device.deleteMany({ where: { id: { in: ids }, roomId: null } });
 
     if (s3Keys.length > 0) {
       try { await deleteFiles(s3Keys); } catch (e: unknown) { console.warn('S3 bulk cleanup warning:', (e as Error).message); }
@@ -139,7 +139,7 @@ router.post('/bulk-edit', requirePermission('devices', 'update'), async (req: Re
       }
     }
 
-    const devices = await prisma.device.findMany({ where: { id: { in: ids } }, select: { id: true, type: true, status: true } });
+    const devices = await prisma.device.findMany({ where: { id: { in: ids }, roomId: null }, select: { id: true, type: true, status: true } });
     if (devices.length === 0) return res.status(404).json({ error: 'No devices found' });
 
     const errors: string[] = [];
@@ -217,7 +217,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
     date_to?: string;
   };
 
-  const where: Record<string, unknown> = {};
+  const where: Record<string, unknown> = { roomId: null };
   const andClauses: Record<string, unknown>[] = [];
 
   if (type) where.type = type;
@@ -300,7 +300,7 @@ export { buildDeviceListWhere };
 // GET /api/devices/transfer-units — distinct non-empty ownedBy values (used to populate filter dropdown)
 router.get('/transfer-units', requirePermission('devices', 'view'), async (req: Request, res: Response) => {
   try {
-    const where: Record<string, unknown> = { NOT: { ownedBy: '' } };
+    const where: Record<string, unknown> = { NOT: { ownedBy: '' }, roomId: null };
     const locationFilter = await getUserLocationFilter(req);
     if (locationFilter) where.AND = [locationFilter];
     const rows = await prisma.device.findMany({ where, distinct: ['ownedBy'], select: { ownedBy: true } });
@@ -327,11 +327,20 @@ router.get('/:id', requirePermission('devices', 'view'), async (req: Request, re
     // Check location access for USER role
     const locationFilter = await getUserLocationFilter(req);
     if (locationFilter) {
-      const orConditions = (locationFilter as { OR: Array<Record<string, unknown>> }).OR;
-      const locationIds = (orConditions[0].locationId as { in: string[] }).in;
-      const locationNames = (orConditions[1].transferTo as { in: string[] }).in;
-      const hasAccess = locationIds.includes(device.locationId || '') || locationNames.includes(device.transferTo || '');
-      if (!hasAccess) return res.status(404).json({ error: 'Device not found' });
+      // For room devices, authorize strictly from the room's location, not via transferTo fallback
+      if (device.roomId) {
+        const room = await prisma.roomNode.findUnique({ where: { id: device.roomId }, select: { locationId: true } });
+        if (!room) return res.status(404).json({ error: 'Device not found' });
+        const orConditions = (locationFilter as { OR: Array<Record<string, unknown>> }).OR;
+        const locationIds = (orConditions[0].locationId as { in: string[] }).in;
+        if (!locationIds.includes(room.locationId)) return res.status(404).json({ error: 'Device not found' });
+      } else {
+        const orConditions = (locationFilter as { OR: Array<Record<string, unknown>> }).OR;
+        const locationIds = (orConditions[0].locationId as { in: string[] }).in;
+        const locationNames = (orConditions[1].transferTo as { in: string[] }).in;
+        const hasAccess = locationIds.includes(device.locationId || '') || locationNames.includes(device.transferTo || '');
+        if (!hasAccess) return res.status(404).json({ error: 'Device not found' });
+      }
     }
 
     res.json(mapDevice(device));
