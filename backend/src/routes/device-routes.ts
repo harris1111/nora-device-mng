@@ -327,13 +327,11 @@ router.get('/:id', requirePermission('devices', 'view'), async (req: Request, re
     // Check location access for USER role
     const locationFilter = await getUserLocationFilter(req);
     if (locationFilter) {
-      // For room devices, authorize strictly from the room's location, not via transferTo fallback
+      // For room devices, authorize from the device's own location
       if (device.roomId) {
-        const room = await prisma.roomNode.findUnique({ where: { id: device.roomId }, select: { locationId: true } });
-        if (!room) return res.status(404).json({ error: 'Device not found' });
         const orConditions = (locationFilter as { OR: Array<Record<string, unknown>> }).OR;
         const locationIds = (orConditions[0].locationId as { in: string[] }).in;
-        if (!locationIds.includes(room.locationId)) return res.status(404).json({ error: 'Device not found' });
+        if (!locationIds.includes(device.locationId || '')) return res.status(404).json({ error: 'Device not found' });
       } else {
         const orConditions = (locationFilter as { OR: Array<Record<string, unknown>> }).OR;
         const locationIds = (orConditions[0].locationId as { in: string[] }).in;

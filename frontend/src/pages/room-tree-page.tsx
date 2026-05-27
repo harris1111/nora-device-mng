@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getRoomTree, type RoomTreeNode, type RoomNodeSummary, getRoomDetail, createRoom, updateRoom, deleteRoom } from '../api/room-api';
-import { getLocations, type Location, type Device, getDevices } from '../api/device-api';
+import { type Device } from '../api/device-api';
 import { getRoomDevices, duplicateRoom } from '../api/room-device-api';
 import { useCan } from '../hooks/use-permission';
 import DeviceStatusBadge from '../components/device/device-status-badge';
@@ -48,7 +48,7 @@ export default function RoomTreePage() {
   const [selected, setSelected] = useState<RoomNodeSummary | null>(null);
   const [selectedDevices, setSelectedDevices] = useState<Device[]>([]);
   const [devicesLoading, setDevicesLoading] = useState(false);
-  const [locations, setLocations] = useState<Location[]>([]);
+
   const canCreate = useCan('rooms', 'create');
   const canUpdate = useCan('rooms', 'update');
   const canDelete = useCan('rooms', 'delete');
@@ -56,7 +56,6 @@ export default function RoomTreePage() {
   // Form state
   const [showForm, setShowForm] = useState<'create' | 'edit' | 'duplicate' | null>(null);
   const [formName, setFormName] = useState('');
-  const [formLocationId, setFormLocationId] = useState('');
   const [formParentId, setFormParentId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -85,7 +84,6 @@ export default function RoomTreePage() {
 
   useEffect(() => {
     fetchTree();
-    getLocations().then(setLocations).catch(() => {});
   }, [fetchTree]);
 
   // Auto-select room from URL param and expand its ancestors
@@ -112,17 +110,16 @@ export default function RoomTreePage() {
   }, [tree, searchQuery]);
 
   function openCreate(parentId?: string | null) {
-    setShowForm('create'); setFormName(''); setFormLocationId(selected?.location_id || locations[0]?.id || ''); setFormParentId(parentId !== undefined ? parentId : null); setFormError(null); setDupResult(null);
+    setShowForm('create'); setFormName(''); setFormParentId(parentId !== undefined ? parentId : null); setFormError(null); setDupResult(null);
   }
-  function openEdit() { if (!selected) return; setShowForm('edit'); setFormName(selected.name); setFormLocationId(selected.location_id); setFormParentId(selected.parent_id); setFormError(null); setDupResult(null); }
+  function openEdit() { if (!selected) return; setShowForm('edit'); setFormName(selected.name); setFormParentId(selected.parent_id); setFormError(null); setDupResult(null); }
   function openDuplicate() { if (!selected) return; setShowForm('duplicate'); setDupPrefix(''); setDupStart(1); setDupEnd(1); setDupMode('range'); setDupList(''); setFormError(null); setDupResult(null); }
 
   async function handleSave() {
     if (!formName.trim()) { setFormError('Tên phòng là bắt buộc'); return; }
-    if (showForm === 'create' && !formLocationId) { setFormError('Đơn vị là bắt buộc'); return; }
     setSaving(true); setFormError(null);
     try {
-      if (showForm === 'create') { await createRoom({ name: formName.trim(), location_id: formLocationId, parent_id: formParentId || null }); }
+      if (showForm === 'create') { await createRoom({ name: formName.trim(), parent_id: formParentId || null }); }
       else if (showForm === 'edit' && selected) { await updateRoom(selected.id, { name: formName.trim(), parent_id: formParentId ?? null }); await fetchDetail(selected.id); }
       setShowForm(null); await fetchTree();
     } catch (e: unknown) { setFormError((e as { response?: { data?: { error?: string } } }).response?.data?.error || (e as Error).message); } finally { setSaving(false); }
@@ -161,7 +158,7 @@ export default function RoomTreePage() {
       <div className="w-80 shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="font-semibold text-slate-700">Sơ đồ phòng</h3>
-          {canCreate && locations.length > 0 && (
+          {canCreate && (
             <button onClick={() => openCreate(null)} className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700">
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               Thêm
@@ -224,8 +221,7 @@ export default function RoomTreePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <InfoCard label="Đơn vị" value={selected.location_name} />
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
               <InfoCard label="Số thiết bị trực tiếp" value={String(selected.device_count)} />
               <InfoCard label="Tổng thiết bị" value={String(selected.descendant_device_count)} />
               <InfoCard label="Trạng thái" value={selected.status === 'needs_maintenance' ? 'Cần bảo trì' : 'Bình thường'} highlight={selected.status === 'needs_maintenance'} />

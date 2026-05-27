@@ -36,8 +36,6 @@ const deviceUpload = upload.fields([
 type RoomNodeSummary = {
   id: string;
   name: string;
-  location_id: string;
-  location_name: string;
   parent_id: string | null;
   breadcrumb: string;
   device_count: number;
@@ -52,8 +50,8 @@ type RoomTreeNode = RoomNodeSummary & { children: RoomTreeNode[] };
 
 const BREADCRUMB_DELIMITER = ' -> ';
 
-// Get allowed location IDs for the current user.
-async function getUserRoomLocationIds(req: Request): Promise<string[] | null> {
+// Get allowed location IDs for the current user (used for device-level filtering).
+async function getUserLocationIds(req: Request): Promise<string[] | null> {
   if (req.user!.role !== 'USER') return null;
   const assignments = await prisma.userLocation.findMany({
     where: { userId: req.user!.id },
@@ -111,7 +109,9 @@ async function syncRoomDevicesArea(roomId: string, tx: Parameters<Parameters<typ
   }
 }
 
-// Compute descendant device count and maintenance-derived status via recursive descent
+// Compute descendant device count and maintenance/repair-derived status via recursive descent.
+// A room is flagged 'needs_maintenance' if ANY device in its subtree has
+// maintenanceStatus === 'needs_maintenance' OR status === 'under_repair'.
 async function computeDescendantSummary(roomId: string): Promise<{ descendantDeviceCount: number; status: string }> {
   const stack = [roomId];
   let descendantDeviceCount = 0;
@@ -121,23 +121,23 @@ async function computeDescendantSummary(roomId: string): Promise<{ descendantDev
     const currentId = stack.pop()!;
     const children = await prisma.roomNode.findMany({
       where: { parentId: currentId },
-      select: { id: true, devices: { select: { maintenanceStatus: true } } },
+      select: { id: true, devices: { select: { maintenanceStatus: true, status: true } } },
     });
     for (const child of children) {
       stack.push(child.id);
       for (const d of child.devices) {
         descendantDeviceCount += 1;
-        if (d.maintenanceStatus === 'needs_maintenance') needsMaintenance = true;
+        if (d.maintenanceStatus === 'needs_maintenance' || d.status === 'under_repair') needsMaintenance = true;
       }
     }
     if (currentId === roomId) {
       const directDevices = await prisma.device.findMany({
         where: { roomId: currentId },
-        select: { maintenanceStatus: true },
+        select: { maintenanceStatus: true, status: true },
       });
       for (const d of directDevices) {
         descendantDeviceCount += 1;
-        if (d.maintenanceStatus === 'needs_maintenance') needsMaintenance = true;
+        if (d.maintenanceStatus === 'needs_maintenance' || d.status === 'under_repair') needsMaintenance = true;
       }
     }
   }
@@ -147,8 +147,6 @@ async function computeDescendantSummary(roomId: string): Promise<{ descendantDev
 async function mapRoomSummary(node: {
   id: string;
   name: string;
-  locationId: string;
-  location?: { name: string } | null;
   parentId: string | null;
   createdAt: Date;
   _count?: { devices?: number; children?: number };
@@ -160,8 +158,6 @@ async function mapRoomSummary(node: {
   return {
     id: node.id,
     name: node.name,
-    location_id: node.locationId,
-    location_name: node.location?.name ?? '',
     parent_id: node.parentId,
     breadcrumb,
     device_count: deviceCount,
@@ -173,17 +169,11 @@ async function mapRoomSummary(node: {
   };
 }
 
-// GET /api/rooms — flat list for selectors/search
+// GET /api/rooms — flat list for selectors/search (all rooms visible to all permitted users)
 router.get('/', requirePermission('rooms', 'view'), async (req: Request, res: Response) => {
   try {
-    const allowedLocations = await getUserRoomLocationIds(req);
-    const where: Record<string, unknown> = {};
-    if (allowedLocations) where.locationId = { in: allowedLocations };
-
     const rooms = await prisma.roomNode.findMany({
-      where,
       include: {
-        location: { select: { name: true } },
         _count: { select: { devices: true, children: true } },
       },
       orderBy: { name: 'asc' },
@@ -197,17 +187,12 @@ router.get('/', requirePermission('rooms', 'view'), async (req: Request, res: Re
   }
 });
 
-// GET /api/rooms/tree — full nested tree
+// GET /api/rooms/tree — full nested tree (all rooms visible)
 router.get('/tree', requirePermission('rooms', 'view'), async (req: Request, res: Response) => {
   try {
-    const allowedLocations = await getUserRoomLocationIds(req);
-    const where: Record<string, unknown> = { parentId: null };
-    if (allowedLocations) where.locationId = { in: allowedLocations };
-
     const roots = await prisma.roomNode.findMany({
-      where,
+      where: { parentId: null },
       include: {
-        location: { select: { name: true } },
         _count: { select: { devices: true, children: true } },
       },
       orderBy: { name: 'asc' },
@@ -219,7 +204,6 @@ router.get('/tree', requirePermission('rooms', 'view'), async (req: Request, res
         const children = await prisma.roomNode.findMany({
           where: { parentId: node.id },
           include: {
-            location: { select: { name: true } },
             _count: { select: { devices: true, children: true } },
           },
           orderBy: { name: 'asc' },
@@ -243,16 +227,10 @@ router.get('/:id', requirePermission('rooms', 'view'), async (req: Request, res:
     const node = await prisma.roomNode.findUnique({
       where: { id: req.params.id as string },
       include: {
-        location: { select: { name: true } },
         _count: { select: { devices: true, children: true } },
       },
     });
     if (!node) return res.status(404).json({ error: 'Room not found' });
-
-    const allowedLocations = await getUserRoomLocationIds(req);
-    if (allowedLocations && !allowedLocations.includes(node.locationId)) {
-      return res.status(404).json({ error: 'Room not found' });
-    }
 
     res.json(await mapRoomSummary(node));
   } catch (err) {
@@ -282,30 +260,18 @@ async function wouldCreateCycle(childId: string, proposedParentId: string): Prom
   return false;
 }
 
-// POST /api/rooms — create node
+// POST /api/rooms — create node (rooms are location-agnostic)
 router.post('/', requirePermission('rooms', 'create'), async (req: Request, res: Response) => {
   try {
-    const { name, location_id, parent_id } = req.body as { name?: string; location_id?: string; parent_id?: string | null };
+    const { name, parent_id } = req.body as { name?: string; parent_id?: string | null };
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
-    if (!location_id?.trim()) return res.status(400).json({ error: 'Location is required' });
-
-    const location = await prisma.location.findUnique({ where: { id: location_id.trim() } });
-    if (!location) return res.status(400).json({ error: 'Invalid location' });
 
     let resolvedParentId: string | null = null;
     if (parent_id && parent_id.trim()) {
       const parent = await prisma.roomNode.findUnique({ where: { id: parent_id.trim() } });
       if (!parent) return res.status(400).json({ error: 'Parent room not found' });
-      if (parent.locationId !== location_id.trim()) {
-        return res.status(400).json({ error: 'Parent room must belong to the same location' });
-      }
       resolvedParentId = parent.id;
-    }
-
-    const allowedLocations = await getUserRoomLocationIds(req);
-    if (allowedLocations && !allowedLocations.includes(location_id.trim())) {
-      return res.status(404).json({ error: 'Location not found' });
     }
 
     const node = await prisma.$transaction(async (tx) => {
@@ -317,12 +283,10 @@ router.post('/', requirePermission('rooms', 'create'), async (req: Request, res:
         data: {
           id: uuidv4(),
           name: name.trim(),
-          locationId: location_id.trim(),
           parentId: resolvedParentId,
           createdById: req.user!.id,
         },
         include: {
-          location: { select: { name: true } },
           _count: { select: { devices: true, children: true } },
         },
       });
@@ -342,14 +306,9 @@ router.put('/:id', requirePermission('rooms', 'update'), async (req: Request, re
   try {
     const existing = await prisma.roomNode.findUnique({
       where: { id: req.params.id as string },
-      select: { id: true, locationId: true },
+      select: { id: true },
     });
     if (!existing) return res.status(404).json({ error: 'Room not found' });
-
-    const allowedLocations = await getUserRoomLocationIds(req);
-    if (allowedLocations && !allowedLocations.includes(existing.locationId)) {
-      return res.status(404).json({ error: 'Room not found' });
-    }
 
     const { name, parent_id } = req.body as { name?: string; parent_id?: string | null };
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
@@ -364,9 +323,6 @@ router.put('/:id', requirePermission('rooms', 'update'), async (req: Request, re
       } else {
         const parent = await prisma.roomNode.findUnique({ where: { id: parent_id.trim() } });
         if (!parent) return res.status(400).json({ error: 'Parent room not found' });
-        if (parent.locationId !== existing.locationId) {
-          return res.status(400).json({ error: 'Parent room must belong to the same location' });
-        }
         if (parent.id === existing.id) return res.status(400).json({ error: 'A room cannot be its own parent' });
         resolvedParentId = parent.id;
       }
@@ -396,7 +352,6 @@ router.put('/:id', requirePermission('rooms', 'update'), async (req: Request, re
     const node = await prisma.roomNode.findUnique({
       where: { id: req.params.id as string },
       include: {
-        location: { select: { name: true } },
         _count: { select: { devices: true, children: true } },
       },
     });
@@ -418,11 +373,6 @@ router.delete('/:id', requirePermission('rooms', 'delete'), async (req: Request,
     });
     if (!existing) return res.status(404).json({ error: 'Room not found' });
 
-    const allowedLocations = await getUserRoomLocationIds(req);
-    if (allowedLocations && !allowedLocations.includes(existing.locationId)) {
-      return res.status(404).json({ error: 'Room not found' });
-    }
-
     const childCount = existing._count?.children ?? 0;
     const deviceCount = existing._count?.devices ?? 0;
     if (childCount > 0) return res.status(409).json({ error: 'Cannot delete room: it still has child rooms' });
@@ -437,21 +387,21 @@ router.delete('/:id', requirePermission('rooms', 'delete'), async (req: Request,
 });
 
 // GET /api/rooms/:roomId/devices — list devices in a room
+// Device-level RBAC: USER role only sees devices whose locationId matches their assigned locations.
 router.get('/:roomId/devices', requirePermission('rooms', 'view'), async (req: Request, res: Response) => {
   try {
     const room = await prisma.roomNode.findUnique({
       where: { id: req.params.roomId as string },
-      select: { id: true, locationId: true },
+      select: { id: true },
     });
     if (!room) return res.status(404).json({ error: 'Room not found' });
 
-    const allowedLocations = await getUserRoomLocationIds(req);
-    if (allowedLocations && !allowedLocations.includes(room.locationId)) {
-      return res.status(404).json({ error: 'Room not found' });
-    }
+    const where: Record<string, unknown> = { roomId: req.params.roomId as string };
+    const allowedLocations = await getUserLocationIds(req);
+    if (allowedLocations) where.locationId = { in: allowedLocations };
 
     const devices = await prisma.device.findMany({
-      where: { roomId: req.params.roomId as string },
+      where,
       include: {
         location: true,
         area: true,
@@ -468,23 +418,23 @@ router.get('/:roomId/devices', requirePermission('rooms', 'view'), async (req: R
 });
 
 // POST /api/rooms/:roomId/devices — create device in a room
+// location_id now comes from the request body (each device has its own unit).
 router.post('/:roomId/devices', requirePermission('rooms', 'create'), deviceUpload, async (req: Request, res: Response) => {
   try {
     const room = await prisma.roomNode.findUnique({
       where: { id: req.params.roomId as string },
-      select: { id: true, locationId: true, _count: { select: { children: true } } },
+      select: { id: true, _count: { select: { children: true } } },
     });
     if (!room) return res.status(404).json({ error: 'Room not found' });
     if (room._count.children > 0) return res.status(409).json({ error: 'Cannot add device to a room that has child rooms' });
 
-    const allowedLocations = await getUserRoomLocationIds(req);
-    if (allowedLocations && !allowedLocations.includes(room.locationId)) {
-      return res.status(404).json({ error: 'Room not found' });
-    }
-
-    const { name, store_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, warranty_period, transfer_to, transfer_date, disposal_date, loss_date } = req.body;
+    const { name, store_id, location_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, warranty_period, transfer_to, transfer_date, disposal_date, loss_date } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
+    if (!location_id?.trim()) return res.status(400).json({ error: 'Location is required' });
+
+    const location = await prisma.location.findUnique({ where: { id: location_id.trim() } });
+    if (!location) return res.status(400).json({ error: 'Invalid location selected' });
 
     let resolvedAreaId: string | null = null;
     if (area_id && typeof area_id === 'string' && area_id.trim()) {
@@ -523,7 +473,7 @@ router.post('/:roomId/devices', requirePermission('rooms', 'create'), deviceUplo
           id,
           storeId: store_id.trim(),
           name: name.trim(),
-          locationId: room.locationId,
+          locationId: location_id.trim(),
           roomId: room.id,
           areaId: roomAreaId ?? resolvedAreaId,
           managedBy: managed_by?.trim() || '',
@@ -578,11 +528,6 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
       return res.status(400).json({ error: 'Chỉ phòng con cuối cùng (lá) mới có thể nhân bản. Phòng này có phòng con.' });
     }
 
-    const allowedLocations = await getUserRoomLocationIds(req);
-    if (allowedLocations && !allowedLocations.includes(source.locationId)) {
-      return res.status(404).json({ error: 'Room not found' });
-    }
-
     const { prefix = '', start, end, list, mode = 'range' } = req.body as {
       prefix?: string;
       start?: number;
@@ -608,14 +553,14 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
       }
     }
 
-    async function collectSubtree(rootId: string): Promise<{ node: { id: string; name: string; locationId: string }; children: string[] }[]> {
-      const rows: { node: { id: string; name: string; locationId: string }; children: string[] }[] = [];
+    async function collectSubtree(rootId: string): Promise<{ node: { id: string; name: string }; children: string[] }[]> {
+      const rows: { node: { id: string; name: string }; children: string[] }[] = [];
       const stack = [rootId];
       while (stack.length > 0) {
         const currentId = stack.pop()!;
         const node = await prisma.roomNode.findUnique({
           where: { id: currentId },
-          select: { id: true, name: true, locationId: true, parentId: true },
+          select: { id: true, name: true, parentId: true },
         });
         if (!node) continue;
         const kids = await prisma.roomNode.findMany({ where: { parentId: currentId }, select: { id: true } });
@@ -636,7 +581,6 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
         const idMap = new Map<string, string>();
 
         for (const entry of subtree) {
-          const { node } = entry;
           const newId = uuidv4();
           // Format: "[prefix ]suffix" — no original room name appended
           const newName = prefix ? `${prefix} ${suffix}` : suffix;
@@ -645,12 +589,11 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
             data: {
               id: newId,
               name: newName,
-              locationId: node.locationId,
               parentId: null, // temporary; relinked below
               createdById: req.user!.id,
             },
           });
-          idMap.set(node.id, newId);
+          idMap.set(entry.node.id, newId);
           totalRooms += 1;
         }
 
@@ -692,8 +635,6 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
             for (const field of DEVICE_CLONE_ALLOWLIST) {
               if (field === 'roomId') {
                 cloneData.roomId = clonedRoomId;
-              } else if (field === 'locationId') {
-                cloneData.locationId = entry.node.locationId;
               } else if (field === 'areaId') {
                 cloneData.areaId = clonedAreaId;
               } else {

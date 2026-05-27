@@ -3,8 +3,6 @@ import api from './api-client';
 export interface RoomNodeSummary {
   id: string;
   name: string;
-  location_id: string;
-  location_name: string;
   parent_id: string | null;
   breadcrumb: string;
   device_count: number;
@@ -28,7 +26,7 @@ export const getRoomTree = (): Promise<RoomTreeNode[]> =>
 export const getRoomDetail = (id: string): Promise<RoomNodeSummary> =>
   api.get(`/rooms/${id}`).then(r => r.data);
 
-export const createRoom = (data: { name: string; location_id: string; parent_id?: string | null }): Promise<RoomNodeSummary> =>
+export const createRoom = (data: { name: string; parent_id?: string | null }): Promise<RoomNodeSummary> =>
   api.post('/rooms', data).then(r => r.data);
 
 export const updateRoom = (id: string, data: { name: string; parent_id?: string | null }): Promise<RoomNodeSummary> =>
@@ -36,3 +34,4 @@ export const updateRoom = (id: string, data: { name: string; parent_id?: string 
 
 export const deleteRoom = (id: string): Promise<void> =>
   api.delete(`/rooms/${id}`);
+
