@@ -321,16 +321,16 @@ export default function AppLayout({ children }: Props) {
         </aside>
 
         <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="sticky top-0 z-20 hidden h-20 items-center justify-between border-b border-slate-200/60 bg-white/80 px-8 backdrop-blur-md lg:flex">
+          <header className="sticky top-0 z-20 hidden h-18 items-center justify-between border-b border-slate-100 bg-white/90 px-8 backdrop-blur-xl lg:flex shadow-[0_1px_0_0_rgba(0,0,0,0.04)]">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{pageMeta.eyebrow}</p>
-              <h2 className="text-xl font-bold text-slate-800">{pageMeta.title}</h2>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">{pageMeta.eyebrow}</p>
+              <h2 className="text-xl font-extrabold text-slate-800 tracking-tight">{pageMeta.title}</h2>
             </div>
             <ShellActionButtons canCreateDevices={canCreateDevices} />
           </header>
 
-          <main className="relative z-10 flex-1 overflow-y-auto px-4 pb-28 pt-4 animate-fade-in sm:px-5 sm:pt-5 lg:px-8 lg:pb-8 lg:pt-8">
-            <div className="mx-auto w-full max-w-6xl">{children}</div>
+          <main className="relative z-10 flex-1 overflow-y-auto px-4 pb-28 pt-5 animate-fade-in sm:px-6 sm:pt-6 lg:px-10 lg:pb-10 lg:pt-8">
+            <div className="mx-auto w-full max-w-screen-2xl">{children}</div>
           </main>
         </div>
 

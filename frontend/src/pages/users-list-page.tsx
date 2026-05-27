@@ -81,10 +81,13 @@ export default function UsersListPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-slate-800">Tài khoản</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Tài khoản</h1>
+          <p className="text-sm text-slate-500 mt-0.5">{users.length} tài khoản trong hệ thống</p>
+        </div>
         {canCreate && (
-          <Link to="/users/new" className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-2">
+          <Link to="/users/new" className="btn btn-primary shrink-0">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
             Thêm tài khoản
           </Link>
@@ -108,7 +111,7 @@ export default function UsersListPage() {
           description={canCreate ? 'Nhấn nút “Thêm tài khoản” ở góc phải để tạo tài khoản đầu tiên.' : undefined}
         />
       ) : !error && (
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="data-table-wrap">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

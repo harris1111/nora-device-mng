@@ -240,34 +240,33 @@ export default function DeviceListPage() {
         : 'Chưa có thiết bị trong hệ thống';
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] sm:px-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Khám phá thiết bị</p>
-            <h3 className="text-lg font-bold text-slate-800">Danh sách thiết bị</h3>
-            <p className="text-sm text-slate-500">{resultSummary}</p>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
-            <ViewToggle view={view} onChange={handleViewChange} />
-            {canExport && (
-              <button
-                type="button"
-                onClick={handleExport}
-                disabled={exporting || total === 0}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                title={total === 0 ? 'Không có thiết bị để xuất' : `Xuất tất cả ${total} thiết bị phù hợp với bộ lọc`}
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
-                </svg>
-                {exporting ? 'Đang xuất...' : 'Xuất Excel'}
-              </button>
-            )}
-          </div>
+    <div className="space-y-5">
+      {/* Open-layout page header — no white box, sits on the page background */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-0.5">Khám phá thiết bị</p>
+          <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Danh sách thiết bị</h1>
+          <p className="text-sm text-slate-500 mt-1">{resultSummary}</p>
         </div>
-      </section>
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <ViewToggle view={view} onChange={handleViewChange} />
+          {canExport && (
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={exporting || total === 0}
+              className="btn btn-success"
+              title={total === 0 ? 'Không có thiết bị để xuất' : `Xuất tất cả ${total} thiết bị phù hợp với bộ lọc`}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+              </svg>
+              {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+            </button>
+          )}
+        </div>
+      </div>
 
       <DeviceFilterBar
         filters={filters}
@@ -278,7 +277,7 @@ export default function DeviceListPage() {
 
       {/* Bulk Action Toolbar */}
       {selectedIds.size > 0 && hasBulkActions && (
-        <div className="animate-slide-up rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-4 shadow-sm sm:px-5">
+        <div className="animate-slide-up rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 px-4 py-4 shadow-sm sm:px-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-sm font-semibold text-indigo-700">Đã chọn {selectedIds.size} thiết bị trên trang hiện tại</p>
@@ -445,7 +444,7 @@ export default function DeviceListPage() {
             })}
           </div>
 
-          <div className="hidden overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-sm md:block">
+          <div className="hidden overflow-x-auto rounded-2xl border border-slate-100 bg-white shadow-[0_1px_8px_-2px_rgba(0,0,0,0.06)] md:block">
             <table className="w-full border-collapse whitespace-nowrap text-left">
               <thead className="bg-slate-50/50">
                 <tr>

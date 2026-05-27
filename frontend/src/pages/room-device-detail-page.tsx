@@ -63,7 +63,7 @@ export default function RoomDeviceDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto pb-12 space-y-6">
-      <div className="hidden md:flex justify-between items-center">
+      <div className="flex flex-wrap gap-4 justify-between items-center">
         <Link to={backUrl} className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors">
           <svg className="w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
           Quay lại {room?.name || 'phòng'}

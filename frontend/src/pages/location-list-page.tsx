@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+
 import { getLocations, createLocation, updateLocationApi, deleteLocationApi, Location } from '../api/device-api';
 import EmptyState from '../components/ui/empty-state';
 import ErrorState from '../components/ui/error-state';
@@ -73,17 +73,7 @@ export default function LocationListPage() {
   };
 
   return (
-    <div className="max-w-4xl pb-12">
-      {/* Desktop Hidden Header */}
-      <div className="mb-8 flex justify-between items-center hidden md:flex">
-         <Link to="/devices" className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors">
-            <svg className="w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Quay lại Thiết bị
-         </Link>
-      </div>
-
+    <div className="pb-12">
       {error && (
         <div className="mb-6">
           <ErrorState message={error} />
@@ -91,12 +81,12 @@ export default function LocationListPage() {
       )}
 
       {/* Add location form */}
-      <div className="card-glass p-6 mb-8 border border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30">
-        <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="panel p-5 sm:p-6 mb-6 border-l-4 border-indigo-400">
+        <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
           </svg>
-          Thêm Đơn vị
+          Thêm Đơn vị mới
         </h2>
         <form onSubmit={handleCreate} className="flex flex-col sm:flex-row gap-3">
           <input
@@ -104,20 +94,20 @@ export default function LocationListPage() {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="Ví dụ: Phòng Kế toán, Bộ phận IT..."
-            className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
+            className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm text-sm"
             required
           />
           <button
             type="submit"
             disabled={creating}
-            className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 shadow-sm shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap transition-all active:scale-95"
+            className="btn btn-primary whitespace-nowrap"
           >
             {creating ? 'Đang thêm...' : 'Tạo mới'}
           </button>
         </form>
       </div>
 
-      <div className="card-glass border border-slate-100 overflow-hidden">
+      <div className="data-table-wrap">
         {loading ? (
            <div className="p-8 space-y-4 animate-pulse">
              <div className="h-4 bg-slate-200 rounded w-full"></div>

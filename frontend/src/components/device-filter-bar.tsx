@@ -136,18 +136,18 @@ export default function DeviceFilterBar({
   ].filter(Boolean) as string[];
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)]">
-      <div className="border-b border-slate-100 px-4 py-4 sm:px-5">
-        <div className="flex flex-col gap-2">
-          <div>
-            <h3 className="text-sm font-semibold text-slate-800">Tìm kiếm và lọc thiết bị</h3>
-            <p className="mt-1 text-sm text-slate-500">Ưu tiên tìm theo tên, mã, trạng thái và mở rộng thêm bộ lọc khi cần.</p>
-          </div>
-          {trailing && <div className="flex flex-wrap items-center gap-2">{trailing}</div>}
+    <div className="panel px-4 py-4 sm:px-5">
+      <div className="flex flex-col gap-1 mb-3">
+        <div className="flex items-center gap-2">
+          <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          <h3 className="text-sm font-bold text-slate-700">Tìm kiếm &amp; Lọc</h3>
+          {trailing && <div className="ml-auto flex flex-wrap items-center gap-2">{trailing}</div>}
         </div>
+        <p className="text-xs text-slate-400">Tìm theo tên, mã, trạng thái và mở rộng bộ lọc khi cần.</p>
       </div>
-
-      <div className="space-y-4 px-4 py-4 sm:px-5 sm:py-5">
+      <div className="space-y-3 py-3">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,2.2fr)_minmax(180px,0.75fr)_minmax(200px,0.85fr)]">
           <label className="space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Tìm kiếm</span>
@@ -369,7 +369,7 @@ export default function DeviceFilterBar({
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 }
 
