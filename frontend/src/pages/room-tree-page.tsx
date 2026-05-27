@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getRoomTree, type RoomTreeNode, type RoomNodeSummary, getRoomDetail, createRoom, updateRoom, deleteRoom } from '../api/room-api';
 import { getLocations, type Location, type Device, getDevices } from '../api/device-api';
@@ -6,11 +6,44 @@ import { getRoomDevices, duplicateRoom } from '../api/room-device-api';
 import { useCan } from '../hooks/use-permission';
 import DeviceStatusBadge from '../components/device/device-status-badge';
 
+/** Collect all ancestor IDs for a given node ID in the tree */
+function findAncestorIds(nodes: RoomTreeNode[], targetId: string): Set<string> {
+  const ids = new Set<string>();
+  function walk(node: RoomTreeNode, path: string[]): boolean {
+    if (node.id === targetId) { path.forEach(id => ids.add(id)); return true; }
+    for (const child of node.children) {
+      if (walk(child, [...path, node.id])) return true;
+    }
+    return false;
+  }
+  nodes.forEach(n => walk(n, []));
+  return ids;
+}
+
+/** Recursively filter tree by search query, returning filtered nodes and ancestor IDs to expand */
+function filterTree(nodes: RoomTreeNode[], query: string): { filtered: RoomTreeNode[]; expandIds: Set<string> } {
+  const q = query.toLowerCase();
+  const expandIds = new Set<string>();
+  function recurse(node: RoomTreeNode): RoomTreeNode | null {
+    const childResults = node.children.map(c => recurse(c)).filter((c): c is RoomTreeNode => c !== null);
+    const nameMatch = node.name.toLowerCase().includes(q);
+    if (nameMatch || childResults.length > 0) {
+      if (childResults.length > 0) expandIds.add(node.id);
+      return { ...node, children: nameMatch ? node.children : childResults };
+    }
+    return null;
+  }
+  const filtered = nodes.map(n => recurse(n)).filter((n): n is RoomTreeNode => n !== null);
+  return { filtered, expandIds };
+}
+
 export default function RoomTreePage() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
   const [tree, setTree] = useState<RoomTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<RoomNodeSummary | null>(null);
   const [selectedDevices, setSelectedDevices] = useState<Device[]>([]);
@@ -55,12 +88,28 @@ export default function RoomTreePage() {
     getLocations().then(setLocations).catch(() => {});
   }, [fetchTree]);
 
-  // Auto-select room from URL param
+  // Auto-select room from URL param and expand its ancestors
   useEffect(() => {
     if (roomId && tree.length > 0) {
       fetchDetail(roomId);
+      const ancestors = findAncestorIds(tree, roomId);
+      if (ancestors.size > 0) {
+        setExpandedIds(prev => { const next = new Set(prev); ancestors.forEach(id => next.add(id)); return next; });
+      }
     }
   }, [roomId, tree.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function toggleExpand(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    setExpandedIds(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  }
+
+  // Compute the display tree based on search
+  const { displayTree, searchExpandIds } = useMemo(() => {
+    if (!searchQuery.trim()) return { displayTree: tree, searchExpandIds: new Set<string>() };
+    const { filtered, expandIds } = filterTree(tree, searchQuery.trim());
+    return { displayTree: filtered, searchExpandIds: expandIds };
+  }, [tree, searchQuery]);
 
   function openCreate(parentId?: string | null) {
     setShowForm('create'); setFormName(''); setFormLocationId(selected?.location_id || locations[0]?.id || ''); setFormParentId(parentId !== undefined ? parentId : null); setFormError(null); setDupResult(null);
@@ -119,16 +168,42 @@ export default function RoomTreePage() {
             </button>
           )}
         </div>
+        {/* Search input */}
+        <div className="px-3 pt-3">
+          <div className="relative">
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 pl-8 pr-8 py-1.5 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 transition-shadow"
+              placeholder="Tìm phòng..."
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            )}
+          </div>
+        </div>
         <div className="flex-1 overflow-y-auto p-3">
           {error && <p className="text-red-500 text-sm p-2">{error}</p>}
-          {tree.length === 0 && !error && (
+          {displayTree.length === 0 && !error && (
             <div className="text-center py-8 text-slate-400 text-sm">
-              <svg className="mx-auto h-10 w-10 mb-2 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-              Chưa có phòng nào
+              {searchQuery.trim() ? (
+                <>
+                  <svg className="mx-auto h-10 w-10 mb-2 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                  Không tìm thấy phòng nào
+                </>
+              ) : (
+                <>
+                  <svg className="mx-auto h-10 w-10 mb-2 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                  Chưa có phòng nào
+                </>
+              )}
             </div>
           )}
-          {tree.map(node => (
-            <RoomTreeItem key={node.id} node={node} selectedId={selected?.id} onSelect={id => fetchDetail(id)} depth={0} />
+          {displayTree.map(node => (
+            <RoomTreeItem key={node.id} node={node} selectedId={selected?.id} onSelect={id => fetchDetail(id)} depth={0} expandedIds={expandedIds} onToggleExpand={toggleExpand} searchExpandIds={searchExpandIds} />
           ))}
         </div>
       </div>
@@ -149,13 +224,11 @@ export default function RoomTreePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <InfoCard label="Đơn vị" value={selected.location_name} />
               <InfoCard label="Số thiết bị trực tiếp" value={String(selected.device_count)} />
               <InfoCard label="Tổng thiết bị" value={String(selected.descendant_device_count)} />
               <InfoCard label="Trạng thái" value={selected.status === 'needs_maintenance' ? 'Cần bảo trì' : 'Bình thường'} highlight={selected.status === 'needs_maintenance'} />
-              <InfoCard label="Có phòng con" value={selected.has_children ? 'Có' : 'Không'} />
-              <InfoCard label="Là phòng lá" value={selected.is_leaf ? 'Có' : 'Không'} />
             </div>
 
             {/* Device list */}
@@ -266,7 +339,7 @@ export default function RoomTreePage() {
                       <span className="font-semibold">Xem trước:</span>{' '}
                       {Array.from({ length: dupEnd - dupStart + 1 }, (_, i) => dupStart + i).map(n => {
                         const suffix = n.toString().padStart(String(dupEnd).length, '0');
-                        return `${dupPrefix.trim()} ${suffix} - ${selected.name}${n < dupEnd ? ', ' : ''}`;
+                        return `${dupPrefix.trim()} ${suffix}${n < dupEnd ? ', ' : ''}`;
                       })}
                     </div>
                   )}
@@ -281,7 +354,7 @@ export default function RoomTreePage() {
                     <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-600">
                       <span className="font-semibold">Xem trước:</span>{' '}
                       {dupList.split(',').map(s => s.trim()).filter(s => s).map((s, i, arr) =>
-                        `${dupPrefix.trim()} ${s} - ${selected.name}${i < arr.length - 1 ? ', ' : ''}`
+                        `${dupPrefix.trim()} ${s}${i < arr.length - 1 ? ', ' : ''}`
                       )}
                     </div>
                   )}
@@ -322,25 +395,35 @@ function InfoCard({ label, value, highlight }: { label: string; value: string; h
   );
 }
 
-function RoomTreeItem({ node, selectedId, onSelect, depth }: { node: RoomTreeNode; selectedId: string | undefined; onSelect: (id: string) => void; depth: number }) {
+function RoomTreeItem({ node, selectedId, onSelect, depth, expandedIds, onToggleExpand, searchExpandIds }: { node: RoomTreeNode; selectedId: string | undefined; onSelect: (id: string) => void; depth: number; expandedIds: Set<string>; onToggleExpand: (id: string, e: React.MouseEvent) => void; searchExpandIds: Set<string> }) {
   const isSelected = selectedId === node.id;
+  const hasChildren = node.children.length > 0;
+  // A node is expanded if explicitly expanded, or forced open by search results
+  const isExpanded = expandedIds.has(node.id) || searchExpandIds.has(node.id);
   return (
     <div>
       <button
         onClick={() => onSelect(node.id)}
-        className={`w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${isSelected ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100' : 'text-slate-700 hover:bg-slate-50'}`}
+        className={`w-full text-left flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors ${isSelected ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100' : 'text-slate-700 hover:bg-slate-50'}`}
         style={{ paddingLeft: `${12 + depth * 16}px` }}
       >
+        {/* Chevron toggle for collapsible folders */}
+        {hasChildren ? (
+          <span onClick={e => onToggleExpand(node.id, e)} className="inline-flex items-center justify-center h-5 w-5 shrink-0 rounded hover:bg-slate-200/60 transition-colors cursor-pointer">
+            <svg className={`h-3 w-3 transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''} ${isSelected ? 'text-indigo-500' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          </span>
+        ) : (
+          <span className="w-5 shrink-0" />
+        )}
         <svg className={`h-4 w-4 shrink-0 ${isSelected ? 'text-indigo-500' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
         </svg>
         <span className="truncate flex-1">{node.name}</span>
         {node.status === 'needs_maintenance' && <span className="inline-block w-2 h-2 rounded-full bg-amber-500 shrink-0" title="Cần bảo trì" />}
         {node.descendant_device_count > 0 && <span className="text-xs text-slate-400 shrink-0">{node.descendant_device_count}</span>}
-        {node.has_children && <svg className="h-3 w-3 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>}
       </button>
-      {node.children.length > 0 && (
-        <div>{node.children.map(child => <RoomTreeItem key={child.id} node={child} selectedId={selectedId} onSelect={onSelect} depth={depth + 1} />)}</div>
+      {hasChildren && isExpanded && (
+        <div>{node.children.map(child => <RoomTreeItem key={child.id} node={child} selectedId={selectedId} onSelect={onSelect} depth={depth + 1} expandedIds={expandedIds} onToggleExpand={onToggleExpand} searchExpandIds={searchExpandIds} />)}</div>
       )}
     </div>
   );

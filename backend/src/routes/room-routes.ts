@@ -52,8 +52,7 @@ type RoomTreeNode = RoomNodeSummary & { children: RoomTreeNode[] };
 
 const BREADCRUMB_DELIMITER = ' -> ';
 
-// Get allowed location IDs for the current user. Unlike device routes,
-// room access never falls back to transferTo — only assigned locations apply.
+// Get allowed location IDs for the current user.
 async function getUserRoomLocationIds(req: Request): Promise<string[] | null> {
   if (req.user!.role !== 'USER') return null;
   const assignments = await prisma.userLocation.findMany({
@@ -61,7 +60,7 @@ async function getUserRoomLocationIds(req: Request): Promise<string[] | null> {
     select: { locationId: true },
   });
   const ids = assignments.map(a => a.locationId);
-  return ids.length > 0 ? ids : ['__NO_LOCATIONS__']; // empty guard
+  return ids.length > 0 ? ids : ['__NO_LOCATIONS__'];
 }
 
 // Build breadcrumb by walking up parent chain
@@ -70,7 +69,7 @@ async function buildBreadcrumb(node: { id: string; name: string; parentId: strin
   let currentId = node.parentId;
   const visited = new Set<string>([node.id]);
   while (currentId) {
-    if (visited.has(currentId)) break; // cycle guard
+    if (visited.has(currentId)) break;
     visited.add(currentId);
     const parent = await prisma.roomNode.findUnique({ where: { id: currentId }, select: { id: true, name: true, parentId: true } });
     if (!parent) break;
@@ -80,7 +79,7 @@ async function buildBreadcrumb(node: { id: string; name: string; parentId: strin
   return parts.join(BREADCRUMB_DELIMITER);
 }
 
-// Build breadcrumb for a room by ID (convenience wrapper)
+// Build breadcrumb for a room by ID
 async function buildBreadcrumbForRoom(roomId: string): Promise<string> {
   const node = await prisma.roomNode.findUnique({ where: { id: roomId }, select: { id: true, name: true, parentId: true } });
   if (!node) return '';
@@ -262,7 +261,7 @@ router.get('/:id', requirePermission('rooms', 'view'), async (req: Request, res:
   }
 });
 
-// Verify parentId has no direct devices (leaf-only invariant: parent with devices can't have children)
+// Verify parentId has no direct devices (leaf-only invariant)
 async function validateParentLeafInvariant(parentId: string): Promise<string | null> {
   const deviceCount = await prisma.device.count({ where: { roomId: parentId } });
   if (deviceCount > 0) return 'Cannot add child room to a room that has direct devices';
@@ -304,7 +303,6 @@ router.post('/', requirePermission('rooms', 'create'), async (req: Request, res:
       resolvedParentId = parent.id;
     }
 
-    // Check USER location scope
     const allowedLocations = await getUserRoomLocationIds(req);
     if (allowedLocations && !allowedLocations.includes(location_id.trim())) {
       return res.status(404).json({ error: 'Location not found' });
@@ -390,7 +388,6 @@ router.put('/:id', requirePermission('rooms', 'update'), async (req: Request, re
       }
       await tx.roomNode.update({ where: { id: req.params.id as string }, data: updateData });
 
-      // If name or parent changed, re-sync area paths for this room and all descendants
       if (nameChanged || parentChanged) {
         await syncRoomDevicesArea(req.params.id as string, tx);
       }
@@ -417,9 +414,7 @@ router.delete('/:id', requirePermission('rooms', 'delete'), async (req: Request,
   try {
     const existing = await prisma.roomNode.findUnique({
       where: { id: req.params.id as string },
-      include: {
-        _count: { select: { devices: true, children: true } },
-      },
+      include: { _count: { select: { devices: true, children: true } } },
     });
     if (!existing) return res.status(404).json({ error: 'Room not found' });
 
@@ -643,7 +638,8 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
         for (const entry of subtree) {
           const { node } = entry;
           const newId = uuidv4();
-          const newName = prefix ? `${prefix} ${suffix} - ${node.name}` : `${node.name} (${suffix})`;
+          // Format: "[prefix ]suffix" — no original room name appended
+          const newName = prefix ? `${prefix} ${suffix}` : suffix;
 
           await tx.roomNode.create({
             data: {
@@ -662,7 +658,6 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
         for (const entry of subtree) {
           const newNodeId = idMap.get(entry.node.id)!;
 
-          // Get the original's parentId by looking at what nodes reference it
           let origParentId: string | null = null;
           for (const s of subtree) {
             if (s.children.includes(entry.node.id)) {
