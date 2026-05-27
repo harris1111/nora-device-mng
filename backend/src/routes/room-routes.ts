@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express';
+import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../lib/prisma-client.js';
 import { mapDevice } from '../utils/response-mapper.js';
@@ -9,6 +10,28 @@ import { validateTypeStatus, applyDateStatusRules, type StatusData } from '../ut
 import { requirePermission } from '../middleware/require-permission.js';
 
 const router: ReturnType<typeof Router> = Router();
+
+const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ATTACHMENT_MIMES = [...IMAGE_MIMES, 'application/pdf'];
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.fieldname === 'primary_image') {
+      if (IMAGE_MIMES.includes(file.mimetype)) cb(null, true);
+      else cb(new Error('Primary image must be JPEG, PNG, WebP, or GIF') as unknown as null, false);
+    } else if (file.fieldname === 'attachments') {
+      if (ATTACHMENT_MIMES.includes(file.mimetype)) cb(null, true);
+      else cb(new Error('Attachments must be images or PDF') as unknown as null, false);
+    } else {
+      cb(null, true);
+    }
+  },
+});
+const deviceUpload = upload.fields([
+  { name: 'primary_image', maxCount: 1 },
+  { name: 'attachments', maxCount: 9 },
+]);
 
 type RoomNodeSummary = {
   id: string;
@@ -450,7 +473,7 @@ router.get('/:roomId/devices', requirePermission('rooms', 'view'), async (req: R
 });
 
 // POST /api/rooms/:roomId/devices — create device in a room
-router.post('/:roomId/devices', requirePermission('rooms', 'create'), async (req: Request, res: Response) => {
+router.post('/:roomId/devices', requirePermission('rooms', 'create'), deviceUpload, async (req: Request, res: Response) => {
   try {
     const room = await prisma.roomNode.findUnique({
       where: { id: req.params.roomId as string },
@@ -464,7 +487,7 @@ router.post('/:roomId/devices', requirePermission('rooms', 'create'), async (req
       return res.status(404).json({ error: 'Room not found' });
     }
 
-    const { name, store_id, area_id, managed_by, serial_number, model: deviceModel, manufacturer, description, type, status, warranty_period } = req.body;
+    const { name, store_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, warranty_period, transfer_to, transfer_date, disposal_date, loss_date } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
 
@@ -483,8 +506,8 @@ router.post('/:roomId/devices', requirePermission('rooms', 'create'), async (req
     let statusData: StatusData = {
       type: deviceType,
       status: deviceStatus,
-      disposalDate: null,
-      lossDate: null,
+      disposalDate: disposal_date ? new Date(disposal_date) : null,
+      lossDate: loss_date ? new Date(loss_date) : null,
     };
     statusData = applyDateStatusRules(deviceType, statusData);
 
@@ -517,6 +540,9 @@ router.post('/:roomId/devices', requirePermission('rooms', 'create'), async (req
           type: statusData.type,
           status: statusData.status,
           warrantyPeriod: warranty_period?.trim() || null,
+          ownedBy: owned_by?.trim() || '',
+          transferTo: transfer_to?.trim() || null,
+          transferDate: transfer_date ? new Date(transfer_date) : null,
           createdById: req.user!.id,
         },
         include: {
