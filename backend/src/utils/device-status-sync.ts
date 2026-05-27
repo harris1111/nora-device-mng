@@ -28,16 +28,6 @@ export async function recomputeDeviceStatus(deviceId: string): Promise<void> {
   if (device.status !== target) {
     await prisma.device.update({ where: { id: deviceId }, data: { status: target } });
   }
-
-  // Trigger room status aggregation if device is in a room
-  if (device.roomId) {
-    const { aggregateRoomStatus, recomputeAncestors } = await import('../services/room-service.js');
-    aggregateRoomStatus(device.roomId).then(status => {
-      prisma.roomNode.update({ where: { id: device.roomId! }, data: { status } }).then(() => {
-        recomputeAncestors(device.roomId!).catch(() => {});
-      }).catch(() => {});
-    }).catch(() => {});
-  }
 }
 
 // Backwards-compatible aliases so existing maintenance call sites keep working.
