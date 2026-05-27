@@ -7,5 +7,5 @@ export const getRoomDevices = (roomId: string): Promise<Device[]> =>
 export const createRoomDevice = (roomId: string, formData: FormData): Promise<Device> =>
   api.post(`/rooms/${roomId}/devices`, formData).then(r => r.data);
 
-export const duplicateRoom = (id: string, data: { prefix?: string; start?: number; end?: number }): Promise<{ rooms_created: number; devices_cloned: number }> =>
+export const duplicateRoom = (id: string, data: { prefix?: string; start?: number; end?: number; mode?: 'range' | 'list'; list?: string }): Promise<{ rooms_created: number; devices_cloned: number }> =>
   api.post(`/rooms/${id}/duplicate`, data).then(r => r.data);

@@ -27,7 +27,7 @@ type RoomNodeSummary = {
 
 type RoomTreeNode = RoomNodeSummary & { children: RoomTreeNode[] };
 
-const BREADCRUMB_DELIMITER = ' > ';
+const BREADCRUMB_DELIMITER = ' -> ';
 
 // Get allowed location IDs for the current user. Unlike device routes,
 // room access never falls back to transferTo — only assigned locations apply.
@@ -55,6 +55,38 @@ async function buildBreadcrumb(node: { id: string; name: string; parentId: strin
     currentId = parent.parentId;
   }
   return parts.join(BREADCRUMB_DELIMITER);
+}
+
+// Build breadcrumb for a room by ID (convenience wrapper)
+async function buildBreadcrumbForRoom(roomId: string): Promise<string> {
+  const node = await prisma.roomNode.findUnique({ where: { id: roomId }, select: { id: true, name: true, parentId: true } });
+  if (!node) return '';
+  return buildBreadcrumb(node);
+}
+
+// Find-or-create an Area whose name matches the given breadcrumb path, return its id
+async function resolveAreaForBreadcrumb(breadcrumb: string, tx?: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]): Promise<string> {
+  const db = tx ?? prisma;
+  let area = await (db as typeof prisma).area.findFirst({ where: { name: breadcrumb } });
+  if (!area) {
+    area = await (db as typeof prisma).area.create({ data: { id: uuidv4(), name: breadcrumb } });
+  }
+  return area.id;
+}
+
+// Recursively sync areaId for all devices in a room and its descendants
+async function syncRoomDevicesArea(roomId: string, tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]): Promise<void> {
+  const stack = [roomId];
+  while (stack.length > 0) {
+    const currentId = stack.pop()!;
+    const breadcrumb = await buildBreadcrumbForRoom(currentId);
+    if (breadcrumb) {
+      const areaId = await resolveAreaForBreadcrumb(breadcrumb, tx);
+      await (tx as typeof prisma).device.updateMany({ where: { roomId: currentId }, data: { areaId } });
+    }
+    const children = await (tx as typeof prisma).roomNode.findMany({ where: { parentId: currentId }, select: { id: true } });
+    for (const child of children) stack.push(child.id);
+  }
 }
 
 // Compute descendant device count and maintenance-derived status via recursive descent
@@ -319,6 +351,9 @@ router.put('/:id', requirePermission('rooms', 'update'), async (req: Request, re
       }
     }
 
+    const nameChanged = name.trim() !== (await prisma.roomNode.findUnique({ where: { id: req.params.id as string }, select: { name: true } }))?.name;
+    const parentChanged = resolvedParentId !== undefined;
+
     await prisma.$transaction(async (tx) => {
       if (resolvedParentId !== undefined && resolvedParentId !== null) {
         if (await wouldCreateCycle(req.params.id as string, resolvedParentId)) {
@@ -331,6 +366,11 @@ router.put('/:id', requirePermission('rooms', 'update'), async (req: Request, re
         updateData.parentId = resolvedParentId;
       }
       await tx.roomNode.update({ where: { id: req.params.id as string }, data: updateData });
+
+      // If name or parent changed, re-sync area paths for this room and all descendants
+      if (nameChanged || parentChanged) {
+        await syncRoomDevicesArea(req.params.id as string, tx);
+      }
     });
 
     const node = await prisma.roomNode.findUnique({
@@ -448,6 +488,13 @@ router.post('/:roomId/devices', requirePermission('rooms', 'create'), async (req
     };
     statusData = applyDateStatusRules(deviceType, statusData);
 
+    // Auto-populate area from room breadcrumb
+    const roomBreadcrumb = await buildBreadcrumbForRoom(room.id);
+    let roomAreaId: string | null = null;
+    if (roomBreadcrumb) {
+      roomAreaId = await resolveAreaForBreadcrumb(roomBreadcrumb);
+    }
+
     const id = uuidv4();
     const baseUrl = await getEffectiveBaseUrl();
     const qrcode = await generateQrCode(id, baseUrl);
@@ -460,7 +507,7 @@ router.post('/:roomId/devices', requirePermission('rooms', 'create'), async (req
           name: name.trim(),
           locationId: room.locationId,
           roomId: room.id,
-          areaId: resolvedAreaId,
+          areaId: roomAreaId ?? resolvedAreaId,
           managedBy: managed_by?.trim() || '',
           serialNumber: serial_number?.trim() || '',
           model: deviceModel?.trim() || '',
@@ -496,17 +543,48 @@ const DEVICE_CLONE_ALLOWLIST: (keyof typeof prisma.device.fields)[] = [
 // POST /api/rooms/:id/duplicate — clone room subtree and devices
 router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: Request, res: Response) => {
   try {
-    const source = await prisma.roomNode.findUnique({ where: { id: req.params.id as string } });
+    const source = await prisma.roomNode.findUnique({
+      where: { id: req.params.id as string },
+      include: { _count: { select: { children: true } } },
+    });
     if (!source) return res.status(404).json({ error: 'Room not found' });
+
+    // Only leaf child nodes can be duplicated
+    if (!source.parentId) {
+      return res.status(400).json({ error: 'Chỉ phòng con cuối cùng (lá) mới có thể nhân bản. Phòng gốc không được phép nhân bản.' });
+    }
+    if (source._count.children > 0) {
+      return res.status(400).json({ error: 'Chỉ phòng con cuối cùng (lá) mới có thể nhân bản. Phòng này có phòng con.' });
+    }
 
     const allowedLocations = await getUserRoomLocationIds(req);
     if (allowedLocations && !allowedLocations.includes(source.locationId)) {
       return res.status(404).json({ error: 'Room not found' });
     }
 
-    const { prefix = '', start = 1, end = 1 } = req.body as { prefix?: string; start?: number; end?: number };
-    if (start < 1 || end < start || end > 50) {
-      return res.status(400).json({ error: 'Invalid range (1–50)' });
+    const { prefix = '', start, end, list, mode = 'range' } = req.body as {
+      prefix?: string;
+      start?: number;
+      end?: number;
+      list?: string;
+      mode?: 'range' | 'list';
+    };
+
+    // Build suffixes from either range or list mode
+    let suffixes: string[] = [];
+    if (mode === 'list' && list) {
+      suffixes = list.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+      if (suffixes.length === 0) return res.status(400).json({ error: 'Danh sách phòng không hợp lệ' });
+      if (suffixes.length > 50) return res.status(400).json({ error: 'Tối đa 50 phòng mỗi lần nhân bản' });
+    } else {
+      const s = start ?? 1;
+      const e = end ?? 1;
+      if (s < 1 || e < s || e > 50) {
+        return res.status(400).json({ error: 'Invalid range (1–50)' });
+      }
+      for (let i = s; i <= e; i++) {
+        suffixes.push(i.toString().padStart(String(e).length, '0'));
+      }
     }
 
     async function collectSubtree(rootId: string): Promise<{ node: { id: string; name: string; locationId: string }; children: string[] }[]> {
@@ -532,14 +610,13 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
     let totalRooms = 0;
     let totalDevices = 0;
 
-    for (let i = start; i <= end; i++) {
+    for (const suffix of suffixes) {
       await prisma.$transaction(async (tx) => {
         const idMap = new Map<string, string>();
 
         for (const entry of subtree) {
           const { node } = entry;
           const newId = uuidv4();
-          const suffix = i.toString().padStart(String(end).length, '0');
           const newName = prefix ? `${prefix} ${suffix} - ${node.name}` : `${node.name} (${suffix})`;
 
           await tx.roomNode.create({
@@ -558,17 +635,11 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
         // Relink parents
         for (const entry of subtree) {
           const newNodeId = idMap.get(entry.node.id)!;
-          const sourceNode = subtree.find(s => s.node.id === entry.node.id)!;
-          const sourceParentId = sourceNode.node.id === source.id ? source.parentId : entry.node.id
-            ? (await tx.roomNode.findUnique({ where: { id: sourceNode.node.id }, select: { parentId: true } }))?.parentId
-            : null;
 
-          // use original parent via map
-          const originalNode = subtree.find(s => s.node.id === entry.node.id)!;
           // Get the original's parentId by looking at what nodes reference it
           let origParentId: string | null = null;
           for (const s of subtree) {
-            if (s.children.includes(originalNode.node.id)) {
+            if (s.children.includes(entry.node.id)) {
               origParentId = s.node.id;
               break;
             }
@@ -578,20 +649,32 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
             if (mappedParent) {
               await tx.roomNode.update({ where: { id: newNodeId }, data: { parentId: mappedParent } });
             }
+          } else if (entry.node.id === source.id) {
+            // Root of the subtree keeps the source's parent
+            await tx.roomNode.update({ where: { id: newNodeId }, data: { parentId: source.parentId } });
           }
         }
 
-        // Clone direct devices of source rooms
+        // Clone direct devices of source rooms and auto-populate area
         for (const entry of subtree) {
+          const clonedRoomId = idMap.get(entry.node.id)!;
+          const clonedBreadcrumb = await buildBreadcrumbForRoom(clonedRoomId);
+          let clonedAreaId: string | null = null;
+          if (clonedBreadcrumb) {
+            clonedAreaId = await resolveAreaForBreadcrumb(clonedBreadcrumb, tx);
+          }
+
           const sourceDevices = await tx.device.findMany({ where: { roomId: entry.node.id } });
           for (const d of sourceDevices) {
             const newDeviceId = uuidv4();
             const cloneData: Record<string, unknown> = { id: newDeviceId, createdById: req.user!.id };
             for (const field of DEVICE_CLONE_ALLOWLIST) {
               if (field === 'roomId') {
-                cloneData.roomId = idMap.get(entry.node.id);
+                cloneData.roomId = clonedRoomId;
               } else if (field === 'locationId') {
                 cloneData.locationId = entry.node.locationId;
+              } else if (field === 'areaId') {
+                cloneData.areaId = clonedAreaId;
               } else {
                 cloneData[field] = (d as Record<string, unknown>)[field];
               }
@@ -604,7 +687,9 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
     }
 
     res.status(201).json({ rooms_created: totalRooms, devices_cloned: totalDevices });
-  } catch (err) {
+  } catch (err: unknown) {
+    const msg = (err as Error).message;
+    if (msg.includes('Chỉ phòng con')) return res.status(400).json({ error: msg });
     console.error('Duplicate room error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }

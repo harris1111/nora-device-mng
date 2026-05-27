@@ -33,6 +33,8 @@ export default function RoomTreePage() {
   const [dupStart, setDupStart] = useState(1);
   const [dupEnd, setDupEnd] = useState(1);
   const [dupResult, setDupResult] = useState<{ rooms_created: number; devices_cloned: number } | null>(null);
+  const [dupMode, setDupMode] = useState<'range' | 'list'>('range');
+  const [dupList, setDupList] = useState('');
 
   const fetchTree = useCallback(async () => {
     try { setError(null); setTree(await getRoomTree()); } catch (e: unknown) { setError((e as Error).message || 'Failed to load rooms'); } finally { setLoading(false); }
@@ -64,7 +66,7 @@ export default function RoomTreePage() {
     setShowForm('create'); setFormName(''); setFormLocationId(selected?.location_id || locations[0]?.id || ''); setFormParentId(parentId ?? selected?.id ?? null); setFormError(null); setDupResult(null);
   }
   function openEdit() { if (!selected) return; setShowForm('edit'); setFormName(selected.name); setFormLocationId(selected.location_id); setFormParentId(selected.parent_id); setFormError(null); setDupResult(null); }
-  function openDuplicate() { if (!selected) return; setShowForm('duplicate'); setDupPrefix(''); setDupStart(1); setDupEnd(1); setFormError(null); setDupResult(null); }
+  function openDuplicate() { if (!selected) return; setShowForm('duplicate'); setDupPrefix(''); setDupStart(1); setDupEnd(1); setDupMode('range'); setDupList(''); setFormError(null); setDupResult(null); }
 
   async function handleSave() {
     if (!formName.trim()) { setFormError('Tên phòng là bắt buộc'); return; }
@@ -81,7 +83,14 @@ export default function RoomTreePage() {
     if (!selected) return;
     setSaving(true); setFormError(null); setDupResult(null);
     try {
-      const result = await duplicateRoom(selected.id, { prefix: dupPrefix.trim() || undefined, start: dupStart, end: dupEnd });
+      const payload: Parameters<typeof duplicateRoom>[1] = { prefix: dupPrefix.trim() || undefined, mode: dupMode };
+      if (dupMode === 'list') {
+        payload.list = dupList;
+      } else {
+        payload.start = dupStart;
+        payload.end = dupEnd;
+      }
+      const result = await duplicateRoom(selected.id, payload);
       setDupResult(result);
       await fetchTree();
     } catch (e: unknown) { setFormError((e as { response?: { data?: { error?: string } } }).response?.data?.error || (e as Error).message); } finally { setSaving(false); }
@@ -135,7 +144,7 @@ export default function RoomTreePage() {
               </div>
               <div className="flex gap-2">
                 {canUpdate && <button onClick={openEdit} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>Sửa</button>}
-                {canCreate && <button onClick={openDuplicate} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Nhân bản</button>}
+                {canCreate && selected.is_leaf && selected.parent_id && <button onClick={openDuplicate} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Nhân bản</button>}
                 {canDelete && <button onClick={() => setDeleteConfirm(selected.id)} className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>Xóa</button>}
               </div>
             </div>
@@ -205,20 +214,22 @@ export default function RoomTreePage() {
                   </select>
                 </div>
               )}
-              <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">Phòng cha</label>
-                <select value={formParentId || ''} onChange={e => setFormParentId(e.target.value || null)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                  <option value="">(Không có — phòng gốc)</option>
-                  {tree.flatMap(n => {
-                    const options: { id: string; label: string }[] = [];
-                    function collect(inner: RoomTreeNode, depth: number) {
-                      if (inner.id !== selected?.id) options.push({ id: inner.id, label: '  '.repeat(depth) + inner.name });
-                      inner.children.forEach(c => collect(c, depth + 1));
-                    }
-                    collect(n, 0); return options;
-                  }).map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-                </select>
-              </div>
+              {(!selected?.parent_id || showForm === 'edit') && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-1">Phòng cha</label>
+                  <select value={formParentId || ''} onChange={e => setFormParentId(e.target.value || null)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                    <option value="">(Không có — phòng gốc)</option>
+                    {tree.flatMap(n => {
+                      const options: { id: string; label: string }[] = [];
+                      function collect(inner: RoomTreeNode, depth: number) {
+                        if (inner.id !== selected?.id) options.push({ id: inner.id, label: '  '.repeat(depth) + inner.name });
+                        inner.children.forEach(c => collect(c, depth + 1));
+                      }
+                      collect(n, 0); return options;
+                    }).map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setShowForm(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Hủy</button>
@@ -241,24 +252,50 @@ export default function RoomTreePage() {
                 <label className="block text-sm font-medium text-slate-600 mb-1">Tiền tố (tùy chọn)</label>
                 <input value={dupPrefix} onChange={e => setDupPrefix(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Ví dụ: P. Server" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-1">Bắt đầu</label>
-                  <input type="number" min={1} max={50} value={dupStart} onChange={e => setDupStart(Number(e.target.value) || 1)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-1">Kết thúc</label>
-                  <input type="number" min={1} max={50} value={dupEnd} onChange={e => setDupEnd(Number(e.target.value) || 1)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Chế độ</label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setDupMode('range')} className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium border transition-colors ${dupMode === 'range' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>Khoảng số</button>
+                  <button type="button" onClick={() => setDupMode('list')} className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium border transition-colors ${dupMode === 'list' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>Danh sách</button>
                 </div>
               </div>
-              {dupStart <= dupEnd && dupEnd <= 50 && dupPrefix.trim() && (
-                <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-600">
-                  <span className="font-semibold">Xem trước:</span>{' '}
-                  {Array.from({ length: dupEnd - dupStart + 1 }, (_, i) => dupStart + i).map(n => {
-                    const suffix = n.toString().padStart(String(dupEnd).length, '0');
-                    return `${dupPrefix.trim()} ${suffix} - ${selected.name}${n < dupEnd ? ', ' : ''}`;
-                  })}
-                </div>
+              {dupMode === 'range' ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-600 mb-1">Bắt đầu</label>
+                      <input type="number" min={1} max={50} value={dupStart} onChange={e => setDupStart(Number(e.target.value) || 1)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-600 mb-1">Kết thúc</label>
+                      <input type="number" min={1} max={50} value={dupEnd} onChange={e => setDupEnd(Number(e.target.value) || 1)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+                    </div>
+                  </div>
+                  {dupStart <= dupEnd && dupEnd <= 50 && dupPrefix.trim() && (
+                    <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-600">
+                      <span className="font-semibold">Xem trước:</span>{' '}
+                      {Array.from({ length: dupEnd - dupStart + 1 }, (_, i) => dupStart + i).map(n => {
+                        const suffix = n.toString().padStart(String(dupEnd).length, '0');
+                        return `${dupPrefix.trim()} ${suffix} - ${selected.name}${n < dupEnd ? ', ' : ''}`;
+                      })}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-1">Danh sách (cách nhau bằng dấu phẩy)</label>
+                    <input value={dupList} onChange={e => setDupList(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="A, B, C, D" />
+                  </div>
+                  {dupList.trim() && dupPrefix.trim() && (
+                    <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-600">
+                      <span className="font-semibold">Xem trước:</span>{' '}
+                      {dupList.split(',').map(s => s.trim()).filter(s => s).map((s, i, arr) =>
+                        `${dupPrefix.trim()} ${s} - ${selected.name}${i < arr.length - 1 ? ', ' : ''}`
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <div className="flex justify-end gap-2 mt-5">
