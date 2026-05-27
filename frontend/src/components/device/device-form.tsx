@@ -9,11 +9,9 @@ interface Props {
   existingAttachmentCount?: number;
   onSubmit: (formData: FormData) => Promise<void>;
   submitLabel?: string;
-  roomId?: string | null;
-  isRoomDevice?: boolean;
 }
 
-export default function DeviceForm({ initialData, existingAttachmentCount, onSubmit, submitLabel = 'Lưu', roomId, isRoomDevice }: Props) {
+export default function DeviceForm({ initialData, existingAttachmentCount, onSubmit, submitLabel = 'Lưu' }: Props) {
   const [name, setName] = useState(initialData?.name || '');
   const [storeId, setStoreId] = useState(initialData?.store_id || '');
   const [locationId, setLocationId] = useState(initialData?.location_id || '');
@@ -78,8 +76,6 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
       fd.append('warranty_period', warrantyPeriod.trim());
       if (type === 'cong_cu_dung_cu' && disposalDate) fd.append('disposal_date', disposalDate);
       if (type === 'cong_cu_dung_cu' && lossDate) fd.append('loss_date', lossDate);
-      if (roomId) fd.append('room_id', roomId);
-      if (isRoomDevice) fd.append('is_room_device', 'true');
       if (primaryImage) fd.append('primary_image', primaryImage);
       attachmentFiles.forEach(f => fd.append('attachments', f));
       await onSubmit(fd);

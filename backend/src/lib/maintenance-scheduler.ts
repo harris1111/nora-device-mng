@@ -25,92 +25,54 @@ async function runOnce(): Promise<void> {
     // --- 1. Advance-notice notification (single alert per cycle) ---
     const pendingNotify = await prisma.scheduledMaintenance.findMany({
       where: { lastNotifiedAt: null },
-      include: { device: { select: { id: true, name: true, storeId: true, roomId: true } } },
+      include: { device: { select: { id: true, name: true, storeId: true } } },
     });
 
-    // Group by room for batch dedup
-    const byRoom = new Map<string, typeof pendingNotify>();
     for (const sched of pendingNotify) {
       const threshold = new Date(sched.nextDueAt);
       threshold.setDate(threshold.getDate() - sched.notifyDaysBefore);
       if (now < threshold) continue;
 
-      const key = sched.device.roomId ?? '_unassigned';
-      if (!byRoom.has(key)) byRoom.set(key, []);
-      byRoom.get(key)!.push(sched);
-    }
+      const dueLabel = sched.nextDueAt.toLocaleDateString('vi-VN');
+      await createNotification({
+        userId: null, // fan-out to admins
+        type: 'maintenance_due',
+        title: `Thiết bị cần bảo trì: ${sched.device.name}`,
+        message: `Mã ${sched.device.storeId} đến hạn bảo trì ngày ${dueLabel}.`,
+        link: `/devices/${sched.device.id}`,
+        sourceType: 'device',
+        sourceId: sched.device.id,
+      });
 
-    for (const [roomId, scheds] of byRoom) {
-      if (roomId === '_unassigned') {
-        // Individual notifications (existing behavior)
-        for (const sched of scheds) {
-          const dueLabel = sched.nextDueAt.toLocaleDateString('vi-VN');
-          await createNotification({
-            userId: null,
-            type: 'maintenance_due',
-            title: `Thiết bị cần bảo trì: ${sched.device.name}`,
-            message: `Mã ${sched.device.storeId} đến hạn bảo trì ngày ${dueLabel}.`,
-            link: `/devices/${sched.device.id}`,
-            sourceType: 'device',
-            sourceId: sched.device.id,
-          });
-        }
-      } else if (scheds.length === 1) {
-        // Single room device → existing per-device notification with device link
-        const dueLabel = scheds[0].nextDueAt.toLocaleDateString('vi-VN');
-        await createNotification({
-          userId: null,
-          type: 'maintenance_due',
-          title: `Thiết bị cần bảo trì: ${scheds[0].device.name}`,
-          message: `Mã ${scheds[0].device.storeId} đến hạn bảo trì ngày ${dueLabel}.`,
-          link: `/devices/${scheds[0].device.id}`,
-          sourceType: 'device',
-          sourceId: scheds[0].device.id,
-        });
-      } else {
-        // Batch notification for multiple overdue in same room.
-        // Dedup is inherent: all schedules in this batch will have lastNotifiedAt
-        // set below, so the next poll (where lastNotifiedAt: null) won't re-pick them.
-        await createNotification({
-          userId: null,
-          type: 'room_maintenance_overdue',
-          title: `${scheds.length} thiết bị cần bảo trì`,
-          message: `${scheds.length} thiết bị trong phòng đã đến hạn bảo trì.`,
-          link: `/rooms?selected=${roomId}`,
-          sourceType: 'room',
-          sourceId: roomId,
-        });
-      }
-
-      // Auto-create pending maintenance records + update lastNotifiedAt
-      for (const sched of scheds) {
-        const existingPending = await prisma.maintenanceRecord.findFirst({
-          where: {
+      // Auto-create a pending maintenance history record so an operator can
+      // complete it later. Skip if a pending record for this cycle already
+      // exists (idempotency: keyed by deviceId + nextDueAt date).
+      const existingPending = await prisma.maintenanceRecord.findFirst({
+        where: {
+          deviceId: sched.device.id,
+          status: 'pending',
+          date: sched.nextDueAt,
+          recordType: 'maintenance',
+        },
+        select: { id: true },
+      });
+      if (!existingPending) {
+        await prisma.maintenanceRecord.create({
+          data: {
             deviceId: sched.device.id,
-            status: 'pending',
             date: sched.nextDueAt,
+            description: 'Bảo trì định kỳ (tự động tạo)',
+            technician: '',
+            status: 'pending',
             recordType: 'maintenance',
           },
-          select: { id: true },
-        });
-        if (!existingPending) {
-          await prisma.maintenanceRecord.create({
-            data: {
-              deviceId: sched.device.id,
-              date: sched.nextDueAt,
-              description: 'Bảo trì định kỳ (tự động tạo)',
-              technician: '',
-              status: 'pending',
-              recordType: 'maintenance',
-            },
-          });
-        }
-
-        await prisma.scheduledMaintenance.update({
-          where: { id: sched.id },
-          data: { lastNotifiedAt: now },
         });
       }
+
+      await prisma.scheduledMaintenance.update({
+        where: { id: sched.id },
+        data: { lastNotifiedAt: now },
+      });
     }
 
     // --- 2. Strict status enforcement on/after due date ---

@@ -78,12 +78,10 @@ router.post('/bulk-delete', requirePermission('devices', 'delete'), async (req: 
     if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array is required' });
     if (ids.length > 100) return res.status(400).json({ error: 'Maximum 100 devices per bulk delete' });
 
-    // Gather S3 keys + room IDs before deletion
+    // Gather S3 keys before deletion
     const devices = await prisma.device.findMany({
       where: { id: { in: ids } },
-      select: {
-        id: true,
-        roomId: true,
+      include: {
         attachments: { select: { fileKey: true } },
         transferRecord: { include: { attachments: { select: { fileKey: true } } } },
         maintenanceRecords: { include: { attachments: { select: { fileKey: true } } } },
@@ -98,24 +96,10 @@ router.post('/bulk-delete', requirePermission('devices', 'delete'), async (req: 
       ...d.inventoryRecords.flatMap((r: { attachments: { fileKey: string }[] }) => r.attachments.map((a: { fileKey: string }) => a.fileKey)),
     ]);
 
-    const affectedRoomIds = [...new Set(devices.map(d => d.roomId).filter((id): id is string => id !== null))];
-
     const result = await prisma.device.deleteMany({ where: { id: { in: ids } } });
 
     if (s3Keys.length > 0) {
       try { await deleteFiles(s3Keys); } catch (e: unknown) { console.warn('S3 bulk cleanup warning:', (e as Error).message); }
-    }
-
-    // Recompute room statuses after bulk deletion
-    if (affectedRoomIds.length > 0) {
-      const { aggregateRoomStatus, recomputeAncestors } = await import('../services/room-service.js');
-      for (const roomId of affectedRoomIds) {
-        aggregateRoomStatus(roomId).then(status => {
-          prisma.roomNode.update({ where: { id: roomId }, data: { status } }).then(() => {
-            recomputeAncestors(roomId).catch(() => {});
-          }).catch(() => {});
-        }).catch(() => {});
-      }
     }
 
     res.json({ deleted: result.count });
@@ -220,7 +204,6 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
     inventory_status,
     date_from,
     date_to,
-    room_id,
   } = req.query as {
     type?: string;
     status?: string;
@@ -232,7 +215,6 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
     inventory_status?: string;
     date_from?: string;
     date_to?: string;
-    room_id?: string;
   };
 
   const where: Record<string, unknown> = {};
@@ -245,13 +227,6 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
   if (transfer_unit) where.ownedBy = transfer_unit;
   if (maintenance_status) where.maintenanceStatus = maintenance_status;
   if (inventory_status) where.inventoryStatus = inventory_status;
-
-  if (room_id) {
-    where.roomId = room_id;
-    where.isRoomDevice = true;
-  } else {
-    where.isRoomDevice = false;
-  }
 
   if (search && search.trim()) {
     const q = search.trim();
@@ -369,7 +344,7 @@ router.get('/:id', requirePermission('devices', 'view'), async (req: Request, re
 // POST /api/devices — create device
 router.post('/', requirePermission('devices', 'create'), deviceUpload, async (req: Request, res: Response) => {
   try {
-    const { name, store_id, location_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_period, room_id, is_room_device } = req.body;
+    const { name, store_id, location_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_period } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
@@ -389,20 +364,6 @@ router.post('/', requirePermission('devices', 'create'), deviceUpload, async (re
     const deviceStatus = status || 'active';
     const typeErr = validateTypeStatus(deviceType, deviceStatus);
     if (typeErr) return res.status(400).json({ error: typeErr });
-
-    // Resolve room assignment
-    let resolvedRoomId: string | null = null;
-    let resolvedIsRoomDevice = false;
-    if (room_id && typeof room_id === 'string' && room_id.trim()) {
-      const room = await prisma.roomNode.findUnique({ where: { id: room_id.trim() } });
-      if (!room) return res.status(400).json({ error: 'Invalid room selected' });
-      // Verify leaf node
-      const childCount = await prisma.roomNode.count({ where: { parentId: room_id.trim() } });
-      if (childCount > 0) return res.status(400).json({ error: 'Can only assign devices to leaf rooms' });
-      resolvedRoomId = room.id;
-      resolvedIsRoomDevice = true;
-    }
-    if (is_room_device === 'true' || is_room_device === true) resolvedIsRoomDevice = true;
 
     let statusData: StatusData = { type: deviceType, status: deviceStatus, disposalDate: disposal_date ? new Date(disposal_date) : null, lossDate: loss_date ? new Date(loss_date) : null };
     statusData = applyDateStatusRules(deviceType, statusData);
@@ -440,8 +401,6 @@ router.post('/', requirePermission('devices', 'create'), deviceUpload, async (re
           transferTo: transferSummary.transferTo,
           transferDate: transferSummary.transferDate,
           warrantyPeriod,
-          roomId: resolvedRoomId,
-          isRoomDevice: resolvedIsRoomDevice,
           createdById: req.user!.id,
         },
       });
@@ -476,14 +435,6 @@ router.post('/', requirePermission('devices', 'create'), deviceUpload, async (re
     // Re-fetch to include new attachments
     const updated = await prisma.device.findUnique({ where: { id }, include: detailDeviceIncludes });
     res.status(201).json(mapDevice(updated!));
-
-    // Trigger room status aggregation if device is in a room
-    if (resolvedRoomId) {
-      const { aggregateRoomStatus, recomputeAncestors } = await import('../services/room-service.js');
-      const newStatus = await aggregateRoomStatus(resolvedRoomId);
-      await prisma.roomNode.update({ where: { id: resolvedRoomId }, data: { status: newStatus } });
-      await recomputeAncestors(resolvedRoomId).catch(() => { /* best-effort */ });
-    }
   } catch (err) {
     console.error('Create device error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -636,22 +587,10 @@ router.delete('/:id', requirePermission('devices', 'delete'), async (req: Reques
       ...device.maintenanceRecords.flatMap((r: { attachments: { fileKey: string }[] }) => r.attachments.map((a: { fileKey: string }) => a.fileKey)),
     ];
 
-    const roomId = device.roomId;
-
     await prisma.device.delete({ where: { id: req.params.id as string } });
 
     if (s3Keys.length > 0) {
       try { await deleteFiles(s3Keys); } catch (e: unknown) { console.warn('S3 cleanup warning:', (e as Error).message); }
-    }
-
-    // Recompute room status after deletion
-    if (roomId) {
-      const { aggregateRoomStatus, recomputeAncestors } = await import('../services/room-service.js');
-      aggregateRoomStatus(roomId).then(status => {
-        prisma.roomNode.update({ where: { id: roomId }, data: { status } }).then(() => {
-          recomputeAncestors(roomId).catch(() => {});
-        }).catch(() => {});
-      }).catch(() => {});
     }
 
     res.status(204).send();
