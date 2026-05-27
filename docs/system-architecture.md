@@ -1,6 +1,6 @@
 # System Architecture — Nora Device Manager
 
-Last updated: April 12, 2026
+Last updated: May 27, 2026
 
 ## High-Level Architecture
 
@@ -8,9 +8,10 @@ Last updated: April 12, 2026
 ┌─────────────────────────────────────────────────────────────────┐
 │                      React Frontend (Vite)                      │
 │  ┌─────────────────────────────────────────────────────────┐  │
-│  │ Pages: device-list, device-detail, device-edit, public  │  │
-│  │ Components: attachment-list, pdf-viewer, device-form    │  │
-│  │ API: device-api.ts (Axios) + FormData uploads           │  │
+│  │ Pages: device-list, device-detail, device-edit,          │  │
+│  │        room-tree, room-device-create/detail/edit, public   │  │
+│  │ Components: attachment-list, pdf-viewer, device-form      │  │
+│  │ API: device-api.ts, room-api.ts, room-device-api.ts      │  │
 │  └─────────────────────────────────────────────────────────┘  │
 └───────────────────────────┬──────────────────────────────────────┘
                             │ REST (FormData, JSON)
@@ -26,7 +27,8 @@ Last updated: April 12, 2026
 │                  │                       │                   │
 ▼                  ▼                       ▼                   ▼
 PostgreSQL       S3-Compatible        QR Generation        Logging
-(Device data)    (Files)               (via qrcode lib)     (console)
+(Device data,    (Files)               (via qrcode lib)     (console)
+ RoomNode tree)
 ```
 
 ## Data Flow Diagrams
@@ -173,6 +175,107 @@ PdfViewerModal <iframe>
   └─ Browser renders PDF inline
 ```
 
+### Room Hierarchy Tree Load
+
+```
+User navigates to /rooms
+
+Frontend: GET /api/rooms/tree
+  │
+  ▼
+Backend: findMany({ where: { parentId: null } }) — root nodes
+  ├─ Includes: location, _count.devices, _count.children
+  │
+  ▼
+Recursive buildTree(children):
+  ├─ For each node, fetch children (parentId = node.id)
+  ├─ Map room summary (breadcrumb, device counts, status)
+  └─ Recurse until no children
+  │
+  ▼
+Returns nested RoomTreeNode[] (recursive children array)
+```
+
+### Room-Scoped Device Create
+
+```
+User fills form on /rooms/:roomId/devices/new
+
+Frontend: POST /api/rooms/:roomId/devices (FormData)
+  │
+  ▼
+Express validates:
+  ├─ Room exists and is_leaf (no children)
+  ├─ User has rooms.create permission
+  └─ Location access allowed for USER role
+  │
+  ▼
+Create Device:
+  ├─ id = uuidv4()
+  ├─ locationId = room.locationId (inherited, not from form)
+  ├─ roomId = :roomId (set automatically)
+  ├─ QR code generated
+  └─ createdById = req.user.id
+  │
+  ▼
+Return mapped device (same mapDevice() as regular device routes)
+```
+
+### Room Duplicate
+
+```
+User triggers duplicate on /rooms/:id
+
+Frontend: POST /api/rooms/:id/duplicate
+  ├─ Body: { prefix?: string; start?: number; end?: number }
+  │
+  ▼
+Backend: collectSubtree(rootId) — stack-based DFS
+  ├─ Returns flat list: { node: {id, name, locationId}, children: string[] }
+  └─ Walks entire subtree (root + all descendants)
+  │
+  ▼
+For each copy in range [start..end]:
+  ├─ Prisma $transaction per copy
+  │  ├─ Create new nodes (idMap: oldId → newId)
+  │  ├─ Re-link parentId via idMap
+  │  └─ Clone direct devices (allowlist fields only):
+  │     storeId, name, areaId, serialNumber, model, type, status, ...
+  │     (NOT id, createdById, qrcode, etc.)
+  └─ Return: { rooms_created, devices_cloned }
+```
+
+### Public Route Room Blocking
+
+```
+User scans QR code → GET /api/public/device/:id
+
+Backend: prisma.device.findUnique({
+  where: { id, roomId: null }    // <-- roomId filter blocks room devices
+})
+  │
+  ▼
+If device has roomId set → 404 returned (not found)
+  └─ Room-scoped devices never exposed via public routes
+```
+
+### Leaf-Only Invariant Enforcement
+
+```
+Creating a child room under a room that has devices:
+  validateParentLeafInvariant(parentId) → deviceCount > 0 → 409 Conflict
+
+Creating a device under a room that has children:
+  room._count.children > 0 → 409 Conflict "Cannot add device to a room that has child rooms"
+
+Moving a room under a node that has devices:
+  validateParentLeafInvariant(proposedParentId) → 409 Conflict
+
+Cycle detection:
+  wouldCreateCycle(childId, proposedParentId) → traverses up proposedParentId
+  If childId encountered → 409 "Cycle detected"
+```
+
 ## Database Schema
 
 ### Current Schema (After Attachment Overhaul)
@@ -182,30 +285,58 @@ model Device {
   id String @id @default(cuid())
   storeId String
   name String
-  serialNumber String?
-  model String?
-  manufacturer String?
-  description String?
-  qrcode Bytes
-  locationId String
+  locationId String?
+  roomId String?   // NEW: nullable, links device to a room
+  areaId String?
   managedBy String @default("")
   ownedBy String @default("")
-  type String // enum: tai_san, hang_hoai, che_do
-  status String // enum: active, maintenance, disposed, lost, transferred
+  serialNumber String @default("")
+  model String @default("")
+  manufacturer String @default("")
+  description String @default("")
+  qrcode Bytes?
+  type String @default("tai_san")
+  status String @default("active")
   disposalDate DateTime?
   lossDate DateTime?
   transferTo String?
   transferDate DateTime?
+  warrantyPeriod String?
+  maintenanceStatus String @default("in_use")
+  inventoryStatus String @default("in_use")
   createdAt DateTime @default(now())
+  createdById String?
+  updatedById String?
   updatedAt DateTime @updatedAt
 
-  location Location?
+  location Location? @relation(fields: [locationId], references: [id])
+  room RoomNode? @relation(fields: [roomId], references: [id])
+  area Area? @relation(fields: [areaId], references: [id])
   attachments Attachment[]
   maintenanceRecords MaintenanceRecord[]
-  
+
   // REMOVED in April 2026:
   // image Bytes?
   // imageMime String?
+}
+
+model RoomNode {
+  id String @id @default(cuid())
+  name String
+  locationId String
+  parentId String?
+  createdAt DateTime @default(now())
+  createdById String?
+  updatedAt DateTime @updatedAt
+  updatedById String?
+
+  location Location @relation(fields: [locationId], references: [id])
+  parent RoomNode? @relation("RoomNodeParent", fields: [parentId], references: [id])
+  children RoomNode[] @relation("RoomNodeParent")
+  devices Device[]
+
+  // Leaf-only invariant: has_children (childCount > 0) → no direct devices
+  // Device rooms: is_leaf (childCount === 0) → can hold devices
 }
 
 model Attachment {

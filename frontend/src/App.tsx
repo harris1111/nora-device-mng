@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { AuthProvider } from './context/auth-context';
+import { AuthProvider, useAuth } from './context/auth-context';
 import ProtectedRoute from './components/auth/protected-route';
 import PermissionRoute from './components/auth/permission-route';
 import ErrorBoundary from './components/error-boundary';
@@ -13,6 +13,10 @@ import DeviceEditPage from './pages/device-edit-page';
 import PublicDevicePage from './pages/public-device-page';
 import LocationListPage from './pages/location-list-page';
 import AreaListPage from './pages/area-list-page';
+import RoomTreePage from './pages/room-tree-page';
+import RoomDeviceCreatePage from './pages/room-device-create-page';
+import RoomDeviceDetailPage from './pages/room-device-detail-page';
+import RoomDeviceEditPage from './pages/room-device-edit-page';
 import UsersListPage from './pages/users-list-page';
 import UserFormPage from './pages/user-form-page';
 import PermissionDashboardPage from './pages/permission-dashboard-page';
@@ -28,6 +32,14 @@ function AdminLayout() {
   );
 }
 
+function HomeRedirect() {
+  const { permissions } = useAuth();
+  if (permissions.devices?.view) return <Navigate to="/devices" replace />;
+  if (permissions.rooms?.view) return <Navigate to="/rooms" replace />;
+  if (permissions.locations?.view) return <Navigate to="/locations" replace />;
+  return <Navigate to="/login" replace />;
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
@@ -38,12 +50,19 @@ export default function App() {
             <Route path="/public/device/:id" element={<PublicDevicePage />} />
 
           <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<Navigate to="/devices" replace />} />
+            <Route path="/" element={<HomeRedirect />} />
             <Route element={<AdminLayout />}>
               <Route path="/devices" element={<DeviceListPage />} />
               <Route path="/devices/new" element={<DeviceCreatePage />} />
               <Route path="/devices/:id" element={<DeviceDetailPage />} />
               <Route path="/devices/:id/edit" element={<DeviceEditPage />} />
+              <Route element={<PermissionRoute module="rooms" action="view" />}>
+                <Route path="/rooms" element={<RoomTreePage />} />
+                <Route path="/rooms/:roomId" element={<RoomTreePage />} />
+                <Route path="/rooms/:roomId/devices/new" element={<RoomDeviceCreatePage />} />
+                <Route path="/rooms/:roomId/devices/:deviceId" element={<RoomDeviceDetailPage />} />
+                <Route path="/rooms/:roomId/devices/:deviceId/edit" element={<RoomDeviceEditPage />} />
+              </Route>
               <Route element={<PermissionRoute module="locations" action="view" />}>
                 <Route path="/locations" element={<LocationListPage />} />
               </Route>

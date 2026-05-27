@@ -1,8 +1,8 @@
 # Project Roadmap — Nora Device Manager
 
-Last updated: April 12, 2026
+Last updated: May 27, 2026
 
-## Current Status: v2.0 In Progress
+## Current Status: v2.0 Phase 3.5 Complete
 
 ### Phase 1: Core Infrastructure ✅ COMPLETE
 
@@ -48,32 +48,64 @@ Last updated: April 12, 2026
 - Frontend: `attachment-list.tsx`, `pdf-viewer-modal.tsx`, form updates
 - Documentation: codebase-summary, system-architecture, code-standards
 
-### Phase 4: Authentication & Authorization (PLANNED)
+### Phase 3.5: Room Hierarchy Management ✅ COMPLETE
 
-**Status**: 0% — Planned  
+**Status**: 100% — Deployed (May 27, 2026)
+**Timeline**: May 2026
+
+- ✅ `RoomNode` adjacency-table model (free-form names, nullable parentId, required locationId)
+- ✅ `Device.roomId` nullable field — room devices reuse Device model but are excluded from main device list/export/public
+- ✅ `/api/rooms` route family: CRUD + tree + detail
+- ✅ Room-scoped device endpoints: `GET/POST /api/rooms/:roomId/devices`
+- ✅ `POST /api/rooms/:id/duplicate` — clone subtree + whitelisted device scalars
+- ✅ `rooms` permission module seeded: SADMIN/ADMIN (CRUD), USER (VIEW_ONLY)
+- ✅ Leaf-only invariant enforced: parent with children cannot have devices; room with devices cannot gain children
+- ✅ Public routes block room-scoped devices (`roomId: null` filter on `/api/public/device/:id`)
+- ✅ Home redirect routes to first allowed module (devices > rooms > locations)
+
+**Frontend**:
+- ✅ `/rooms`, `/rooms/:roomId` — tree shell with left tree panel + right detail panel
+- ✅ `/rooms/:roomId/devices/new` — room-scoped device create
+- ✅ `/rooms/:roomId/devices/:deviceId` — room device detail/edit pages
+- ✅ Duplicate modal with preview
+- ✅ Device listing per room (leaf-only UI)
+
+**Deliverables**:
+- Backend: `room-routes.ts`
+- Frontend: `room-tree-page.tsx`, `room-device-create-page.tsx`, `room-device-detail-page.tsx`, `room-device-edit-page.tsx`
+- API: `room-api.ts`, `room-device-api.ts`
+- Prisma: `RoomNode` model, `Device.roomId` field
+- Seed: `rooms` permission for all roles
+
+### Phase 4: Authentication & Authorization
+
+**Status**: Partial — User model, permissions, auth routes implemented  
 **Timeline**: Q2 2026
 
-- [ ] User registration + login
-- [ ] JWT token management
-- [ ] Role-based access control (Admin, Manager, Technician, Viewer)
+- [x] User model with `UserRole` enum (SADMIN, ADMIN, USER)
+- [x] Permission matrix per role per module (12 modules)
+- [x] `requirePermission` middleware for protected endpoints
+- [ ] JWT token management (token issuance + refresh)
+- [ ] Login page + auth flow
+- [ ] ProtectedRoute + PermissionRoute components
 - [ ] Device ownership constraints
-- [ ] Audit logging
+- [ ] Audit logging (`AuditLog` model)
 
 **Decisions**:
 - Auth framework: Better Auth (TypeScript, flexible providers)
 - JWT storage: HTTP-only cookies
-- Roles: 4-tier system above
+- Roles: SADMIN (full), ADMIN (full), USER (view-only for most modules)
 
 ### Phase 5: Advanced Device Features (PLANNED)
 
-**Status**: 0% — Planned  
+**Status**: 0% — Planned
 **Timeline**: Q2-Q3 2026
 
 - [ ] Batch device import (CSV)
-- [ ] Bulk device operations (status change, reassign location)
-- [ ] Advanced search + filters
+- [ ] Bulk device operations (status change, reassign location) — `roomId: null` filter applies
+- [ ] Advanced search + filters (include/exclude room devices)
 - [ ] Device history timeline (status transitions)
-- [ ] Export device data (CSV, PDF)
+- [ ] Export device data (CSV, PDF) — room-scoped devices not included by default
 - [ ] Email notifications on status changes
 
 ### Phase 6: Analytics & Reporting (PLANNED)
@@ -119,6 +151,20 @@ Last updated: April 12, 2026
 - [x] Migration script successfully moves 100% of DB images to S3
 - [x] Frontend form handles primary image + multiple attachments
 - [x] No regression on existing device/location/public endpoints
+
+### Phase 3.5 ✅
+
+- [x] RoomNode schema and adjacency-table hierarchy
+- [x] `Device.roomId` nullable field — room devices excluded from main device list
+- [x] `/api/rooms` CRUD + tree + detail endpoints
+- [x] Room-scoped device create/list endpoints
+- [x] Duplicate endpoint with subtree clone + device scalar allowlist
+- [x] Leaf-only invariant enforced at create/update time
+- [x] `rooms` permission seeded for all roles
+- [x] Public route blocks room-scoped devices (verified `roomId: null` filter)
+- [x] Home redirect routes to first allowed module
+- [x] Room tree UI: left tree panel + right detail panel + device listing
+- [x] Room device create/detail/edit pages with FormData
 
 ### Phase 4 (Next)
 
@@ -183,9 +229,11 @@ Future considerations:
 | Database migration fails | Medium | Test migration script thoroughly, backup before run |
 | Frontend file upload timeouts | Medium | Implement client-side retry + progress UI |
 | Image/PDF rendering issues | Low | Test all MIME types; provide explicit error messages |
+| Room tree cycle corruption | Medium | Cycle detection in put handler; adjacency invariant enforced |
+| Room devices leaking to public routes | High | `roomId: null` filter on public endpoints (verified in code) |
 
 ## Approval & Sign-Off
 
-- **Last Reviewed**: April 12, 2026
+- **Last Reviewed**: May 27, 2026
 - **Approved By**: Self (Founder)
-- **Next Review**: May 2026 (post-Phase 4 completion)
+- **Next Review**: June 2026 (post-Phase 4 completion)

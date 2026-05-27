@@ -8,7 +8,7 @@ const router: ReturnType<typeof Router> = Router();
 router.get('/device/:id', async (req: Request, res: Response) => {
   try {
     const device = await prisma.device.findUnique({
-      where: { id: req.params.id as string },
+      where: { id: req.params.id as string, roomId: null },
       include: {
         location: { select: { name: true } },
         area: { select: { name: true } },

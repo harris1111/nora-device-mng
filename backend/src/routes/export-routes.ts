@@ -189,7 +189,7 @@ router.post('/excel', requirePermission('devices', 'export'), async (req: Reques
       return;
     }
 
-    const where: Record<string, unknown> = { id: { in: device_ids } };
+    const where: Record<string, unknown> = { id: { in: device_ids }, roomId: null };
     const locationFilter = await getUserLocationFilter(req);
     if (locationFilter) where.AND = [locationFilter];
 
