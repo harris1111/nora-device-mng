@@ -63,7 +63,7 @@ export default function RoomTreePage() {
   }, [roomId, tree.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function openCreate(parentId?: string | null) {
-    setShowForm('create'); setFormName(''); setFormLocationId(selected?.location_id || locations[0]?.id || ''); setFormParentId(parentId ?? selected?.id ?? null); setFormError(null); setDupResult(null);
+    setShowForm('create'); setFormName(''); setFormLocationId(selected?.location_id || locations[0]?.id || ''); setFormParentId(parentId !== undefined ? parentId : null); setFormError(null); setDupResult(null);
   }
   function openEdit() { if (!selected) return; setShowForm('edit'); setFormName(selected.name); setFormLocationId(selected.location_id); setFormParentId(selected.parent_id); setFormError(null); setDupResult(null); }
   function openDuplicate() { if (!selected) return; setShowForm('duplicate'); setDupPrefix(''); setDupStart(1); setDupEnd(1); setDupMode('range'); setDupList(''); setFormError(null); setDupResult(null); }
@@ -206,30 +206,20 @@ export default function RoomTreePage() {
                 <label className="block text-sm font-medium text-slate-600 mb-1">Tên phòng</label>
                 <input value={formName} onChange={e => setFormName(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Nhập tên phòng" />
               </div>
-              {showForm === 'create' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-1">Đơn vị</label>
-                  <select value={formLocationId} onChange={e => setFormLocationId(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
-                </div>
-              )}
-              {(!selected?.parent_id || showForm === 'edit') && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-1">Phòng cha</label>
-                  <select value={formParentId || ''} onChange={e => setFormParentId(e.target.value || null)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    <option value="">(Không có — phòng gốc)</option>
-                    {tree.flatMap(n => {
-                      const options: { id: string; label: string }[] = [];
-                      function collect(inner: RoomTreeNode, depth: number) {
-                        if (inner.id !== selected?.id) options.push({ id: inner.id, label: '  '.repeat(depth) + inner.name });
-                        inner.children.forEach(c => collect(c, depth + 1));
-                      }
-                      collect(n, 0); return options;
-                    }).map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-                  </select>
-                </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Phòng cha</label>
+                <select value={formParentId || ''} onChange={e => setFormParentId(e.target.value || null)} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                  <option value="">(Không có — phòng gốc)</option>
+                  {tree.flatMap(n => {
+                    const options: { id: string; label: string }[] = [];
+                    function collect(inner: RoomTreeNode, depth: number) {
+                      if (inner.id !== selected?.id) options.push({ id: inner.id, label: '  '.repeat(depth) + inner.name });
+                      inner.children.forEach(c => collect(c, depth + 1));
+                    }
+                    collect(n, 0); return options;
+                  }).map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                </select>
+              </div>
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setShowForm(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Hủy</button>
