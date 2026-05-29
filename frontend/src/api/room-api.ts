@@ -35,3 +35,6 @@ export const updateRoom = (id: string, data: { name: string; parent_id?: string 
 export const deleteRoom = (id: string): Promise<void> =>
   api.delete(`/rooms/${id}`);
 
+export const bulkDeleteRooms = (ids: string[]): Promise<{ deleted: number; deleted_ids: string[]; skipped: { id: string; reason: string }[] }> =>
+  api.post('/rooms/bulk-delete', { ids }).then(r => r.data);
+

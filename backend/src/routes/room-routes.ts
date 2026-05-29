@@ -364,6 +364,44 @@ router.put('/:id', requirePermission('rooms', 'update'), async (req: Request, re
   }
 });
 
+// POST /api/rooms/bulk-delete — delete multiple rooms at once
+router.post('/bulk-delete', requirePermission('rooms', 'delete'), async (req: Request, res: Response) => {
+  try {
+    const { ids } = req.body as { ids?: string[] };
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array is required' });
+    if (ids.length > 100) return res.status(400).json({ error: 'Maximum 100 rooms per bulk delete' });
+
+    const deleted: string[] = [];
+    const skipped: { id: string; reason: string }[] = [];
+
+    for (const id of ids) {
+      const room = await prisma.roomNode.findUnique({
+        where: { id },
+        include: { _count: { select: { devices: true, children: true } } },
+      });
+      if (!room) {
+        skipped.push({ id, reason: 'Room not found' });
+        continue;
+      }
+      if ((room._count?.children ?? 0) > 0) {
+        skipped.push({ id, reason: 'Room still has child rooms' });
+        continue;
+      }
+      if ((room._count?.devices ?? 0) > 0) {
+        skipped.push({ id, reason: 'Room still has devices assigned' });
+        continue;
+      }
+      await prisma.roomNode.delete({ where: { id } });
+      deleted.push(id);
+    }
+
+    res.json({ deleted: deleted.length, deleted_ids: deleted, skipped });
+  } catch (err) {
+    console.error('Bulk delete rooms error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // DELETE /api/rooms/:id — block if has children or direct devices
 router.delete('/:id', requirePermission('rooms', 'delete'), async (req: Request, res: Response) => {
   try {
@@ -582,8 +620,8 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
 
         for (const entry of subtree) {
           const newId = uuidv4();
-          // Format: "[prefix ]suffix" — no original room name appended
-          const newName = prefix ? `${prefix} ${suffix}` : suffix;
+          // Format: "[prefix]suffix" — prefix attaches directly without space
+          const newName = prefix ? `${prefix}${suffix}` : suffix;
 
           await tx.roomNode.create({
             data: {
