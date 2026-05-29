@@ -62,14 +62,15 @@ async function getUserLocationIds(req: Request): Promise<string[] | null> {
 }
 
 // Build breadcrumb by walking up parent chain
-async function buildBreadcrumb(node: { id: string; name: string; parentId: string | null }): Promise<string> {
+async function buildBreadcrumb(node: { id: string; name: string; parentId: string | null }, tx?: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]): Promise<string> {
+  const db = (tx ?? prisma) as typeof prisma;
   const parts: string[] = [node.name];
   let currentId = node.parentId;
   const visited = new Set<string>([node.id]);
   while (currentId) {
     if (visited.has(currentId)) break;
     visited.add(currentId);
-    const parent = await prisma.roomNode.findUnique({ where: { id: currentId }, select: { id: true, name: true, parentId: true } });
+    const parent = await db.roomNode.findUnique({ where: { id: currentId }, select: { id: true, name: true, parentId: true } });
     if (!parent) break;
     parts.unshift(parent.name);
     currentId = parent.parentId;
@@ -78,10 +79,11 @@ async function buildBreadcrumb(node: { id: string; name: string; parentId: strin
 }
 
 // Build breadcrumb for a room by ID
-async function buildBreadcrumbForRoom(roomId: string): Promise<string> {
-  const node = await prisma.roomNode.findUnique({ where: { id: roomId }, select: { id: true, name: true, parentId: true } });
+async function buildBreadcrumbForRoom(roomId: string, tx?: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]): Promise<string> {
+  const db = (tx ?? prisma) as typeof prisma;
+  const node = await db.roomNode.findUnique({ where: { id: roomId }, select: { id: true, name: true, parentId: true } });
   if (!node) return '';
-  return buildBreadcrumb(node);
+  return buildBreadcrumb(node, tx);
 }
 
 // Find-or-create an Area whose name matches the given breadcrumb path, return its id
@@ -610,6 +612,7 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
 
     const subtree = await collectSubtree(source.id);
     const sourceIds = new Set(subtree.map(s => s.node.id));
+    const baseUrl = await getEffectiveBaseUrl();
 
     let totalRooms = 0;
     let totalDevices = 0;
@@ -660,7 +663,7 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
         // Clone direct devices of source rooms and auto-populate area
         for (const entry of subtree) {
           const clonedRoomId = idMap.get(entry.node.id)!;
-          const clonedBreadcrumb = await buildBreadcrumbForRoom(clonedRoomId);
+          const clonedBreadcrumb = await buildBreadcrumbForRoom(clonedRoomId, tx);
           let clonedAreaId: string | null = null;
           if (clonedBreadcrumb) {
             clonedAreaId = await resolveAreaForBreadcrumb(clonedBreadcrumb, tx);
@@ -669,7 +672,8 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
           const sourceDevices = await tx.device.findMany({ where: { roomId: entry.node.id } });
           for (const d of sourceDevices) {
             const newDeviceId = uuidv4();
-            const cloneData: Record<string, unknown> = { id: newDeviceId, createdById: req.user!.id };
+            const qrcode = await generateQrCode(newDeviceId, baseUrl);
+            const cloneData: Record<string, unknown> = { id: newDeviceId, createdById: req.user!.id, qrcode: new Uint8Array(qrcode) };
             for (const field of DEVICE_CLONE_ALLOWLIST) {
               if (field === 'roomId') {
                 cloneData.roomId = clonedRoomId;
