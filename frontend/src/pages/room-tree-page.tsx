@@ -61,6 +61,7 @@ export default function RoomTreePage() {
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   // Bulk-select state
+  const [isBulkDeleteActive, setIsBulkDeleteActive] = useState(false);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -183,6 +184,7 @@ export default function RoomTreePage() {
       await fetchTree();
       if (result.skipped.length === 0) {
         setBulkDeleteConfirm(false); setBulkDeleteResult(null);
+        setIsBulkDeleteActive(false);
       }
     } catch (e: unknown) {
       alert((e as { response?: { data?: { error?: string } } }).response?.data?.error || (e as Error).message);
@@ -219,14 +221,42 @@ export default function RoomTreePage() {
               Thêm
             </button>
           )}
-          {canDelete && checkedIds.size > 0 && (
-            <button
-              onClick={() => { setBulkDeleteResult(null); setBulkDeleteConfirm(true); }}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 transition-colors shadow-sm shadow-red-200"
-            >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-              Xóa ({checkedIds.size})
-            </button>
+          {canDelete && (
+            <div className="flex items-center gap-1.5">
+              {isBulkDeleteActive && (
+                <button
+                  onClick={() => { setIsBulkDeleteActive(false); setCheckedIds(new Set()); }}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
+                >
+                  Hủy
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (!isBulkDeleteActive) {
+                    setIsBulkDeleteActive(true); setCheckedIds(new Set());
+                  } else if (checkedIds.size > 0) {
+                    setBulkDeleteResult(null); setBulkDeleteConfirm(true);
+                  } else {
+                    setIsBulkDeleteActive(false);
+                  }
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors shadow-sm ${
+                  isBulkDeleteActive && checkedIds.size > 0
+                    ? 'bg-red-600 text-white hover:bg-red-700 shadow-red-200'
+                    : isBulkDeleteActive
+                    ? 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 shadow-none'
+                    : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 shadow-none'
+                }`}
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                {isBulkDeleteActive && checkedIds.size > 0
+                  ? `Xóa (${checkedIds.size})`
+                  : isBulkDeleteActive
+                  ? 'Chọn phòng...'
+                  : 'Xóa nhiều'}
+              </button>
+            </div>
           )}
         </div>
 
@@ -269,7 +299,7 @@ export default function RoomTreePage() {
             </div>
           )}
           {displayTree.map(node => (
-            <RoomTreeItem key={node.id} node={node} selectedId={selected?.id} onSelect={id => fetchDetail(id)} depth={0} expandedIds={expandedIds} onToggleExpand={toggleExpand} searchExpandIds={searchExpandIds} checkedIds={checkedIds} onToggleCheck={toggleCheck} canDelete={canDelete} />
+            <RoomTreeItem key={node.id} node={node} selectedId={selected?.id} onSelect={id => fetchDetail(id)} depth={0} expandedIds={expandedIds} onToggleExpand={toggleExpand} searchExpandIds={searchExpandIds} checkedIds={checkedIds} onToggleCheck={toggleCheck} canDelete={canDelete} showCheckboxes={isBulkDeleteActive} />
           ))}
         </div>
       </div>
@@ -553,7 +583,7 @@ export default function RoomTreePage() {
               </div>
             )}
             <div className="flex justify-end gap-2">
-              <button onClick={() => { setBulkDeleteConfirm(false); setBulkDeleteResult(null); }} className="btn btn-ghost text-sm">Đóng</button>
+              <button onClick={() => { setBulkDeleteConfirm(false); setBulkDeleteResult(null); if (bulkDeleteResult) { setIsBulkDeleteActive(false); setCheckedIds(new Set()); } }} className="btn btn-ghost text-sm">Đóng</button>
               {!bulkDeleteResult && (
                 <button onClick={handleBulkDelete} disabled={bulkDeleting} className="btn btn-danger text-sm">{bulkDeleting ? 'Đang xóa...' : `Xóa ${checkedIds.size} phòng`}</button>
               )}
@@ -575,7 +605,7 @@ function InfoCard({ icon, label, value, highlight }: { icon: React.ReactNode; la
   );
 }
 
-function RoomTreeItem({ node, selectedId, onSelect, depth, expandedIds, onToggleExpand, searchExpandIds, checkedIds, onToggleCheck, canDelete }: {
+function RoomTreeItem({ node, selectedId, onSelect, depth, expandedIds, onToggleExpand, searchExpandIds, checkedIds, onToggleCheck, canDelete, showCheckboxes }: {
   node: RoomTreeNode;
   selectedId: string | undefined;
   onSelect: (id: string) => void;
@@ -586,6 +616,7 @@ function RoomTreeItem({ node, selectedId, onSelect, depth, expandedIds, onToggle
   checkedIds: Set<string>;
   onToggleCheck: (id: string, e: React.MouseEvent | React.ChangeEvent) => void;
   canDelete: boolean;
+  showCheckboxes: boolean;
 }) {
   const isSelected = selectedId === node.id;
   const hasChildren = node.children.length > 0;
@@ -617,7 +648,7 @@ function RoomTreeItem({ node, selectedId, onSelect, depth, expandedIds, onToggle
         )}
 
         {/* Bulk checkbox */}
-        {canDelete && (
+        {showCheckboxes && (
           <input
             type="checkbox"
             checked={checkedIds.has(node.id)}
@@ -667,6 +698,7 @@ function RoomTreeItem({ node, selectedId, onSelect, depth, expandedIds, onToggle
               checkedIds={checkedIds}
               onToggleCheck={onToggleCheck}
               canDelete={canDelete}
+              showCheckboxes={showCheckboxes}
             />
           ))}
         </div>
