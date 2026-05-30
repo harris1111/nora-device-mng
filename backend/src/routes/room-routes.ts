@@ -86,12 +86,19 @@ async function buildBreadcrumbForRoom(roomId: string, tx?: Parameters<Parameters
   return buildBreadcrumb(node, tx);
 }
 
-// Find-or-create an Area whose name matches the given breadcrumb path, return its id
-async function resolveAreaForBreadcrumb(breadcrumb: string, tx?: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]): Promise<string> {
+// Find-or-create an Area whose name matches the parent breadcrumb path (folder tree minus 1).
+// For "Block A -> Floor 2 -> 1202", resolves to area "Block A -> Floor 2".
+// Returns null for single-level rooms (no parent hierarchy above them).
+async function resolveAreaForRoomBreadcrumb(roomBreadcrumb: string, tx?: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]): Promise<string | null> {
+  if (!roomBreadcrumb) return null;
+  const parts = roomBreadcrumb.split(BREADCRUMB_DELIMITER);
+  if (parts.length <= 1) return null; // single-level room, no parent area
+  const areaName = parts.slice(0, -1).join(BREADCRUMB_DELIMITER);
+
   const db = tx ?? prisma;
-  let area = await (db as typeof prisma).area.findFirst({ where: { name: breadcrumb } });
+  let area = await (db as typeof prisma).area.findFirst({ where: { name: areaName } });
   if (!area) {
-    area = await (db as typeof prisma).area.create({ data: { id: uuidv4(), name: breadcrumb } });
+    area = await (db as typeof prisma).area.create({ data: { id: uuidv4(), name: areaName } });
   }
   return area.id;
 }
@@ -101,13 +108,76 @@ async function syncRoomDevicesArea(roomId: string, tx: Parameters<Parameters<typ
   const stack = [roomId];
   while (stack.length > 0) {
     const currentId = stack.pop()!;
-    const breadcrumb = await buildBreadcrumbForRoom(currentId);
+    const breadcrumb = await buildBreadcrumbForRoom(currentId, tx);
     if (breadcrumb) {
-      const areaId = await resolveAreaForBreadcrumb(breadcrumb, tx);
+      const areaId = await resolveAreaForRoomBreadcrumb(breadcrumb, tx);
       await (tx as typeof prisma).device.updateMany({ where: { roomId: currentId }, data: { areaId } });
     }
     const children = await (tx as typeof prisma).roomNode.findMany({ where: { parentId: currentId }, select: { id: true } });
     for (const child of children) stack.push(child.id);
+  }
+}
+
+// Build breadcrumb for a room using an in-memory map (avoids N+1 queries)
+function getBreadcrumbFromMap(roomId: string, roomMap: Map<string, { id: string; name: string; parentId: string | null }>): string {
+  const parts: string[] = [];
+  let current = roomMap.get(roomId);
+  const visited = new Set<string>();
+  while (current) {
+    if (visited.has(current.id)) break;
+    visited.add(current.id);
+    parts.unshift(current.name);
+    if (!current.parentId) break;
+    current = roomMap.get(current.parentId);
+  }
+  return parts.join(BREADCRUMB_DELIMITER);
+}
+
+// Auto-delete room-specific areas (containing ' -> ') that no longer correspond
+// to any active room's parent path.
+async function cleanupEmptyAreas(tx?: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]): Promise<void> {
+  const db = (tx ?? prisma) as typeof prisma;
+
+  // 1. Fetch all room nodes to reconstruct active hierarchy
+  const rooms = await db.roomNode.findMany({
+    select: { id: true, name: true, parentId: true },
+  });
+
+  const roomMap = new Map<string, { id: string; name: string; parentId: string | null }>();
+  for (const r of rooms) {
+    roomMap.set(r.id, r);
+  }
+
+  // 2. Determine all active area names representing parent paths (folder tree minus 1)
+  const activeAreaNames = new Set<string>();
+  for (const r of rooms) {
+    const breadcrumb = getBreadcrumbFromMap(r.id, roomMap);
+    const parts = breadcrumb.split(BREADCRUMB_DELIMITER);
+    if (parts.length > 1) {
+      const areaName = parts.slice(0, -1).join(BREADCRUMB_DELIMITER);
+      activeAreaNames.add(areaName);
+    }
+  }
+
+  // 3. Find all room-specific areas currently stored in database
+  const roomSpecificAreas = await db.area.findMany({
+    where: { name: { contains: BREADCRUMB_DELIMITER } },
+    select: { id: true, name: true },
+  });
+
+  // 4. Filter out any that are no longer associated with active parent paths
+  const emptyAreas = roomSpecificAreas.filter(a => !activeAreaNames.has(a.name));
+
+  // 5. Disconnect devices from these areas before deleting, then delete
+  if (emptyAreas.length > 0) {
+    const emptyAreaIds = emptyAreas.map(a => a.id);
+    await db.device.updateMany({
+      where: { areaId: { in: emptyAreaIds } },
+      data: { areaId: null },
+    });
+    await db.area.deleteMany({
+      where: { id: { in: emptyAreaIds } },
+    });
   }
 }
 
@@ -348,6 +418,7 @@ router.put('/:id', requirePermission('rooms', 'update'), async (req: Request, re
 
       if (nameChanged || parentChanged) {
         await syncRoomDevicesArea(req.params.id as string, tx);
+        await cleanupEmptyAreas(tx);
       }
     });
 
@@ -397,6 +468,11 @@ router.post('/bulk-delete', requirePermission('rooms', 'delete'), async (req: Re
       deleted.push(id);
     }
 
+    // Auto-delete orphaned room-specific areas after bulk deletion
+    if (deleted.length > 0) {
+      await cleanupEmptyAreas();
+    }
+
     res.json({ deleted: deleted.length, deleted_ids: deleted, skipped });
   } catch (err) {
     console.error('Bulk delete rooms error:', err);
@@ -419,6 +495,10 @@ router.delete('/:id', requirePermission('rooms', 'delete'), async (req: Request,
     if (deviceCount > 0) return res.status(409).json({ error: 'Cannot delete room: it still has devices assigned' });
 
     await prisma.roomNode.delete({ where: { id: req.params.id as string } });
+
+    // Auto-delete orphaned room-specific areas after deletion
+    await cleanupEmptyAreas();
+
     res.status(204).send();
   } catch (err) {
     console.error('Delete room error:', err);
@@ -496,12 +576,9 @@ router.post('/:roomId/devices', requirePermission('rooms', 'create'), deviceUplo
     };
     statusData = applyDateStatusRules(deviceType, statusData);
 
-    // Auto-populate area from room breadcrumb
+    // Auto-populate area from room breadcrumb (folder tree minus 1)
     const roomBreadcrumb = await buildBreadcrumbForRoom(room.id);
-    let roomAreaId: string | null = null;
-    if (roomBreadcrumb) {
-      roomAreaId = await resolveAreaForBreadcrumb(roomBreadcrumb);
-    }
+    const roomAreaId = await resolveAreaForRoomBreadcrumb(roomBreadcrumb);
 
     const id = uuidv4();
     const baseUrl = await getEffectiveBaseUrl();
@@ -664,10 +741,7 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
         for (const entry of subtree) {
           const clonedRoomId = idMap.get(entry.node.id)!;
           const clonedBreadcrumb = await buildBreadcrumbForRoom(clonedRoomId, tx);
-          let clonedAreaId: string | null = null;
-          if (clonedBreadcrumb) {
-            clonedAreaId = await resolveAreaForBreadcrumb(clonedBreadcrumb, tx);
-          }
+          const clonedAreaId = await resolveAreaForRoomBreadcrumb(clonedBreadcrumb, tx);
 
           const sourceDevices = await tx.device.findMany({ where: { roomId: entry.node.id } });
           for (const d of sourceDevices) {
