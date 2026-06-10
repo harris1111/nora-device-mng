@@ -12,6 +12,35 @@ const ACTION_FIELD: Record<Action, 'canView' | 'canCreate' | 'canUpdate' | 'canD
   export: 'canExport',
 };
 
+type PermissionEntry = {
+  canView: boolean;
+  canCreate: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
+  canExport: boolean;
+};
+
+let permissionCache: Map<string, PermissionEntry> | null = null;
+
+async function loadPermissions(): Promise<Map<string, PermissionEntry>> {
+  const all = await prisma.permission.findMany();
+  const map = new Map<string, PermissionEntry>();
+  for (const p of all) {
+    map.set(`${p.role}:${p.module}`, {
+      canView: p.canView,
+      canCreate: p.canCreate,
+      canUpdate: p.canUpdate,
+      canDelete: p.canDelete,
+      canExport: p.canExport,
+    });
+  }
+  return map;
+}
+
+export function clearPermissionCache(): void {
+  permissionCache = null;
+}
+
 export function requirePermission(module: string, action: Action) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -21,9 +50,11 @@ export function requirePermission(module: string, action: Action) {
         return;
       }
 
-      const perm = await prisma.permission.findUnique({
-        where: { role_module: { role: role as UserRole, module } },
-      });
+      if (!permissionCache) {
+        permissionCache = await loadPermissions();
+      }
+
+      const perm = permissionCache.get(`${role}:${module}`);
 
       if (!perm || !perm[ACTION_FIELD[action]]) {
         res.status(403).json({ error: 'Forbidden', module, action });

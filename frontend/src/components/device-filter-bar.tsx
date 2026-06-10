@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { getLocations, type Area, type Device, type Location } from '../api/device-api';
+import { type Area, type Device, type Location } from '../api/device-api';
 import { ALL_STATUSES, DEVICE_TYPES, STATUS_BY_TYPE } from './device/device-constants';
 import VnDatePicker from './ui/vn-date-picker';
 
@@ -42,6 +42,7 @@ const INVENTORY_OPTIONS: { value: string; label: string }[] = [
 interface Props {
   filters: DeviceFilters;
   onChange: (filters: DeviceFilters) => void;
+  locations?: Location[];
   areas?: Area[];
   transferUnits?: string[];
   trailing?: ReactNode;
@@ -93,17 +94,14 @@ export function useDeviceFilter(devices: Device[], filters: DeviceFilters) {
 export default function DeviceFilterBar({
   filters,
   onChange,
+  locations,
   areas = [],
   transferUnits = [],
   trailing,
   isSearching = false,
 }: Props) {
-  const [locations, setLocations] = useState<Location[]>([]);
+  const effectiveLocations = locations ?? [];
   const [showAdvanced, setShowAdvanced] = useState(false);
-
-  useEffect(() => {
-    getLocations().then(setLocations).catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (filters.location || filters.area || filters.transferUnit || filters.maintenance || filters.inventory || filters.dateFrom || filters.dateTo) {
@@ -291,7 +289,7 @@ export default function DeviceFilterBar({
                   className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 transition-shadow focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">Tất cả đơn vị</option>
-                  {locations.map((location) => (
+                  {effectiveLocations.map((location) => (
                     <option key={location.id} value={location.name}>
                       {location.name}
                     </option>

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { attachmentFileUrl, Device } from '../../api/device-api';
 import { getTypeName } from './device-constants';
@@ -10,7 +11,7 @@ interface Props {
   onToggleSelect?: () => void;
 }
 
-export default function DeviceListRow({ device, selectable, selected, onToggleSelect }: Props) {
+export default memo(function DeviceListRow({ device, selectable, selected, onToggleSelect }: Props) {
   const thumbUrl = device.primary_attachment_id ? attachmentFileUrl(device.primary_attachment_id) : null;
 
   return (
@@ -100,4 +101,4 @@ export default function DeviceListRow({ device, selectable, selected, onToggleSe
       </td>
     </tr>
   );
-}
+});

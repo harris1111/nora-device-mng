@@ -26,7 +26,7 @@ import DeviceFilterBar, { type DeviceFilters } from '../components/device-filter
 import BulkEditModal from '../components/bulk-edit-modal';
 
 const DEFAULT_LIMIT = 20;
-const PAGE_SIZE_OPTIONS = [5, 10, 20, 100];
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 const SEARCH_DEBOUNCE_MS = 300;
 
 // Read filters/pagination from URL — single source of truth for shareable state
@@ -282,6 +282,7 @@ export default function DeviceListPage() {
       <DeviceFilterBar
         filters={filters}
         onChange={setFilters}
+        locations={locations}
         areas={areas}
         transferUnits={transferUnits}
         isSearching={isSearchPending}

@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { attachmentFileUrl, Device } from '../../api/device-api';
 import DeviceStatusBadge from './device-status-badge';
@@ -9,7 +9,7 @@ interface Props {
   selectionControl?: ReactNode;
 }
 
-export default function DeviceCard({ device, selectionControl }: Props) {
+export default memo(function DeviceCard({ device, selectionControl }: Props) {
   const thumbUrl = device.primary_attachment_id ? attachmentFileUrl(device.primary_attachment_id) : null;
 
   return (
@@ -86,4 +86,4 @@ export default function DeviceCard({ device, selectionControl }: Props) {
       </div>
     </article>
   );
-}
+});

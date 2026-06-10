@@ -91,6 +91,7 @@ model AuditLog {
   ip          String?
   createdAt   DateTime @default(now()) @map("created_at")
 
+  @@index([createdAt])
   @@map("audit_logs")
 }
 
@@ -108,6 +109,8 @@ model RoomNode {
   updatedById String?   @map("updated_by")
   updatedBy   User?     @relation("RoomNodeUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
+  @@index([parentId])
+  @@index([locationId])
   @@map("room_nodes")
 }
 
@@ -147,6 +150,7 @@ model UserLocation {
   createdAt  DateTime @default(now()) @map("created_at")
 
   @@unique([userId, locationId])
+  @@index([userId])
   @@map("user_locations")
 }
 
@@ -188,6 +192,14 @@ model Device {
   scheduledInventory ScheduledInventory?
   transferRecord     TransferRecord?
 
+  @@index([locationId])
+  @@index([areaId])
+  @@index([roomId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@index([maintenanceStatus])
+  @@index([inventoryStatus])
   @@map("devices")
 }
 
@@ -223,6 +235,7 @@ model Attachment {
   updatedById String?  @map("updated_by")
   updatedBy   User?    @relation("AttachmentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
+  @@index([deviceId])
   @@map("attachments")
 }
 
@@ -242,6 +255,7 @@ model MaintenanceRecord {
   updatedBy   User?    @relation("MaintenanceUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   attachments MaintenanceAttachment[]
 
+  @@index([deviceId])
   @@map("maintenance_records")
 }
 
@@ -334,6 +348,7 @@ model InventoryRecord {
   updatedBy   User?    @relation("InventoryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   attachments InventoryAttachment[]
 
+  @@index([deviceId])
   @@map("inventory_records")
 }
 
