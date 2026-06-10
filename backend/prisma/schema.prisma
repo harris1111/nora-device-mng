@@ -110,7 +110,6 @@ model RoomNode {
   updatedBy   User?     @relation("RoomNodeUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([parentId])
-  @@index([locationId])
   @@map("room_nodes")
 }
 
