@@ -109,10 +109,29 @@ export default function NotificationBell() {
       if (isLeader) channel.postMessage({ type: 'leader-heartbeat' });
     }, 3000);
 
+    // Pause SSE when tab is hidden to reduce CPU on low-spec devices
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        // Tab went to background — close SSE if we're leader
+        if (isLeader && es) {
+          es.close();
+          es = null;
+          isLeader = false;
+        }
+      } else {
+        // Tab came back — try to become leader again
+        if (!isLeader) tryClaimLeadership();
+        // Always refresh data when tab becomes visible
+        void refresh();
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       clearInterval(heartbeatInterval);
       clearTimeout(leaderCheckTimer);
       channel.removeEventListener('message', handleChannelMessage);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       channel.close();
       if (es) es.close();
     };

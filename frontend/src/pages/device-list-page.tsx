@@ -372,8 +372,8 @@ export default function DeviceListPage() {
       {/* Grid View */}
       {!loading && devices.length > 0 && view === 'grid' && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
-          {devices.map((device, index) => (
-            <div key={device.id} className="animate-slide-up" style={{ animationDelay: `${Math.min(index * 50, 500)}ms`, animationFillMode: 'both' }}>
+          {devices.map((device) => (
+            <div key={device.id} className="animate-slide-up">
               <DeviceCard
                 device={device}
                 selectionControl={hasBulkActions ? (
