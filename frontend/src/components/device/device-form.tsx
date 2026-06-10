@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getLocations, Device, Location, attachmentFileUrl } from '../../api/device-api';
+import { getLocations, getAreas, Device, Location, Area, attachmentFileUrl } from '../../api/device-api';
 import FormTextInput from '../ui/form-text-input';
 import VnDatePicker from '../ui/vn-date-picker';
 import { DEVICE_TYPES, STATUS_BY_TYPE } from './device-constants';
@@ -15,6 +15,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
   const [name, setName] = useState(initialData?.name || '');
   const [storeId, setStoreId] = useState(initialData?.store_id || '');
   const [locationId, setLocationId] = useState(initialData?.location_id || '');
+  const [areaId, setAreaId] = useState(initialData?.area_id || '');
 
   const [ownedBy, setOwnedBy] = useState(initialData?.owned_by || '');
   const [serialNumber, setSerialNumber] = useState(initialData?.serial_number || '');
@@ -29,6 +30,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
   const [lossDate, setLossDate] = useState(initialData?.loss_date?.split('T')[0] || '');
   const [warrantyPeriod, setWarrantyPeriod] = useState<string>(initialData?.warranty_period || '');
   const [locations, setLocations] = useState<Location[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +40,12 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
   const [primaryPreview, setPrimaryPreview] = useState<string | null>(null);
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
 
+  // Room-assigned devices should not show area field (area is auto-set by room)
+  const isRoomDevice = Boolean(initialData?.room_id);
+
   useEffect(() => {
     getLocations().then(setLocations).catch(() => setError('Không thể tải danh sách đơn vị trực thuộc.'));
+    getAreas().then(setAreas).catch(() => {});
   }, []);
 
   // Reset status when type changes
@@ -62,6 +68,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
       fd.append('store_id', storeId.trim());
       fd.append('name', name.trim());
       fd.append('location_id', locationId);
+      if (!isRoomDevice && areaId) fd.append('area_id', areaId);
 
       fd.append('owned_by', ownedBy);
       fd.append('serial_number', serialNumber.trim());
@@ -146,6 +153,24 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
               </div>
             </div>
 
+            {/* Area dropdown — hidden for room-assigned devices */}
+            {!isRoomDevice && (
+              <div className="space-y-1.5 focus-within:text-amber-600 focus-within:font-medium transition-all">
+                <label htmlFor="area_id" className="block text-sm text-slate-700 font-semibold mb-1">
+                  Khu vực
+                </label>
+                <div className="relative">
+                  <select id="area_id" value={areaId} onChange={(e) => setAreaId(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all appearance-none cursor-pointer">
+                    <option value="">-- Không chọn khu vực --</option>
+                    {areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <FormTextInput id="serial_number" label="Số serial" value={serialNumber} onChange={setSerialNumber} mono placeholder="Ví dụ: SN-2024-001" />
             <FormTextInput id="manufacturer" label="Nhà sản xuất" value={manufacturer} onChange={setManufacturer} placeholder="Ví dụ: Dell, HP, Mitsubishi" />

@@ -46,6 +46,7 @@ export function mapDevice(d: DeviceWithRelations) {
     location_name: d.location?.name || null,
     area_id: d.areaId ?? null,
     area_name: d.area?.name || null,
+    room_id: d.roomId ?? null,
     managed_by: d.managedBy,
     owned_by: d.ownedBy,
     serial_number: d.serialNumber,
