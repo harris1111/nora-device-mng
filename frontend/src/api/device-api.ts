@@ -303,10 +303,44 @@ export const markAllNotificationsRead = (): Promise<{ updated: number }> =>
 export const getLocations = (): Promise<Location[]> => api.get('/locations').then(r => r.data);
 
 // Export API
-export const exportDevicesExcel = (deviceIds: string[]): Promise<Blob> =>
-  api.post('/devices/export/excel', { device_ids: deviceIds }, { responseType: 'blob' }).then(r => r.data);
-export const exportDevicesExcelFiltered = (params?: DeviceListParams): Promise<Blob> =>
-  api.get('/devices/export/excel', { params, responseType: 'blob' }).then(r => r.data);
+export interface ExcelExportTypeOption {
+  key: string;
+  label: string;
+}
+
+export interface ExcelExportColumnOption {
+  key: string;
+  label: string;
+  default: boolean;
+}
+
+export interface ExcelExportOptionsResponse {
+  export_types: ExcelExportTypeOption[];
+  columns: Record<string, ExcelExportColumnOption[]>;
+}
+
+export interface ExcelExportRequestOptions {
+  exportType?: string;
+  columns?: string[];
+}
+
+export const getExcelExportOptions = (): Promise<ExcelExportOptionsResponse> =>
+  api.get('/devices/export/options').then(r => r.data);
+export const exportDevicesExcel = (deviceIds: string[], options: ExcelExportRequestOptions = {}): Promise<Blob> =>
+  api.post('/devices/export/excel', {
+    device_ids: deviceIds,
+    export_type: options.exportType,
+    columns: options.columns,
+  }, { responseType: 'blob' }).then(r => r.data);
+export const exportDevicesExcelFiltered = (params?: DeviceListParams, options: ExcelExportRequestOptions = {}): Promise<Blob> =>
+  api.get('/devices/export/excel', {
+    params: {
+      ...params,
+      export_type: options.exportType,
+      columns: options.columns?.join(','),
+    },
+    responseType: 'blob',
+  }).then(r => r.data);
 export const createLocation = (data: { name: string }): Promise<Location> => api.post('/locations', data).then(r => r.data);
 export const updateLocationApi = (id: string, data: { name: string }) => api.put(`/locations/${id}`, data).then(r => r.data);
 export const deleteLocationApi = (id: string) => api.delete(`/locations/${id}`);
