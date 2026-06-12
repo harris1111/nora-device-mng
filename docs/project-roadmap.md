@@ -1,6 +1,6 @@
 # Project Roadmap — Nora Device Manager
 
-Last updated: May 27, 2026
+Last updated: June 12, 2026
 
 ## Current Status: v2.0 Phase 3.5 Complete
 
@@ -98,13 +98,14 @@ Last updated: May 27, 2026
 
 ### Phase 5: Advanced Device Features (PLANNED)
 
-**Status**: 0% — Planned
+**Status**: In Progress — Excel device export rebuilt
 **Timeline**: Q2-Q3 2026
 
 - [ ] Batch device import (CSV)
 - [ ] Bulk device operations (status change, reassign location) — `roomId: null` filter applies
 - [ ] Advanced search + filters (include/exclude room devices)
 - [ ] Device history timeline (status transitions)
+- [x] Excel device export with report type selection, selectable columns, filters, and selected-row export
 - [ ] Export device data (CSV, PDF) — room-scoped devices not included by default
 - [ ] Email notifications on status changes
 

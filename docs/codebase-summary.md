@@ -226,6 +226,7 @@ Protected (PermissionRoute):
 - **Prisma 7**: adapter-based (`@prisma/adapter-pg`), schema push only (no migration files), `@ts-nocheck` stripped from generated files
 - **ESM backend**: `.js` extension required in all imports for TypeScript files
 - **QR codes**: Generated via `qrcode` lib on device create; stored as Bytes
+- **Excel export**: `/api/devices/export/options` exposes report types/columns; Excel GET/POST endpoints validate selected columns and keep workbook autofilter enabled
 - **Response mapper**: camelCase → snake_case, removes raw DB fields, adds S3 attachment URLs
 - **Location scoping**: USER role sees only assigned locations; enforced on devices, rooms, locations
 - **Permission middleware**: `requirePermission(module, action)` — returns 403 if no permission
