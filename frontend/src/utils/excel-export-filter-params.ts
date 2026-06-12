@@ -6,9 +6,8 @@ export function buildExcelPreviewParams(
   debouncedSearch: string,
   locationNameToId: Map<string, string>,
   areaNameToId: Map<string, string>,
-  limit: number,
 ): DeviceListParams {
-  const params: DeviceListParams = { page: 1, limit };
+  const params: DeviceListParams = {};
   if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
   if (filters.type) params.type = filters.type;
   if (filters.status) params.status = filters.status;

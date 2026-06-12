@@ -3,7 +3,7 @@ import {
   exportDevicesExcel,
   exportDevicesExcelFiltered,
   getAreas,
-  getDevices,
+  getExcelExportPreview,
   getExcelExportOptions,
   getLocations,
   getTransferUnits,
@@ -22,7 +22,6 @@ import { buildExcelPreviewParams } from '../utils/excel-export-filter-params';
 import { downloadExcel, getDefaultColumnKeys, mapByName } from '../utils/excel-export-page-utils';
 import { ExcelExportDenied, ExcelExportLoading } from '../components/export/excel-export-access-state';
 
-const PREVIEW_LIMIT = 100;
 const SEARCH_DEBOUNCE_MS = 300;
 
 export default function ExcelExportPage() {
@@ -79,14 +78,14 @@ export default function ExcelExportPage() {
   const areaNameToId = useMemo(() => mapByName(areas), [areas]);
 
   const apiParams = useMemo(
-    () => buildExcelPreviewParams(filters, debouncedSearch, locationNameToId, areaNameToId, PREVIEW_LIMIT),
+    () => buildExcelPreviewParams(filters, debouncedSearch, locationNameToId, areaNameToId),
     [areaNameToId, debouncedSearch, filters, locationNameToId],
   );
 
   const fetchPreview = useCallback(() => {
     setLoadingPreview(true);
     setError(null);
-    getDevices(apiParams)
+    getExcelExportPreview(apiParams)
       .then((res) => {
         setDevices(res.items);
         setTotal(res.total);

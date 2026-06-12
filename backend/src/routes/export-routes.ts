@@ -10,6 +10,7 @@ import {
   type DeviceExcelExportRecord,
 } from '../utils/device-excel-export-config.js';
 import { buildDevicesWorkbook } from '../utils/device-excel-workbook-builder.js';
+import { mapDevice } from '../utils/response-mapper.js';
 import { buildDeviceListWhere } from './device-routes.js';
 
 const router: ReturnType<typeof Router> = Router();
@@ -80,6 +81,28 @@ router.get('/options', requirePermission('devices', 'export'), (_req: Request, r
   });
 });
 
+router.get('/preview', requirePermission('devices', 'export'), async (req: Request, res: Response) => {
+  try {
+    const where = await buildDeviceListWhere(req);
+    const devices = await prisma.device.findMany({
+      where,
+      include: { location: true, area: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({
+      items: devices.map(mapDevice),
+      total: devices.length,
+      page: 1,
+      limit: devices.length,
+      pages: 1,
+    });
+  } catch (err) {
+    console.error('Excel preview error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // POST /api/devices/export/excel — export specific devices by ID (used by /export page)
 router.post('/excel', requirePermission('devices', 'export'), async (req: Request, res: Response) => {
   try {
@@ -89,11 +112,6 @@ router.post('/excel', requirePermission('devices', 'export'), async (req: Reques
       res.status(400).json({ error: 'device_ids array is required' });
       return;
     }
-    if (device_ids.length > 500) {
-      res.status(400).json({ error: 'Cannot export more than 500 devices at once' });
-      return;
-    }
-
     const where: Record<string, unknown> = { id: { in: device_ids }, roomId: null };
     const locationFilter = await getUserLocationFilter(req);
     if (locationFilter) where.AND = [locationFilter];

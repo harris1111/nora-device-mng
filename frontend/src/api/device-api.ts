@@ -326,6 +326,8 @@ export interface ExcelExportRequestOptions {
 
 export const getExcelExportOptions = (): Promise<ExcelExportOptionsResponse> =>
   api.get('/devices/export/options').then(r => r.data);
+export const getExcelExportPreview = (params?: DeviceListParams): Promise<PaginatedDevices> =>
+  api.get('/devices/export/preview', { params }).then(r => r.data);
 export const exportDevicesExcel = (deviceIds: string[], options: ExcelExportRequestOptions = {}): Promise<Blob> =>
   api.post('/devices/export/excel', {
     device_ids: deviceIds,
