@@ -23,6 +23,15 @@ const PERMISSION_MATRIX: Record<UserRole, Record<string, PermFlags>> = {
 };
 
 async function seed(): Promise<void> {
+  console.log('Checking if database has already been seeded...');
+
+  // Guard: skip seeding if already done
+  const isSeeded = await prisma.setting.findUnique({ where: { key: 'database_seeded' } });
+  if (isSeeded && isSeeded.value === 'true') {
+    console.log('Database already seeded. Skipping seeding.');
+    return;
+  }
+
   console.log('Seeding database...');
 
   // --- SAdmin user ---
@@ -91,7 +100,14 @@ async function seed(): Promise<void> {
     }
   }
   console.log(`Seeded devices (${createdCount} created, ${updatedCount} updated)`);
-  console.log('Seed completed!');
+
+  // Mark database as seeded so subsequent runs skip
+  await prisma.setting.upsert({
+    where: { key: 'database_seeded' },
+    update: { value: 'true' },
+    create: { key: 'database_seeded', value: 'true' },
+  });
+  console.log('Seed completed successfully!');
 }
 
 seed()

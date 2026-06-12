@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 import { getAreas, createArea, updateAreaApi, deleteAreaApi, Area } from '../api/device-api';
 import EmptyState from '../components/ui/empty-state';
@@ -26,6 +26,20 @@ export default function AreaListPage() {
   };
 
   useEffect(() => { fetchAreas(); }, []);
+
+  // Split areas into pre-configured and room-specific
+  const { preConfiguredAreas, roomSpecificAreas } = useMemo(() => {
+    const pre: Area[] = [];
+    const room: Area[] = [];
+    for (const a of areas) {
+      if (a.name.includes(' -> ')) {
+        room.push(a);
+      } else {
+        pre.push(a);
+      }
+    }
+    return { preConfiguredAreas: pre, roomSpecificAreas: room };
+  }, [areas]);
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -80,136 +94,218 @@ export default function AreaListPage() {
         </div>
       )}
 
-      {/* Add area form */}
-      <div className="panel p-5 sm:p-6 mb-6 border-l-4 border-indigo-400">
-        <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Thêm Khu vực mới
-        </h2>
-        <form onSubmit={handleCreate} className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Ví dụ: Khu A, Tầng 2, Khu kho..."
-            className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm text-sm"
-            required
-          />
-          <button
-            type="submit"
-            disabled={creating}
-            className="btn btn-primary whitespace-nowrap"
-          >
-            {creating ? 'Đang thêm...' : 'Tạo mới'}
-          </button>
-        </form>
+      {/* ── Pre-configured Areas Section ───────────────────── */}
+      <div className="mb-8">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-slate-800">Khu vực cấu hình</h2>
+            <p className="text-xs text-slate-400">Khu vực do người dùng tạo thủ công</p>
+          </div>
+        </div>
+
+        {/* Add area form */}
+        <div className="panel p-5 sm:p-6 mb-4 border-l-4 border-indigo-400">
+          <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+            <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Thêm Khu vực mới
+          </h3>
+          <form onSubmit={handleCreate} className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Ví dụ: Khu A, Tầng 2, Khu kho..."
+              className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm text-sm"
+              required
+            />
+            <button
+              type="submit"
+              disabled={creating}
+              className="btn btn-primary whitespace-nowrap"
+            >
+              {creating ? 'Đang thêm...' : 'Tạo mới'}
+            </button>
+          </form>
+        </div>
+
+        <div className="data-table-wrap">
+          {loading ? (
+             <div className="p-8 space-y-4 animate-pulse">
+               <div className="h-4 bg-slate-200 rounded w-full"></div>
+               <div className="h-4 bg-slate-200 rounded w-full"></div>
+               <div className="h-4 bg-slate-200 rounded w-full"></div>
+             </div>
+          ) : preConfiguredAreas.length === 0 ? (
+            <EmptyState
+              variant="subtle"
+              icon={
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+              }
+              title="Chưa có khu vực nào"
+              description="Thêm khu vực đầu tiên ở biểu mẫu bên trên."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50/80 border-b border-slate-100">
+                  <tr>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Tên khu vực</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest hidden sm:table-cell">Ngày tạo</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {preConfiguredAreas.map((area) => (
+                    <tr key={area.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-6 py-4">
+                        {editId === area.id ? (
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-indigo-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleUpdate(area.id);
+                              if (e.key === 'Escape') setEditId(null);
+                            }}
+                          />
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                              </svg>
+                            </div>
+                            <span className="font-bold text-slate-800">{area.name}</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-500 font-medium hidden sm:table-cell">
+                        {new Date(area.created_at).toLocaleDateString('vi-VN')}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {editId === area.id ? (
+                          <div className="flex gap-2 justify-end">
+                            <button
+                              onClick={() => handleUpdate(area.id)}
+                              disabled={saving}
+                              className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm"
+                              title="Lưu"
+                            >
+                               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                            </button>
+                            <button
+                              onClick={() => setEditId(null)}
+                              className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
+                              title="Hủy"
+                            >
+                               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 justify-end opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+                            <button
+                              onClick={() => { setEditId(area.id); setEditName(area.name); }}
+                              className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Sửa"
+                            >
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(area.id, area.name)}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Xóa"
+                            >
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="data-table-wrap">
-        {loading ? (
-           <div className="p-8 space-y-4 animate-pulse">
-             <div className="h-4 bg-slate-200 rounded w-full"></div>
-             <div className="h-4 bg-slate-200 rounded w-full"></div>
-             <div className="h-4 bg-slate-200 rounded w-full"></div>
-           </div>
-        ) : areas.length === 0 ? (
-          <EmptyState
-            variant="subtle"
-            icon={
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+      {/* ── Room-specific Areas Section ────────────────────── */}
+      {!loading && roomSpecificAreas.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
-            }
-            title="Chưa có khu vực nào"
-            description="Thêm khu vực đầu tiên ở biểu mẫu bên trên."
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50/80 border-b border-slate-100">
-                <tr>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Tên khu vực</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest hidden sm:table-cell">Ngày tạo</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {areas.map((area) => (
-                  <tr key={area.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-6 py-4">
-                      {editId === area.id ? (
-                        <input
-                          type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-indigo-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleUpdate(area.id);
-                            if (e.key === 'Escape') setEditId(null);
-                          }}
-                        />
-                      ) : (
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-800">Khu vực tự động theo sơ đồ phòng</h2>
+              <p className="text-xs text-slate-400">Được tạo và đồng bộ tự động từ cây phòng</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 p-3 mb-4 rounded-xl bg-amber-50 border border-amber-100 text-sm text-amber-700">
+            <svg className="h-4 w-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Các khu vực này được tạo tự động khi phòng được thêm hoặc cập nhật. Chúng đại diện cho đường dẫn phân cấp phòng và không thể chỉnh sửa trực tiếp.
+          </div>
+
+          <div className="data-table-wrap">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50/80 border-b border-slate-100">
+                  <tr>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Đường dẫn khu vực</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest hidden sm:table-cell">Ngày tạo</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {roomSpecificAreas.map((area) => (
+                    <tr key={area.id} className="transition-colors">
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0">
+                          <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
                           </div>
-                          <span className="font-bold text-slate-800">{area.name}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {area.name.split(' -> ').map((part, i, arr) => (
+                              <span key={i} className="flex items-center gap-1.5">
+                                <span className="font-semibold text-slate-700">{part}</span>
+                                {i < arr.length - 1 && (
+                                  <svg className="w-3 h-3 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                  </svg>
+                                )}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-500 font-medium hidden sm:table-cell">
-                      {new Date(area.created_at).toLocaleDateString('vi-VN')}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      {editId === area.id ? (
-                        <div className="flex gap-2 justify-end">
-                          <button
-                            onClick={() => handleUpdate(area.id)}
-                            disabled={saving}
-                            className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm"
-                            title="Lưu"
-                          >
-                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                          </button>
-                          <button
-                            onClick={() => setEditId(null)}
-                            className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
-                            title="Hủy"
-                          >
-                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2 justify-end opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
-                          <button
-                            onClick={() => { setEditId(area.id); setEditName(area.name); }}
-                            className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="Sửa"
-                          >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                          </button>
-                          <button
-                            onClick={() => handleDelete(area.id, area.name)}
-                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Xóa"
-                          >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-500 font-medium hidden sm:table-cell">
+                        {new Date(area.created_at).toLocaleDateString('vi-VN')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

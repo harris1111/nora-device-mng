@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { getLocations, type Area, type Device, type Location } from '../api/device-api';
+import { type Area, type Device, type Location } from '../api/device-api';
 import { ALL_STATUSES, DEVICE_TYPES, STATUS_BY_TYPE } from './device/device-constants';
 import VnDatePicker from './ui/vn-date-picker';
 
@@ -42,6 +42,7 @@ const INVENTORY_OPTIONS: { value: string; label: string }[] = [
 interface Props {
   filters: DeviceFilters;
   onChange: (filters: DeviceFilters) => void;
+  locations?: Location[];
   areas?: Area[];
   transferUnits?: string[];
   trailing?: ReactNode;
@@ -54,7 +55,7 @@ export function useDeviceFilter(devices: Device[], filters: DeviceFilters) {
       if (filters.type && device.type !== filters.type) return false;
       if (filters.status && device.status !== filters.status) return false;
       if (filters.location && device.location_name !== filters.location) return false;
-
+      if (filters.area && (device.area_name || '') !== filters.area) return false;
       if (filters.transferUnit && (device.owned_by || '') !== filters.transferUnit) return false;
       if (filters.maintenance && (device.maintenance_status || 'in_use') !== filters.maintenance) return false;
       if (filters.inventory && (device.inventory_status || 'in_use') !== filters.inventory) return false;
@@ -93,23 +94,20 @@ export function useDeviceFilter(devices: Device[], filters: DeviceFilters) {
 export default function DeviceFilterBar({
   filters,
   onChange,
+  locations,
   areas = [],
   transferUnits = [],
   trailing,
   isSearching = false,
 }: Props) {
-  const [locations, setLocations] = useState<Location[]>([]);
+  const effectiveLocations = locations ?? [];
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
-    getLocations().then(setLocations).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (filters.location || filters.transferUnit || filters.maintenance || filters.inventory || filters.dateFrom || filters.dateTo) {
+    if (filters.location || filters.area || filters.transferUnit || filters.maintenance || filters.inventory || filters.dateFrom || filters.dateTo) {
       setShowAdvanced(true);
     }
-  }, [filters.location, filters.transferUnit, filters.maintenance, filters.inventory, filters.dateFrom, filters.dateTo]);
+  }, [filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.inventory, filters.dateFrom, filters.dateTo]);
 
   const set = (patch: Partial<DeviceFilters>) => {
     const next = { ...filters, ...patch };
@@ -121,13 +119,13 @@ export default function DeviceFilterBar({
     ? STATUS_BY_TYPE[filters.type] || []
     : Object.entries(ALL_STATUSES).map(([value, { label }]) => ({ value, label }));
 
-  const activeAdvancedCount = [filters.location, filters.transferUnit, filters.maintenance, filters.inventory, filters.dateFrom, filters.dateTo].filter(Boolean).length;
-  const hasAnyFilter = !!(filters.search || filters.type || filters.status || filters.location || filters.transferUnit || filters.maintenance || filters.inventory || filters.dateFrom || filters.dateTo);
+  const activeAdvancedCount = [filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.inventory, filters.dateFrom, filters.dateTo].filter(Boolean).length;
+  const hasAnyFilter = !!(filters.search || filters.type || filters.status || filters.location || filters.area || filters.transferUnit || filters.maintenance || filters.inventory || filters.dateFrom || filters.dateTo);
   const activeFilterLabels = [
     filters.type && `Loại: ${DEVICE_TYPES.find((item) => item.value === filters.type)?.label || filters.type}`,
     filters.status && `Trạng thái: ${statusOptions.find((item) => item.value === filters.status)?.label || filters.status}`,
     filters.location && `Đơn vị: ${filters.location}`,
-
+    filters.area && `Khu vực: ${filters.area}`,
     filters.transferUnit && `Chuyển giao: ${filters.transferUnit}`,
     filters.maintenance && `Bảo trì: ${MAINTENANCE_OPTIONS.find((item) => item.value === filters.maintenance)?.label || filters.maintenance}`,
     filters.inventory && `Kiểm kê: ${INVENTORY_OPTIONS.find((item) => item.value === filters.inventory)?.label || filters.inventory}`,
@@ -291,7 +289,7 @@ export default function DeviceFilterBar({
                   className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 transition-shadow focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">Tất cả đơn vị</option>
-                  {locations.map((location) => (
+                  {effectiveLocations.map((location) => (
                     <option key={location.id} value={location.name}>
                       {location.name}
                     </option>
@@ -299,6 +297,21 @@ export default function DeviceFilterBar({
                 </select>
               </label>
 
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Khu vực</span>
+                <select
+                  value={filters.area}
+                  onChange={(event) => set({ area: event.target.value })}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 transition-shadow focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Tất cả khu vực</option>
+                  {areas.map((area) => (
+                    <option key={area.id} value={area.name}>
+                      {area.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Đơn vị chuyển giao</span>

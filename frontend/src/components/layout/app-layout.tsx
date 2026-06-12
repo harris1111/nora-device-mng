@@ -5,6 +5,8 @@ import { useCan } from '../../hooks/use-permission';
 import NotificationBell from '../notification/notification-bell';
 import SiteFooter from './site-footer';
 
+declare const __COMMIT_HASH__: string;
+
 interface Props {
   children: ReactNode;
 }
@@ -317,6 +319,9 @@ export default function AppLayout({ children }: Props) {
                 </svg>
               </button>
             </div>
+          </div>
+          <div className="px-5 pb-3 text-[10px] font-mono text-slate-300 select-all" title="Build version">
+            {typeof __COMMIT_HASH__ !== 'undefined' ? __COMMIT_HASH__ : 'dev'}
           </div>
         </aside>
 

@@ -35,20 +35,106 @@ export default function NotificationBell() {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  // Subscribe to SSE stream. Cookie auth piggybacks via same-origin EventSource.
+  // Share a single SSE connection across browser tabs via BroadcastChannel
   useEffect(() => {
-    const es = new EventSource('/api/notifications/stream', { withCredentials: true });
-    es.addEventListener('notification', (ev) => {
-      try {
-        const n = JSON.parse((ev as MessageEvent).data) as NotificationItem;
-        setItems(prev => [n, ...prev].slice(0, 30));
-        if (!n.is_read) setUnread(c => c + 1);
-      } catch { /* ignore malformed */ }
-    });
-    es.addEventListener('notification:read', () => { void refresh(); });
-    es.addEventListener('notification:read-all', () => { setUnread(0); void refresh(); });
-    es.onerror = () => { /* EventSource auto-reconnects */ };
-    return () => es.close();
+    const channel = new BroadcastChannel('nora-sse');
+    let es: EventSource | null = null;
+    let isLeader = false;
+    let leaderCheckTimer: ReturnType<typeof setTimeout>;
+
+    function becomeLeader() {
+      if (isLeader) return;
+      isLeader = true;
+      es = new EventSource('/api/notifications/stream', { withCredentials: true });
+      es.addEventListener('notification', (ev) => {
+        channel.postMessage({ type: 'notification', data: (ev as MessageEvent).data });
+        try {
+          const n = JSON.parse((ev as MessageEvent).data) as NotificationItem;
+          setItems(prev => [n, ...prev].slice(0, 30));
+          if (!n.is_read) setUnread(c => c + 1);
+        } catch { /* ignore malformed */ }
+      });
+      es.addEventListener('notification:read', () => {
+        channel.postMessage({ type: 'notification:read' });
+        void refresh();
+      });
+      es.addEventListener('notification:read-all', () => {
+        channel.postMessage({ type: 'notification:read-all' });
+        setUnread(0); void refresh();
+      });
+      es.onerror = () => { /* EventSource auto-reconnects */ };
+    }
+
+    function handleChannelMessage(ev: MessageEvent) {
+      const msg = ev.data;
+      if (msg.type === 'leader-claim' && !isLeader) {
+        // Another tab claimed leadership; stay as follower
+        clearTimeout(leaderCheckTimer);
+        return;
+      }
+      if (msg.type === 'leader-heartbeat' && !isLeader) {
+        clearTimeout(leaderCheckTimer);
+        leaderCheckTimer = setTimeout(tryClaimLeadership, 5000);
+        return;
+      }
+      if (isLeader) return; // Leader handles events from its own EventSource
+      if (msg.type === 'notification') {
+        try {
+          const n = JSON.parse(msg.data) as NotificationItem;
+          setItems(prev => [n, ...prev].slice(0, 30));
+          if (!n.is_read) setUnread(c => c + 1);
+        } catch { /* ignore */ }
+      } else if (msg.type === 'notification:read') {
+        void refresh();
+      } else if (msg.type === 'notification:read-all') {
+        setUnread(0); void refresh();
+      }
+    }
+
+    function tryClaimLeadership() {
+      channel.postMessage({ type: 'leader-claim' });
+      // Small delay — if no one objects, become leader
+      setTimeout(() => {
+        if (!isLeader) becomeLeader();
+      }, 200);
+    }
+
+    channel.addEventListener('message', handleChannelMessage);
+
+    // Try to claim leadership on mount
+    tryClaimLeadership();
+
+    // If we're leader, send heartbeats so followers know we're alive
+    const heartbeatInterval = setInterval(() => {
+      if (isLeader) channel.postMessage({ type: 'leader-heartbeat' });
+    }, 3000);
+
+    // Pause SSE when tab is hidden to reduce CPU on low-spec devices
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        // Tab went to background — close SSE if we're leader
+        if (isLeader && es) {
+          es.close();
+          es = null;
+          isLeader = false;
+        }
+      } else {
+        // Tab came back — try to become leader again
+        if (!isLeader) tryClaimLeadership();
+        // Always refresh data when tab becomes visible
+        void refresh();
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(heartbeatInterval);
+      clearTimeout(leaderCheckTimer);
+      channel.removeEventListener('message', handleChannelMessage);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      channel.close();
+      if (es) es.close();
+    };
   }, [refresh]);
 
   // Close dropdown on outside click

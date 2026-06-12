@@ -11,6 +11,7 @@ export interface Device {
   location_name: string | null;
   area_id: string | null;
   area_name: string | null;
+  room_id: string | null;
   owned_by: string | null;
   serial_number: string | null;
   manufacturer: string | null;
