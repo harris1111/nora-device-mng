@@ -1,13 +1,15 @@
-export const DEVICE_TYPES: string[] = ['tai_san', 'cong_cu_dung_cu'];
+export const DEVICE_TYPES: string[] = ['tai_san', 'cong_cu_dung_cu', 'system'];
 
 export const STATUS_BY_TYPE: Record<string, string[]> = {
   tai_san: ['active', 'under_repair', 'needs_inventory', 'decommissioned'],
   cong_cu_dung_cu: ['active', 'disposed', 'lost'],
+  system: ['active', 'under_repair', 'decommissioned'],
 };
 
 export const TYPE_LABELS: Record<string, string> = {
   tai_san: 'Tài sản',
   cong_cu_dung_cu: 'Công cụ dụng cụ',
+  system: 'Hệ thống',
 };
 
 export const STATUS_LABELS: Record<string, string> = {

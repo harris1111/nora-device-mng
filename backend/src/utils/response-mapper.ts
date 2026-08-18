@@ -54,6 +54,7 @@ export function mapDevice(d: DeviceWithRelations) {
     manufacturer: d.manufacturer,
     description: d.description,
     type: d.type,
+    systemCategory: (d as any).systemCategory ?? null,
     status: d.status,
     disposal_date: d.disposalDate?.toISOString() || null,
     loss_date: d.lossDate?.toISOString() || null,
