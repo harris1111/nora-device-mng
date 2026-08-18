@@ -261,40 +261,42 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
             <FormTextInput id="description" label="Ghi chú" value={description} onChange={setDescription} colSpan2 multiline placeholder="Mô tả thêm về thiết bị..." />
 
             {/* Primary Image section */}
-            <div className="md:col-span-2 pt-4 border-t border-slate-100 mt-2">
-              <p className="text-sm font-semibold text-slate-700 mb-3">Hình ảnh chính (tùy chọn)</p>
-              {(primaryPreview || (!primaryImage && initialData?.primary_attachment_id)) ? (
-                <div className="flex items-start gap-4">
-                  <img
-                    src={primaryPreview || attachmentFileUrl(initialData!.primary_attachment_id!)}
-                    alt="Preview"
-                    className="w-32 h-32 object-cover rounded-xl border border-slate-200"
-                  />
-                  <div className="flex flex-col gap-2">
-                    <label className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors border border-slate-200">
-                      Đổi ảnh
-                      <input type="file" accept="image/*" className="hidden" onChange={e => {
-                        const file = e.target.files?.[0];
-                        if (file) { setPrimaryImage(file); setPrimaryPreview(URL.createObjectURL(file)); }
-                      }} />
-                    </label>
-                    <button type="button" onClick={() => { setPrimaryImage(null); setPrimaryPreview(null); }}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg text-red-600 hover:bg-red-50 transition-colors border border-red-200">
-                      Xóa
-                    </button>
+            {!isSystem && (
+              <div className="md:col-span-2 pt-4 border-t border-slate-100 mt-2">
+                <p className="text-sm font-semibold text-slate-700 mb-3">Hình ảnh chính (tùy chọn)</p>
+                {(primaryPreview || (!primaryImage && initialData?.primary_attachment_id)) ? (
+                  <div className="flex items-start gap-4">
+                    <img
+                      src={primaryPreview || attachmentFileUrl(initialData!.primary_attachment_id!)}
+                      alt="Preview"
+                      className="w-32 h-32 object-cover rounded-xl border border-slate-200"
+                    />
+                    <div className="flex flex-col gap-2">
+                      <label className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors border border-slate-200">
+                        Đổi ảnh
+                        <input type="file" accept="image/*" className="hidden" onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) { setPrimaryImage(file); setPrimaryPreview(URL.createObjectURL(file)); }
+                        }} />
+                      </label>
+                      <button type="button" onClick={() => { setPrimaryImage(null); setPrimaryPreview(null); }}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg text-red-600 hover:bg-red-50 transition-colors border border-red-200">
+                        Xóa
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 transition-all">
-                  <svg className="w-8 h-8 text-slate-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                  <span className="text-xs text-slate-400">JPG, PNG, WebP, GIF (≤ 10MB)</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) { setPrimaryImage(file); setPrimaryPreview(URL.createObjectURL(file)); }
-                  }} />
-                </label>
-              )}
-            </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 transition-all">
+                    <svg className="w-8 h-8 text-slate-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <span className="text-xs text-slate-400">JPG, PNG, WebP, GIF (≤ 10MB)</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) { setPrimaryImage(file); setPrimaryPreview(URL.createObjectURL(file)); }
+                    }} />
+                  </label>
+                )}
+              </div>
+            )}
 
             {/* Attachments section */}
             <div className="md:col-span-2 pt-4 border-t border-slate-100 mt-2">

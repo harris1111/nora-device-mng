@@ -278,8 +278,8 @@ export default function DeviceDetailPage() {
         />
       </div>
 
-      {/* Scheduled maintenance + maintenance task history (NEW) — only for tai_san */}
-      {device.type === 'tai_san' && (
+      {/* Scheduled maintenance + maintenance task history (NEW) — only for tai_san and system */}
+      {['tai_san', 'system'].includes(device.type) && (
         <MaintenanceSection
           deviceId={device.id}
           maintenanceStatus={device.maintenance_status}
@@ -287,8 +287,8 @@ export default function DeviceDetailPage() {
         />
       )}
 
-      {/* Repair history (formerly "Lịch sử bảo trì") — only for tai_san */}
-      {device.type === 'tai_san' && (
+      {/* Repair history (formerly "Lịch sử bảo trì") — only for tai_san and system */}
+      {['tai_san', 'system'].includes(device.type) && (
         <div className="card-glass border border-slate-100 shadow-sm p-6 md:p-8 space-y-4">
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
