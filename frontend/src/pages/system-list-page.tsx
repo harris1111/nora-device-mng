@@ -37,6 +37,7 @@ function readStateFromParams(params: URLSearchParams): { filters: DeviceFilters;
     filters: {
       search: params.get('search') || '',
       type: params.get('type') || '',
+      systemCategory: params.get('system_category') || '',
       status: params.get('status') || '',
       location: params.get('location') || '',
       area: params.get('area') || '',
@@ -55,6 +56,7 @@ function writeStateToParams(filters: DeviceFilters, page: number, limit: number)
   const next = new URLSearchParams();
   if (filters.search) next.set('search', filters.search);
   if (filters.type) next.set('type', filters.type);
+  if (filters.systemCategory) next.set('system_category', filters.systemCategory);
   if (filters.status) next.set('status', filters.status);
   if (filters.location) next.set('location', filters.location);
   if (filters.area) next.set('area', filters.area);
@@ -129,6 +131,7 @@ export default function SystemListPage() {
   const apiParams: DeviceListParams = useMemo(() => {
     const p: DeviceListParams = { page, limit, type: 'system' };
     if (debouncedSearch.trim()) p.search = debouncedSearch.trim();
+    if (filters.systemCategory) p.systemCategory = filters.systemCategory;
     if (filters.status) p.status = filters.status;
     if (filters.location) {
       const id = locationNameToId.get(filters.location);
@@ -144,7 +147,7 @@ export default function SystemListPage() {
     if (filters.dateFrom) p.date_from = filters.dateFrom;
     if (filters.dateTo) p.date_to = filters.dateTo;
     return p;
-  }, [page, limit, debouncedSearch, filters.type, filters.status, filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.inventory, filters.dateFrom, filters.dateTo, locationNameToId, areaNameToId]);
+  }, [page, limit, debouncedSearch, filters.systemCategory, filters.type, filters.status, filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.inventory, filters.dateFrom, filters.dateTo, locationNameToId, areaNameToId]);
 
   // Sync state → URL whenever filters or pagination change
   useEffect(() => {
@@ -171,12 +174,12 @@ export default function SystemListPage() {
   // When any filter input (or page size) changes, reset to page 1
   const prevFilterKey = useRef<string>('');
   useEffect(() => {
-    const key = JSON.stringify([debouncedSearch, filters.type, filters.status, filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.inventory, filters.dateFrom, filters.dateTo, limit]);
+    const key = JSON.stringify([debouncedSearch, filters.systemCategory, filters.type, filters.status, filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.inventory, filters.dateFrom, filters.dateTo, limit]);
     if (prevFilterKey.current && prevFilterKey.current !== key && page !== 1) {
       setPage(1);
     }
     prevFilterKey.current = key;
-  }, [debouncedSearch, filters.type, filters.status, filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.inventory, filters.dateFrom, filters.dateTo, limit, page]);
+  }, [debouncedSearch, filters.systemCategory, filters.type, filters.status, filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.inventory, filters.dateFrom, filters.dateTo, limit, page]);
 
   const handleViewChange = (newView: string) => {
     setView(newView);
@@ -285,6 +288,7 @@ export default function SystemListPage() {
         areas={areas}
         transferUnits={transferUnits}
         isSearching={isSearchPending}
+        isSystemView={true}
       />
 
       {/* Bulk Action Toolbar */}
@@ -410,15 +414,17 @@ export default function SystemListPage() {
                       />
                     )}
 
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm">
-                      {thumbUrl ? (
-                        <img src={thumbUrl} alt={device.name} loading="lazy" className="h-full w-full object-cover" />
-                      ) : (
-                        <svg className="h-7 w-7 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      )}
-                    </div>
+                    {device.type !== 'system' && (
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm">
+                        {thumbUrl ? (
+                          <img src={thumbUrl} alt={device.name} loading="lazy" className="h-full w-full object-cover" />
+                        ) : (
+                          <svg className="h-7 w-7 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        )}
+                      </div>
+                    )}
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-3">
@@ -440,7 +446,7 @@ export default function SystemListPage() {
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         <DeviceStatusBadge status={device.status} />
                         <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                          {getTypeName(device.type)}
+                          {device.type === 'system' ? (device.system_category || 'Hệ thống') : getTypeName(device.type)}
                         </span>
                       </div>
 

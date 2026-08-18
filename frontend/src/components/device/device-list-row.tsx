@@ -55,7 +55,7 @@ export default memo(function DeviceListRow({ device, selectable, selected, onTog
       </td>
       <td className="px-6 py-4">
         <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm">
-          {getTypeName(device.type)}
+          {device.type === 'system' ? (device.system_category || 'Hệ thống') : getTypeName(device.type)}
         </span>
       </td>
       <td className="px-6 py-4">
