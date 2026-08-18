@@ -23,6 +23,7 @@ export interface Device {
   disposal_date: string | null;
   loss_date: string | null;
   warranty_period: string | null;
+  systemCategory?: string | null;
   maintenance_status?: 'in_use' | 'needs_maintenance';
   inventory_status?: 'in_use' | 'needs_inventory';
   primary_attachment_id: string | null;
@@ -126,6 +127,7 @@ export interface DeviceListParams {
   inventory_status?: string;
   date_from?: string;
   date_to?: string;
+  systemCategory?: string;
 }
 
 export interface PaginatedDevices {

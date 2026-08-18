@@ -7,6 +7,7 @@ import AppLayout from './components/layout/app-layout';
 import LoginPage from './pages/login-page';
 import NotFoundPage from './pages/not-found-page';
 import DeviceListPage from './pages/device-list-page';
+import SystemListPage from './pages/system-list-page';
 import DeviceCreatePage from './pages/device-create-page';
 import DeviceDetailPage from './pages/device-detail-page';
 import DeviceEditPage from './pages/device-edit-page';
@@ -56,6 +57,11 @@ export default function App() {
               <Route path="/devices/new" element={<DeviceCreatePage />} />
               <Route path="/devices/:id" element={<DeviceDetailPage />} />
               <Route path="/devices/:id/edit" element={<DeviceEditPage />} />
+              
+              <Route path="/systems" element={<SystemListPage />} />
+              <Route path="/systems/new" element={<DeviceCreatePage />} />
+              <Route path="/systems/:id" element={<DeviceDetailPage />} />
+              <Route path="/systems/:id/edit" element={<DeviceEditPage />} />
               <Route element={<PermissionRoute module="rooms" action="view" />}>
                 <Route path="/rooms" element={<RoomTreePage />} />
                 <Route path="/rooms/:roomId" element={<RoomTreePage />} />

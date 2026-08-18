@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Multi-Tab Performance Tester</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 24px; }
+    h1 { font-size: 1.5rem; margin-bottom: 8px; color: #38bdf8; }
+    .subtitle { color: #94a3b8; margin-bottom: 24px; font-size: 0.9rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+    .card h2 { font-size: 1rem; color: #38bdf8; margin-bottom: 12px; }
+    .metric { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #334155; }
+    .metric:last-child { border-bottom: none; }
+    .metric-label { color: #94a3b8; font-size: 0.85rem; }
+    .metric-value { font-weight: 700; font-size: 0.95rem; }
+    .good { color: #4ade80; }
+    .warn { color: #fbbf24; }
+    .bad { color: #f87171; }
+    .controls { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+    button { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; transition: background 0.2s; }
+    button:hover { background: #2563eb; }
+    button:disabled { background: #475569; cursor: not-allowed; }
+    button.danger { background: #ef4444; }
+    button.danger:hover { background: #dc2626; }
+    #log { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px; max-height: 400px; overflow-y: auto; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.8rem; line-height: 1.6; white-space: pre-wrap; }
+    .log-entry { padding: 2px 0; }
+    .log-time { color: #64748b; }
+    .log-info { color: #38bdf8; }
+    .log-warn { color: #fbbf24; }
+    .log-error { color: #f87171; }
+    .log-success { color: #4ade80; }
+    .sse-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+    .sse-connected { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+    .sse-disconnected { background: #ef4444; }
+    .progress-bar { height: 4px; background: #334155; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); transition: width 0.3s; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #334155; font-size: 0.85rem; }
+    th { color: #94a3b8; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>🔬 Multi-Tab Performance Tester</h1>
+  <p class="subtitle">Tests how the app behaves with multiple concurrent browser tabs. Target: <code>http://localhost:5173</code></p>
+
+  <div class="controls">
+    <button onclick="runFullTest()">▶ Run Full Diagnostic</button>
+    <button onclick="testSSEConnections()">📡 Test SSE Connections</button>
+    <button onclick="testAPIFlood()">🌊 Test API Flood (4 tabs)</button>
+    <button onclick="testMemoryProfile()">🧠 Memory Profile</button>
+    <button onclick="testRoomTreeEndpoint()">🌳 Test Room Tree (N+1)</button>
+    <button class="danger" onclick="clearLog()">🗑 Clear Log</button>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>📊 Current Tab Metrics</h2>
+      <div class="metric">
+        <span class="metric-label">Memory (JS Heap)</span>
+        <span class="metric-value" id="mem-heap">--</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Memory (Total)</span>
+        <span class="metric-value" id="mem-total">--</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">DOM Nodes</span>
+        <span class="metric-value" id="dom-nodes">--</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Active SSE Connections</span>
+        <span class="metric-value" id="sse-count">--</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Open Connections (est.)</span>
+        <span class="metric-value" id="conn-count">--</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>⚡ API Response Times</h2>
+      <div class="metric">
+        <span class="metric-label">GET /api/devices (list)</span>
+        <span class="metric-value" id="api-devices">--</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">GET /api/rooms/tree</span>
+        <span class="metric-value" id="api-rooms-tree">--</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">GET /api/locations</span>
+        <span class="metric-value" id="api-locations">--</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">GET /api/notifications</span>
+        <span class="metric-value" id="api-notifications">--</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Concurrent (4x parallel)</span>
+        <span class="metric-value" id="api-concurrent">--</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom: 24px;">
+    <h2>📋 Test Results</h2>
+    <table id="results-table">
+      <thead>
+        <tr><th>Test</th><th>Result</th><th>Details</th><th>Severity</th></tr>
+      </thead>
+      <tbody id="results-body"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>📝 Test Log</h2>
+    <div id="log"></div>
+  </div>
+
+  <script>
+    const BASE = 'http://localhost:5173';
+    const API = 'http://localhost:13000';
+
+    function log(msg, level = 'info') {
+      const el = document.getElementById('log');
+      const time = new Date().toISOString().slice(11, 23);
+      el.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span> <span class="log-${level}">${msg}</span></div>`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById('log').innerHTML = '';
+      document.getElementById('results-body').innerHTML = '';
+    }
+
+    function addResult(test, result, details, severity) {
+      const tbody = document.getElementById('results-body');
+      const colors = { LOW: 'good', MEDIUM: 'warn', HIGH: 'bad', CRITICAL: 'bad' };
+      tbody.innerHTML += `<tr>
+        <td>${test}</td>
+        <td class="${colors[severity] || 'info'}">${result}</td>
+        <td>${details}</td>
+        <td class="${colors[severity] || ''}">${severity}</td>
+      </tr>`;
+    }
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    function colorTime(ms) {
+      if (ms < 200) return `<span class="good">${ms}ms</span>`;
+      if (ms < 1000) return `<span class="warn">${ms}ms</span>`;
+      return `<span class="bad">${ms}ms</span>`;
+    }
+
+    // Update current tab metrics
+    function updateMetrics() {
+      if (performance.memory) {
+        const heap = performance.memory.usedJSHeapSize;
+        const total = performance.memory.totalJSHeapSize;
+        document.getElementById('mem-heap').innerHTML = `<span class="${heap > 50e6 ? 'bad' : heap > 20e6 ? 'warn' : 'good'}">${formatBytes(heap)}</span>`;
+        document.getElementById('mem-total').innerHTML = formatBytes(total);
+      } else {
+        document.getElementById('mem-heap').textContent = 'N/A (not Chrome)';
+      }
+      document.getElementById('dom-nodes').textContent = document.querySelectorAll('*').length;
+    }
+    setInterval(updateMetrics, 2000);
+    updateMetrics();
+
+    // Time an API call
+    async function timeAPI(url, label) {
+      const start = performance.now();
+      try {
+        const res = await fetch(url, { credentials: 'include' });
+        const elapsed = Math.round(performance.now() - start);
+        const data = await res.json();
+        const size = JSON.stringify(data).length;
+        log(`${label}: ${elapsed}ms (${res.status}) payload=${formatBytes(size)}`, elapsed > 1000 ? 'warn' : 'info');
+        return { elapsed, status: res.status, size, data };
+      } catch (err) {
+        const elapsed = Math.round(performance.now() - start);
+        log(`${label}: FAILED after ${elapsed}ms — ${err.message}`, 'error');
+        return { elapsed, status: 0, size: 0, error: err.message };
+      }
+    }
+
+    // Test 1: SSE Connection behavior
+    async function testSSEConnections() {
+      log('=== SSE CONNECTION TEST ===', 'info');
+      log('Opening 4 SSE connections to simulate 4 browser tabs...', 'info');
+
+      const connections = [];
+      const results = [];
+
+      for (let i = 0; i < 4; i++) {
+        const start = performance.now();
+        try {
+          const es = new EventSource(`${BASE}/api/notifications/stream`, { withCredentials: true });
+          connections.push(es);
+
+          await new Promise((resolve, reject) => {
+            es.onopen = () => {
+              const elapsed = Math.round(performance.now() - start);
+              log(`  SSE #${i+1}: Connected in ${elapsed}ms`, 'success');
+              results.push({ connected: true, time: elapsed });
+              resolve();
+            };
+            es.onerror = (e) => {
+              const elapsed = Math.round(performance.now() - start);
+              // EventSource error could mean auth required (401) or connection refused
+              log(`  SSE #${i+1}: Error after ${elapsed}ms (may need auth cookie)`, 'warn');
+              results.push({ connected: false, time: elapsed, error: 'connection error' });
+              resolve();
+            };
+            setTimeout(() => {
+              log(`  SSE #${i+1}: Timeout after 5s`, 'error');
+              results.push({ connected: false, time: 5000, error: 'timeout' });
+              resolve();
+            }, 5000);
+          });
+        } catch (err) {
+          log(`  SSE #${i+1}: Failed — ${err.message}`, 'error');
+          results.push({ connected: false, error: err.message });
+        }
+      }
+
+      const connected = results.filter(r => r.connected).length;
+      const failed = results.filter(r => !r.connected).length;
+
+      document.getElementById('sse-count').innerHTML = `<span class="${connected > 2 ? 'bad' : 'good'}">${connected} active</span>`;
+
+      if (failed === 4) {
+        log('All SSE connections failed — likely need to login first at http://localhost:5173', 'warn');
+        addResult('SSE Connections', `${connected}/4 connected`, 'Auth required — login first', 'MEDIUM');
+      } else {
+        log(`SSE Result: ${connected} connections opened. Each tab opens 1 SSE = ${connected} persistent HTTP connections`, connected > 2 ? 'warn' : 'info');
+        addResult('SSE Per Tab', `${connected} connections`, 'Each tab opens its own SSE. 4 tabs = 4 persistent connections + 4 heartbeat intervals', 'CRITICAL');
+      }
+
+      // Keep connections open for 10s to measure server impact
+      log('Keeping SSE connections alive for 10s to observe server behavior...', 'info');
+      setTimeout(() => {
+        connections.forEach(es => es.close());
+        log(`Closed all ${connections.length} SSE connections`, 'info');
+        document.getElementById('sse-count').textContent = '0';
+      }, 10000);
+    }
+
+    // Test 2: API flood — simulate 4 tabs loading simultaneously
+    async function testAPIFlood() {
+      log('=== API FLOOD TEST (simulating 4 tabs loading) ===', 'info');
+      log('Each "tab" calls: /api/devices, /api/locations, /api/areas, /api/notifications, /api/me', 'info');
+
+      const endpoints = [
+        '/api/devices?page=1&limit=20',
+        '/api/locations',
+        '/api/areas',
+        '/api/notifications',
+        '/api/auth/me',
+      ];
+
+      // Sequential baseline first
+      log('\n--- Baseline: Single tab (sequential) ---', 'info');
+      let baselineTotal = 0;
+      for (const ep of endpoints) {
+        const r = await timeAPI(`${BASE}${ep}`, `  ${ep}`);
+        document.getElementById('api-devices').innerHTML = colorTime(r.elapsed);
+        baselineTotal += r.elapsed;
+      }
+      log(`  Baseline total: ${baselineTotal}ms for ${endpoints.length} requests`, 'info');
+
+      // Now simulate 4 tabs
+      log('\n--- 4 tabs (20 concurrent requests) ---', 'info');
+      const start = performance.now();
+      const allPromises = [];
+      for (let tab = 0; tab < 4; tab++) {
+        for (const ep of endpoints) {
+          allPromises.push(timeAPI(`${BASE}${ep}`, `  Tab${tab+1} ${ep}`));
+        }
+      }
+      const results = await Promise.all(allPromises);
+      const totalTime = Math.round(performance.now() - start);
+      const maxTime = Math.max(...results.map(r => r.elapsed));
+      const avgTime = Math.round(results.reduce((s, r) => s + r.elapsed, 0) / results.length);
+      const failedCount = results.filter(r => r.status !== 200).length;
+
+      log(`\n4-Tab Summary:`, 'info');
+      log(`  Total wall time: ${totalTime}ms`, totalTime > 5000 ? 'warn' : 'info');
+      log(`  Avg response: ${avgTime}ms`, avgTime > 500 ? 'warn' : 'info');
+      log(`  Slowest: ${maxTime}ms`, maxTime > 2000 ? 'error' : 'info');
+      log(`  Failed: ${failedCount}/${results.length}`, failedCount > 0 ? 'error' : 'info');
+
+      document.getElementById('api-concurrent').innerHTML = colorTime(totalTime);
+
+      // Each request hits requireAuth (1 DB query) + requirePermission (1 DB query) = 2 DB queries overhead
+      const overheadQueries = results.filter(r => r.status === 200).length * 2;
+      log(`  Auth/Permission DB overhead: ~${overheadQueries} extra DB queries (2 per request)`, 'warn');
+
+      addResult('API Flood (4 tabs)', `${totalTime}ms total`, 
+        `${results.length} requests, avg=${avgTime}ms, max=${maxTime}ms, ${overheadQueries} auth overhead queries`, 
+        maxTime > 2000 ? 'HIGH' : maxTime > 500 ? 'MEDIUM' : 'LOW');
+
+      // Degradation ratio
+      const degradation = (avgTime / (baselineTotal / endpoints.length)).toFixed(1);
+      log(`  Degradation factor: ${degradation}x slower vs single tab`, degradation > 3 ? 'error' : 'warn');
+      addResult('Concurrency Degradation', `${degradation}x`, 
+        `Avg response ${degradation}x slower with 4 concurrent tabs`, 
+        degradation > 3 ? 'HIGH' : degradation > 1.5 ? 'MEDIUM' : 'LOW');
+    }
+
+    // Test 3: Room tree endpoint (N+1 query test)
+    async function testRoomTreeEndpoint() {
+      log('=== ROOM TREE N+1 QUERY TEST ===', 'info');
+      
+      // Test /api/rooms (flat list)
+      const flatResult = await timeAPI(`${BASE}/api/rooms`, 'GET /api/rooms (flat)');
+      document.getElementById('api-locations').innerHTML = colorTime(flatResult.elapsed);
+
+      // Test /api/rooms/tree (recursive — the problematic one)
+      const treeResult = await timeAPI(`${BASE}/api/rooms/tree`, 'GET /api/rooms/tree');
+      document.getElementById('api-rooms-tree').innerHTML = colorTime(treeResult.elapsed);
+
+      if (flatResult.data && Array.isArray(flatResult.data)) {
+        const roomCount = flatResult.data.length;
+        // Each room in /api/rooms triggers: buildBreadcrumb (O(depth) queries) + computeDescendantSummary (O(children) queries)
+        const estimatedQueries = roomCount * 5; // conservative estimate
+        log(`  Room count: ${roomCount}`, 'info');
+        log(`  Estimated DB queries for /api/rooms: ~${estimatedQueries} (N+1 pattern)`, 'warn');
+        log(`  Estimated DB queries for /api/rooms/tree: ~${roomCount * 8}+ (recursive N+1)`, 'error');
+
+        addResult('Room Tree N+1', `${treeResult.elapsed}ms`, 
+          `${roomCount} rooms → ~${estimatedQueries}+ DB queries per call`, 
+          treeResult.elapsed > 1000 ? 'CRITICAL' : treeResult.elapsed > 300 ? 'HIGH' : 'MEDIUM');
+      }
+
+      // Now test with 4 concurrent calls (simulating 4 tabs on room page)
+      log('\nSimulating 4 tabs on room tree page...', 'info');
+      const start = performance.now();
+      const concurrent = await Promise.all([
+        timeAPI(`${BASE}/api/rooms/tree`, '  Tab1 /rooms/tree'),
+        timeAPI(`${BASE}/api/rooms/tree`, '  Tab2 /rooms/tree'),
+        timeAPI(`${BASE}/api/rooms/tree`, '  Tab3 /rooms/tree'),
+        timeAPI(`${BASE}/api/rooms/tree`, '  Tab4 /rooms/tree'),
+      ]);
+      const totalTime = Math.round(performance.now() - start);
+      const maxTime = Math.max(...concurrent.map(r => r.elapsed));
+      log(`  4x concurrent /rooms/tree: total=${totalTime}ms, slowest=${maxTime}ms`, maxTime > 2000 ? 'error' : 'warn');
+
+      addResult('4x Room Tree Concurrent', `${totalTime}ms`, 
+        `Slowest=${maxTime}ms. Each call runs O(N²) queries`, 
+        maxTime > 3000 ? 'CRITICAL' : 'HIGH');
+    }
+
+    // Test 4: Memory profiling
+    async function testMemoryProfile() {
+      log('=== MEMORY PROFILE TEST ===', 'info');
+
+      if (!performance.memory) {
+        log('performance.memory not available — use Chrome for memory profiling', 'warn');
+        addResult('Memory', 'N/A', 'Not available in this browser', 'LOW');
+        return;
+      }
+
+      const initial = performance.memory.usedJSHeapSize;
+      log(`Initial JS Heap: ${formatBytes(initial)}`, 'info');
+
+      // Simulate loading device list data
+      log('Simulating loading 100 devices (max page size)...', 'info');
+      const devResult = await timeAPI(`${BASE}/api/devices?page=1&limit=100`, 'Load 100 devices');
+
+      const afterDevices = performance.memory.usedJSHeapSize;
+      const deviceMemGrowth = afterDevices - initial;
+      log(`After device load: ${formatBytes(afterDevices)} (+${formatBytes(deviceMemGrowth)})`, 'info');
+
+      // Simulate what 4 tabs would use
+      const estimated4Tabs = deviceMemGrowth * 4;
+      log(`Estimated memory for 4 tabs with 100 devices each: ~${formatBytes(estimated4Tabs)}`, estimated4Tabs > 100e6 ? 'error' : 'warn');
+      log(`On 4GB RAM system, browser overhead ~1.5GB + OS ~1.5GB = ~1GB available`, 'warn');
+      log(`Each Chrome tab baseline: ~50-100MB. 4 tabs = 200-400MB before app data`, 'warn');
+
+      addResult('Memory Per Tab', formatBytes(afterDevices), 
+        `Growth: +${formatBytes(deviceMemGrowth)} after loading. 4 tabs ≈ ${formatBytes(estimated4Tabs)} for data alone`, 
+        estimated4Tabs > 200e6 ? 'HIGH' : 'MEDIUM');
+
+      document.getElementById('mem-heap').innerHTML = `<span class="${afterDevices > 50e6 ? 'bad' : 'good'}">${formatBytes(afterDevices)}</span>`;
+    }
+
+    // Full diagnostic
+    async function runFullTest() {
+      clearLog();
+      log('🔬 Starting Full Performance Diagnostic...', 'info');
+      log(`Target: ${BASE}`, 'info');
+      log(`Time: ${new Date().toISOString()}`, 'info');
+      log('', 'info');
+
+      // Check if server is up
+      try {
+        await fetch(`${BASE}/api/auth/me`, { credentials: 'include' });
+        log('✅ Backend is reachable', 'success');
+      } catch {
+        log('❌ Cannot reach backend at ' + BASE, 'error');
+        log('Make sure backend is running on port 13000 and frontend on port 5173', 'warn');
+        return;
+      }
+
+      await testSSEConnections();
+      log('', 'info');
+      await testAPIFlood();
+      log('', 'info');
+      await testRoomTreeEndpoint();
+      log('', 'info');
+      await testMemoryProfile();
+
+      log('', 'info');
+      log('=== DIAGNOSTIC COMPLETE ===', 'success');
+      log('', 'info');
+      log('Key findings for Ryzen 3 (2 core) + 4GB RAM:', 'warn');
+      log('1. SSE: Each tab opens a persistent connection with heartbeat timer', 'warn');
+      log('2. Auth: Every API request runs 2 DB queries (user lookup + permission check)', 'warn');
+      log('3. Room Tree: O(N²) database queries — exponential with room count', 'warn');
+      log('4. No caching: Duplicate API calls across tabs (e.g., getLocations)', 'warn');
+      log('5. Memory: 4 Chrome tabs ≈ 300-500MB on a 4GB system with ~1GB free', 'warn');
+    }
+  </script>
+</body>
+</html>

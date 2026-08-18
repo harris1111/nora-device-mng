@@ -9,9 +9,10 @@ interface Props {
   existingAttachmentCount?: number;
   onSubmit: (formData: FormData) => Promise<void>;
   submitLabel?: string;
+  isSystem?: boolean;
 }
 
-export default function DeviceForm({ initialData, existingAttachmentCount, onSubmit, submitLabel = 'Lưu' }: Props) {
+export default function DeviceForm({ initialData, existingAttachmentCount, onSubmit, submitLabel = 'Lưu', isSystem = false }: Props) {
   const [name, setName] = useState(initialData?.name || '');
   const [storeId, setStoreId] = useState(initialData?.store_id || '');
   const [locationId, setLocationId] = useState(initialData?.location_id || '');
@@ -23,6 +24,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
   const [manufacturer, setManufacturer] = useState(initialData?.manufacturer || '');
   const [description, setDescription] = useState(initialData?.description || '');
   const [type, setType] = useState(initialData?.type || 'tai_san');
+  const [systemCategory, setSystemCategory] = useState(initialData?.systemCategory || 'phần mềm');
   const [status, setStatus] = useState(initialData?.status || 'active');
   const [transferTo, setTransferTo] = useState(initialData?.transfer_to || '');
   const [transferDate, setTransferDate] = useState(initialData?.transfer_date?.split('T')[0] || '');
@@ -75,14 +77,17 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
       fd.append('model', model.trim());
       fd.append('manufacturer', manufacturer.trim());
       fd.append('description', description.trim());
-      fd.append('type', type);
+      fd.append('type', isSystem ? 'system' : type);
+      if (isSystem) {
+        fd.append('systemCategory', systemCategory);
+      }
       fd.append('status', status);
       if (transferTo.trim()) fd.append('transfer_to', transferTo.trim());
       if (transferDate) fd.append('transfer_date', transferDate);
       fd.append('warranty_period', warrantyPeriod.trim());
       if (type === 'cong_cu_dung_cu' && disposalDate) fd.append('disposal_date', disposalDate);
       if (type === 'cong_cu_dung_cu' && lossDate) fd.append('loss_date', lossDate);
-      if (primaryImage) fd.append('primary_image', primaryImage);
+      if (!isSystem && primaryImage) fd.append('primary_image', primaryImage);
       attachmentFiles.forEach(f => fd.append('attachments', f));
       await onSubmit(fd);
     } catch (err: unknown) {
@@ -110,18 +115,36 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
             <FormTextInput id="name" label="Tên thiết bị" value={name} onChange={setName} required placeholder="Nhập tên thiết bị" />
 
             {/* Type & Status */}
-            <div className="space-y-1.5 focus-within:text-indigo-600 transition-all">
-              <label htmlFor="type" className="block text-sm text-slate-700 font-semibold mb-1">Loại thiết bị <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <select id="type" value={type} onChange={(e) => setType(e.target.value)} required
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all appearance-none cursor-pointer">
-                  {DEVICE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            {isSystem ? (
+              <div className="space-y-1.5 focus-within:text-indigo-600 transition-all">
+                <label htmlFor="systemCategory" className="block text-sm text-slate-700 font-semibold mb-1">Loại hệ thống <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <select id="systemCategory" value={systemCategory} onChange={(e) => setSystemCategory(e.target.value)} required
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all appearance-none cursor-pointer">
+                    <option value="phần mềm">Phần mềm</option>
+                    <option value="phần cứng">Phần cứng</option>
+                    <option value="mạng">Mạng</option>
+                    <option value="khác">Khác</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-1.5 focus-within:text-indigo-600 transition-all">
+                <label htmlFor="type" className="block text-sm text-slate-700 font-semibold mb-1">Loại thiết bị <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <select id="type" value={type} onChange={(e) => setType(e.target.value)} required
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all appearance-none cursor-pointer">
+                    {DEVICE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1.5 focus-within:text-indigo-600 transition-all">
               <label htmlFor="status" className="block text-sm text-slate-700 font-semibold mb-1">Trạng thái <span className="text-red-500">*</span></label>

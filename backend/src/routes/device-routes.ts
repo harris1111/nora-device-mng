@@ -204,6 +204,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
     inventory_status,
     date_from,
     date_to,
+    systemCategory,
   } = req.query as {
     type?: string;
     status?: string;
@@ -215,6 +216,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
     inventory_status?: string;
     date_from?: string;
     date_to?: string;
+    systemCategory?: string;
   };
 
   const where: Record<string, unknown> = { roomId: null };
@@ -227,6 +229,7 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
   if (transfer_unit) where.ownedBy = transfer_unit;
   if (maintenance_status) where.maintenanceStatus = maintenance_status;
   if (inventory_status) where.inventoryStatus = inventory_status;
+  if (systemCategory) where.systemCategory = systemCategory;
 
   if (search && search.trim()) {
     const q = search.trim();
@@ -351,7 +354,7 @@ router.get('/:id', requirePermission('devices', 'view'), async (req: Request, re
 // POST /api/devices — create device
 router.post('/', requirePermission('devices', 'create'), deviceUpload, async (req: Request, res: Response) => {
   try {
-    const { name, store_id, location_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_period } = req.body;
+    const { name, store_id, location_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_period, systemCategory } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
@@ -402,6 +405,7 @@ router.post('/', requirePermission('devices', 'create'), deviceUpload, async (re
           description: description?.trim() || '',
           qrcode: new Uint8Array(qrcode),
           type: statusData.type,
+          systemCategory: systemCategory?.trim() || null,
           status: statusData.status,
           disposalDate: statusData.disposalDate,
           lossDate: statusData.lossDate,
@@ -454,7 +458,7 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
     const existing = await prisma.device.findUnique({ where: { id: req.params.id as string } });
     if (!existing) return res.status(404).json({ error: 'Device not found' });
 
-    const { name, store_id, location_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_period } = req.body;
+    const { name, store_id, location_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, disposal_date, loss_date, transfer_to, transfer_date, warranty_period, systemCategory } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (name.trim().length > 255) return res.status(400).json({ error: 'Name too long (max 255 chars)' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
@@ -513,6 +517,7 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
       manufacturer: manufacturer?.trim() || '',
       description: description?.trim() || '',
       qrcode,
+      systemCategory: systemCategory?.trim() || null,
       status: statusData.status,
       disposalDate: statusData.disposalDate,
       lossDate: statusData.lossDate,

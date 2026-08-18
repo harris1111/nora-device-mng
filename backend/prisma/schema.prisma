@@ -171,6 +171,7 @@ model Device {
   description  String   @default("")
   qrcode       Bytes?
   type         String   @default("tai_san")
+  systemCategory String? @map("system_category")
   status       String   @default("active")
   disposalDate DateTime? @map("disposal_date")
   lossDate     DateTime? @map("loss_date")
