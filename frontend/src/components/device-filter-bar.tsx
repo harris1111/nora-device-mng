@@ -200,6 +200,7 @@ export default function DeviceFilterBar({
                 <option value="">Tất cả loại</option>
                 <option value="Phần cứng">Phần cứng</option>
                 <option value="Phần mềm">Phần mềm</option>
+                <option value="Mạng">Mạng</option>
                 <option value="Khác">Khác</option>
               </select>
             </label>
