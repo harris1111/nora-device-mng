@@ -24,7 +24,7 @@ async function runOnce(): Promise<void> {
     // --- 1. Advance-notice notification (single alert per cycle) ---
     const pendingNotify = await prisma.scheduledInventory.findMany({
       where: { lastNotifiedAt: null },
-      include: { device: { select: { id: true, name: true, storeId: true } } },
+      include: { device: { select: { id: true, name: true, storeId: true, type: true } } },
     });
 
     for (const sched of pendingNotify) {
@@ -33,12 +33,16 @@ async function runOnce(): Promise<void> {
       if (now < threshold) continue;
 
       const dueLabel = sched.nextDueAt.toLocaleDateString('vi-VN');
+      const isSystem = sched.device.type === 'system';
+      const title = isSystem ? `Hệ thống cần kiểm kê: ${sched.device.name}` : `Thiết bị cần kiểm kê: ${sched.device.name}`;
+      const link = isSystem ? `/systems/${sched.device.id}` : `/devices/${sched.device.id}`;
+
       await createNotification({
         userId: null, // fan-out to admins
         type: 'inventory_due',
-        title: `Thiết bị cần kiểm kê: ${sched.device.name}`,
+        title,
         message: `Mã ${sched.device.storeId} đến hạn kiểm kê ngày ${dueLabel}.`,
-        link: `/devices/${sched.device.id}`,
+        link,
         sourceType: 'device',
         sourceId: sched.device.id,
       });
