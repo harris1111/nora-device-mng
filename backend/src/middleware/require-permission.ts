@@ -1,6 +1,7 @@
 import { type Request, type Response, type NextFunction } from 'express';
 import prisma from '../lib/prisma-client.js';
 import type { UserRole } from '../generated/prisma/enums.js';
+import { syncPermissionsMatrix } from '../utils/permission-sync.js';
 
 type Action = 'view' | 'create' | 'update' | 'delete' | 'export';
 
@@ -23,6 +24,7 @@ type PermissionEntry = {
 let permissionCache: Map<string, PermissionEntry> | null = null;
 
 async function loadPermissions(): Promise<Map<string, PermissionEntry>> {
+  await syncPermissionsMatrix();
   const all = await prisma.permission.findMany();
   const map = new Map<string, PermissionEntry>();
   for (const p of all) {
@@ -48,6 +50,11 @@ export function requirePermission(module: string, action: Action) {
       if (!role) {
         res.status(401).json({ error: 'Authentication required' });
         return;
+      }
+
+      // Super Admin always has full access to all endpoints
+      if (role === 'SADMIN') {
+        return next();
       }
 
       if (!permissionCache) {

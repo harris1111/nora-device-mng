@@ -5,7 +5,7 @@ import path from 'path';
 import { Prisma } from '../generated/prisma/client.js';
 import prisma from '../lib/prisma-client.js';
 import { cleanupTransferRecordIfEmpty, ensureTransferRecordForDevice } from '../utils/transfer-records.js';
-import { uploadFile, downloadFile, deleteFile, deleteFiles } from '../lib/s3-client.js';
+import { uploadFile, downloadFile, deleteFile, deleteFiles, isS3NotFoundError } from '../lib/s3-client.js';
 import { requirePermission } from '../middleware/require-permission.js';
 
 const router: ReturnType<typeof Router> = Router();
@@ -102,6 +102,9 @@ router.get('/transfer-attachments/:id/file', requirePermission('transfer', 'view
     res.set('Content-Disposition', `inline; filename="${attachment.fileName}"`);
     stream.pipe(res);
   } catch (err) {
+    if (isS3NotFoundError(err)) {
+      return res.status(404).json({ error: 'Attachment file not found in storage' });
+    }
     console.error('Download transfer attachment error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }

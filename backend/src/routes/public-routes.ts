@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import prisma from '../lib/prisma-client.js';
-import { downloadFile } from '../lib/s3-client.js';
+import { downloadFile, isS3NotFoundError } from '../lib/s3-client.js';
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -137,6 +137,9 @@ router.get('/attachments/:id/file', async (req: Request, res: Response) => {
     res.set('Cache-Control', 'public, max-age=3600');
     stream.pipe(res);
   } catch (err: unknown) {
+    if (isS3NotFoundError(err)) {
+      return res.status(404).json({ error: 'Attachment file not found in storage' });
+    }
     console.error('Public attachment download error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -155,6 +158,9 @@ router.get('/transfer-attachments/:id/file', async (req: Request, res: Response)
     res.set('Cache-Control', 'public, max-age=3600');
     stream.pipe(res);
   } catch (err: unknown) {
+    if (isS3NotFoundError(err)) {
+      return res.status(404).json({ error: 'Attachment file not found in storage' });
+    }
     console.error('Public transfer attachment download error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -173,6 +179,9 @@ router.get('/maintenance-attachments/:id/file', async (req: Request, res: Respon
     res.set('Cache-Control', 'public, max-age=3600');
     stream.pipe(res);
   } catch (err: unknown) {
+    if (isS3NotFoundError(err)) {
+      return res.status(404).json({ error: 'Attachment file not found in storage' });
+    }
     console.error('Public maintenance attachment download error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -191,6 +200,9 @@ router.get('/inventory-attachments/:id/file', async (req: Request, res: Response
     res.set('Cache-Control', 'public, max-age=3600');
     stream.pipe(res);
   } catch (err: unknown) {
+    if (isS3NotFoundError(err)) {
+      return res.status(404).json({ error: 'Attachment file not found in storage' });
+    }
     console.error('Public inventory attachment download error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }

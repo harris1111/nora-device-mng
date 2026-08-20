@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getPublicDevice, publicAttachmentFileUrl, publicTransferAttachmentFileUrl, publicMaintenanceAttachmentFileUrl, publicInventoryAttachmentFileUrl, PublicDevice } from '../api/device-api';
-import { getTypeName, getStatusInfo } from '../components/device/device-constants';
+import { getTypeName, getStatusInfo, getSystemCategoryLabel } from '../components/device/device-constants';
 import AttachmentList from '../components/attachment/attachment-list';
 import TransferInfoSection from '../components/transfer/transfer-info-section';
 import LoginModal from '../components/auth/login-modal';
@@ -74,8 +74,8 @@ export default function PublicDevicePage() {
           </div>
         </div>
 
-        {/* Primary image */}
-        {primaryUrl && (
+        {/* Primary image — only show for non-system devices */}
+        {primaryUrl && device.type !== 'system' && (
           <div className="rounded-2xl overflow-hidden shadow-md border border-slate-100">
             <img src={primaryUrl} alt={device.name} className="w-full aspect-video object-cover" />
           </div>
@@ -86,7 +86,7 @@ export default function PublicDevicePage() {
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-xs text-slate-400 font-medium uppercase">Loại</p>
-              <p className="font-semibold text-slate-700">{getTypeName(device.type)}</p>
+              <p className="font-semibold text-slate-700">{device.type === 'system' ? getSystemCategoryLabel(device.systemCategory) : getTypeName(device.type)}</p>
             </div>
             {device.location_name && (
               <div>

@@ -84,3 +84,13 @@ export function mapArea(a: Area) {
     created_at: a.createdAt?.toISOString(),
   };
 }
+
+export function mapSystemCategory(sc: { id: string; name: string; description: string; createdAt: Date }) {
+  return {
+    id: sc.id,
+    name: sc.name,
+    description: sc.description,
+    created_at: sc.createdAt?.toISOString(),
+  };
+}
+

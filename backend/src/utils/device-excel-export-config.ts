@@ -17,7 +17,8 @@ export type DeviceExcelExportColumnKey =
   | 'maintenance_status'
   | 'inventory_status'
   | 'created_at'
-  | 'qrcode';
+  | 'qrcode'
+  | 'system_category';
 
 export interface DeviceExcelExportRecord {
   id: string;
@@ -35,6 +36,7 @@ export interface DeviceExcelExportRecord {
   warrantyPeriod: string | null;
   maintenanceStatus: string;
   inventoryStatus: string;
+  systemCategory?: string | null;
   createdAt: Date;
 }
 
@@ -60,6 +62,7 @@ export interface DeviceExcelExportTypeOption {
 const TYPE_LABELS: Record<string, string> = {
   tai_san: 'Tài sản',
   cong_cu_dung_cu: 'Công cụ dụng cụ',
+  system: 'Hệ thống',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -102,7 +105,8 @@ export const DEVICE_EXCEL_COLUMNS: DeviceExcelExportColumn[] = [
   { key: 'stt', label: 'STT', width: 6, getValue: (_device, index) => index + 1 },
   { key: 'store_id', label: 'Mã thiết bị', width: 18, getValue: (device) => device.storeId },
   { key: 'name', label: 'Tên thiết bị', width: 30, getValue: (device) => device.name },
-  { key: 'type', label: 'Loại thiết bị', width: 18, getValue: (device) => TYPE_LABELS[device.type] || device.type },
+  { key: 'type', label: 'Loại thiết bị', width: 22, getValue: (device) => device.type === 'system' ? (device.systemCategory ? `Hệ thống (${device.systemCategory})` : 'Hệ thống') : (TYPE_LABELS[device.type] || device.type) },
+  { key: 'system_category', label: 'Loại hệ thống', width: 24, getValue: (device) => device.systemCategory || '' },
   { key: 'status', label: 'Trạng thái', width: 18, getValue: (device) => STATUS_LABELS[device.status] || device.status },
   { key: 'location', label: 'Đơn vị trực thuộc', width: 24, getValue: (device) => device.location?.name || '' },
   { key: 'area', label: 'Khu vực', width: 18, getValue: (device) => device.area?.name || '' },

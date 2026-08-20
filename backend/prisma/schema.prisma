@@ -39,6 +39,8 @@ model User {
   locationsUpdated            Location[]            @relation("LocationUpdatedBy")
   areasCreated                Area[]                @relation("AreaCreatedBy")
   areasUpdated                Area[]                @relation("AreaUpdatedBy")
+  systemCategoriesCreated     SystemCategory[]      @relation("SystemCategoryCreatedBy")
+  systemCategoriesUpdated     SystemCategory[]      @relation("SystemCategoryUpdatedBy")
   maintenanceRecordsCreated   MaintenanceRecord[]   @relation("MaintenanceCreatedBy")
   maintenanceRecordsUpdated   MaintenanceRecord[]   @relation("MaintenanceUpdatedBy")
   scheduledMaintenanceCreated ScheduledMaintenance[] @relation("ScheduledMaintenanceCreatedBy")
@@ -138,6 +140,19 @@ model Area {
   devices     Device[]
 
   @@map("areas")
+}
+
+model SystemCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String   @default("")
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdById String?  @map("created_by")
+  createdBy   User?    @relation("SystemCategoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?  @map("updated_by")
+  updatedBy   User?    @relation("SystemCategoryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("system_categories")
 }
 
 model UserLocation {

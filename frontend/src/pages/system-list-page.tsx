@@ -17,7 +17,7 @@ import { useCan } from '../hooks/use-permission';
 import DeviceCard from '../components/device/device-card';
 import DeviceListRow from '../components/device/device-list-row';
 import DeviceStatusBadge from '../components/device/device-status-badge';
-import { getTypeName } from '../components/device/device-constants';
+import { getTypeName, getSystemCategoryLabel } from '../components/device/device-constants';
 import ViewToggle from '../components/ui/view-toggle';
 import Pagination from '../components/ui/pagination';
 import EmptyState from '../components/ui/empty-state';
@@ -432,11 +432,11 @@ export default function SystemListPage() {
                           <div className="mb-2 inline-flex rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1 font-mono text-xs font-semibold text-slate-600">
                             {device.store_id}
                           </div>
-                          <Link to={`/devices/${device.id}`} className="block text-base font-bold text-slate-800 transition-colors hover:text-indigo-600">
+                          <Link to={`/systems/${device.id}`} className="block text-base font-bold text-slate-800 transition-colors hover:text-indigo-600">
                             <span className="line-clamp-2">{device.name}</span>
                           </Link>
                         </div>
-                        <Link to={`/devices/${device.id}`} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 transition-colors hover:text-indigo-600">
+                        <Link to={`/systems/${device.id}`} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 transition-colors hover:text-indigo-600">
                           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
@@ -446,7 +446,7 @@ export default function SystemListPage() {
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         <DeviceStatusBadge status={device.status} />
                         <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                          {device.type === 'system' ? (device.system_category || 'Hệ thống') : getTypeName(device.type)}
+                          {device.type === 'system' ? getSystemCategoryLabel(device.systemCategory) : getTypeName(device.type)}
                         </span>
                       </div>
 
@@ -476,6 +476,7 @@ export default function SystemListPage() {
                       />
                     </th>
                   )}
+                  <th className="border-b border-slate-100 px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500">Hình ảnh</th>
                   <th className="border-b border-slate-100 px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500">Mã hệ thống</th>
                   <th className="border-b border-slate-100 px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500">Tên hệ thống</th>
                   <th className="border-b border-slate-100 px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500">Loại hệ thống</th>

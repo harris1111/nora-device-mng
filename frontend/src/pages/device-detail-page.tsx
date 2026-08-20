@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getDevice, deleteDevice, getAttachments, uploadAttachments, deleteAttachment, setAttachmentPrimary, attachmentFileUrl, getMaintenanceRecords, getInventoryRecords, uploadTransferAttachments, deleteTransferAttachment, Device, Attachment, MaintenanceRecord, InventoryRecord } from '../api/device-api';
+import { useLocation } from 'react-router-dom';
 import QrcodeDisplay from '../components/qrcode/qrcode-display';
 import PrintQrcodeButton from '../components/qrcode/print-qrcode-button';
 import DeviceStatusBadge from '../components/device/device-status-badge';
@@ -10,11 +11,13 @@ import MaintenanceSection from '../components/maintenance/maintenance-section';
 import InventoryHistory from '../components/inventory/inventory-history';
 import InventorySection from '../components/inventory/inventory-section';
 import TransferInfoSection from '../components/transfer/transfer-info-section';
-import { getTypeName } from '../components/device/device-constants';
+import { getTypeName, getSystemCategoryLabel } from '../components/device/device-constants';
 
 export default function DeviceDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isSystemRoute = location.pathname.startsWith('/systems');
   const [device, setDevice] = useState<Device | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
@@ -114,6 +117,11 @@ export default function DeviceDetailPage() {
 
   if (!device) return null;
 
+  const isSystem = device.type === 'system';
+  const backUrl = isSystemRoute ? '/systems' : '/devices';
+  const backLabel = isSystemRoute ? 'Danh sách hệ thống' : 'Danh sách thiết bị';
+  const editUrl = isSystemRoute ? `/systems/${device.id}/edit` : `/devices/${device.id}/edit`;
+
   const primaryAttachment = attachments.find(a => a.is_primary);
   const primaryImageUrl = primaryAttachment ? attachmentFileUrl(primaryAttachment.id) : null;
 
@@ -122,7 +130,7 @@ export default function DeviceDetailPage() {
     : null;
 
   const infoFields = [
-    { label: 'Loại', value: getTypeName(device.type) },
+    { label: 'Loại', value: isSystem ? getSystemCategoryLabel(device.systemCategory) : getTypeName(device.type) },
     { label: 'Số serial', value: device.serial_number },
     { label: 'Nhà sản xuất', value: device.manufacturer },
     { label: 'Model', value: device.model },
@@ -135,14 +143,14 @@ export default function DeviceDetailPage() {
     <div className="pb-12 space-y-6">
       {/* Top bar — back + actions */}
       <div className="flex justify-between items-center">
-        <Link to="/devices" className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors">
+        <Link to={backUrl} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
-          Danh sách thiết bị
+          {backLabel}
         </Link>
         <div className="flex gap-2">
-          <Link to={`/devices/${device.id}/edit`}
+          <Link to={editUrl}
             className="btn btn-ghost text-sm">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
             Chỉnh sửa
@@ -155,66 +163,60 @@ export default function DeviceDetailPage() {
         </div>
       </div>
 
-      {/* Main card */}
-      <div className="panel border-0 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)] overflow-hidden">
-        <div className="md:flex">
-          {/* Left Column (Image) */}
-          <div className="md:w-5/12 bg-slate-50 relative border-b md:border-b-0 md:border-r border-slate-100">
-            {primaryImageUrl ? (
-              <div className="aspect-square md:aspect-auto md:h-full w-full relative">
-                <img src={primaryImageUrl} alt={device.name} className="absolute inset-0 w-full h-full object-cover" />
+      {/* Main card — System Hero vs Equipment layout */}
+      {isSystem ? (
+        /* ══════════ SYSTEM HERO CARD ══════════ */
+        <div className="panel border-0 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)] overflow-hidden">
+          {/* Gradient Hero Banner */}
+          <div className="relative bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 px-6 py-8 md:px-10 md:py-10">
+            <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 0h30v30H0V0zm15 26a11 11 0 1 0 0-22 11 11 0 0 0 0 22zm30 0a11 11 0 1 0 0-22 11 11 0 0 0 0 22zM15 56a11 11 0 1 0 0-22 11 11 0 0 0 0 22zm15-26h30v30H30V30zm15 26a11 11 0 1 0 0-22 11 11 0 0 0 0 22z\' fill=\'%23fff\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")' }} />
+            <div className="relative">
+              {/* Badges row */}
+              <div className="mb-5 flex flex-wrap items-center gap-2">
+                <span className="inline-flex px-2.5 py-1 rounded border border-white/20 bg-white/10 text-white/90 font-mono text-xs font-semibold">
+                  {device.store_id}
+                </span>
+                <DeviceStatusBadge status={device.status} />
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-white/10 text-white/90 border border-white/15 backdrop-blur-sm">
+                  {getSystemCategoryLabel(device.systemCategory)}
+                </span>
+                {device.location_name && (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-200 border border-indigo-400/20">
+                    <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full mr-1.5"></div>{device.location_name}
+                  </span>
+                )}
+                {device.area_name && (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-200 border border-amber-400/20">
+                    <div className="w-1.5 h-1.5 bg-amber-400 rounded-full mr-1.5"></div>{device.area_name}
+                  </span>
+                )}
               </div>
-            ) : (
-              <div className="aspect-square md:aspect-auto md:h-full w-full flex flex-col items-center justify-center text-slate-300 min-h-[280px]">
-                <svg className="w-20 h-20 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span className="text-sm font-medium">Không có hình ảnh</span>
+
+              {/* Icon + Title */}
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10">
+                  <svg className="h-7 w-7 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h1 className="text-3xl font-extrabold text-white tracking-tight leading-tight">
+                    {device.name}
+                  </h1>
+                  <p className="text-sm text-white/50 mt-1 flex items-center gap-1.5">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    Đã tạo vào lúc {new Date(device.created_at).toLocaleString('vi-VN')}
+                  </p>
+                </div>
               </div>
-            )}
-            {/* Mobile Actions */}
-            <div className="absolute top-4 right-4 flex flex-col gap-2 md:hidden">
-              <Link to={`/devices/${device.id}/edit`} className="w-10 h-10 bg-white/90 backdrop-blur rounded-full shadow-md flex items-center justify-center text-indigo-600">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-              </Link>
-              <button onClick={handleDelete} className="w-10 h-10 bg-white/90 backdrop-blur rounded-full shadow-md flex items-center justify-center text-red-600">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-              </button>
             </div>
           </div>
 
-          {/* Right Column (Details) */}
-          <div className="md:w-7/12 p-6 md:p-8 flex flex-col">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="inline-flex px-2.5 py-1 rounded border border-slate-200 bg-slate-50 text-slate-600 font-mono text-xs font-semibold shadow-sm">
-                {device.store_id}
-              </span>
-              <DeviceStatusBadge status={device.status} />
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                {device.location_name ? (
-                  <><div className="w-1.5 h-1.5 bg-indigo-500 rounded-full mr-1.5"></div>{device.location_name}</>
-                ) : 'Chưa gán đơn vị trực thuộc'}
-              </span>
-              {device.area_name && (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
-                  <div className="w-1.5 h-1.5 bg-amber-500 rounded-full mr-1.5"></div>{device.area_name}
-                </span>
-              )}
-
-            </div>
-
-            <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight leading-tight mb-4">
-              {device.name}
-            </h1>
-
-            <p className="text-sm text-slate-500 mb-6 flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-              Đã tạo vào lúc {new Date(device.created_at).toLocaleString('vi-VN')}
-            </p>
-
+          {/* Info + QR below the hero */}
+          <div className="p-6 md:p-8 space-y-6">
             {/* Device info fields */}
             {infoFields.length > 0 && (
-              <div className="grid grid-cols-2 gap-x-6 gap-y-3 mb-6 pb-6 border-b border-slate-100">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3 pb-6 border-b border-slate-100">
                 {infoFields.map((f) => (
                   <div key={f.label}>
                     <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">{f.label}</p>
@@ -226,28 +228,121 @@ export default function DeviceDetailPage() {
 
             {/* Description */}
             {device.description && (
-              <div className="mb-6 pb-6 border-b border-slate-100">
+              <div className="pb-6 border-b border-slate-100">
                 <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-1">Ghi chú</p>
                 <p className="text-sm text-slate-600 whitespace-pre-wrap">{device.description}</p>
               </div>
             )}
 
             {/* QR Section */}
-            <div className="mt-auto bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col sm:flex-row items-center gap-6">
+            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col sm:flex-row items-center gap-6">
               <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-100 shrink-0">
                 <QrcodeDisplay deviceId={device.id} className="w-32 h-32" />
               </div>
               <div className="flex-1 text-center sm:text-left">
                 <h3 className="text-lg font-bold text-slate-800 mb-2">Mã truy cập nhanh</h3>
                 <p className="text-sm text-slate-500 mb-4 leading-relaxed">
-                  Dán mã QR này lên thiết bị vật lý để quét bằng điện thoại và mở nhanh trang chi tiết công khai.
+                  Dán mã QR này lên hệ thống vật lý để quét bằng điện thoại và mở nhanh trang chi tiết công khai.
                 </p>
                 <PrintQrcodeButton deviceId={device.id} storeId={device.store_id} />
               </div>
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        /* ══════════ EQUIPMENT/ASSET LAYOUT ══════════ */
+        <div className="panel border-0 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)] overflow-hidden">
+          <div className="md:flex">
+            {/* Left Column (Image) */}
+            <div className="md:w-5/12 bg-slate-50 relative border-b md:border-b-0 md:border-r border-slate-100">
+              {primaryImageUrl ? (
+                <div className="aspect-square md:aspect-auto md:h-full w-full relative">
+                  <img src={primaryImageUrl} alt={device.name} className="absolute inset-0 w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="aspect-square md:aspect-auto md:h-full w-full flex flex-col items-center justify-center text-slate-300 min-h-[280px]">
+                  <svg className="w-20 h-20 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-sm font-medium">Không có hình ảnh</span>
+                </div>
+              )}
+              {/* Mobile Actions */}
+              <div className="absolute top-4 right-4 flex flex-col gap-2 md:hidden">
+                <Link to={editUrl} className="w-10 h-10 bg-white/90 backdrop-blur rounded-full shadow-md flex items-center justify-center text-indigo-600">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                </Link>
+                <button onClick={handleDelete} className="w-10 h-10 bg-white/90 backdrop-blur rounded-full shadow-md flex items-center justify-center text-red-600">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Right Column (Details) */}
+            <div className="md:w-7/12 p-6 md:p-8 flex flex-col">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className="inline-flex px-2.5 py-1 rounded border border-slate-200 bg-slate-50 text-slate-600 font-mono text-xs font-semibold shadow-sm">
+                  {device.store_id}
+                </span>
+                <DeviceStatusBadge status={device.status} />
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                  {device.location_name ? (
+                    <><div className="w-1.5 h-1.5 bg-indigo-500 rounded-full mr-1.5"></div>{device.location_name}</>
+                  ) : 'Chưa gán đơn vị trực thuộc'}
+                </span>
+                {device.area_name && (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+                    <div className="w-1.5 h-1.5 bg-amber-500 rounded-full mr-1.5"></div>{device.area_name}
+                  </span>
+                )}
+              </div>
+
+              <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight leading-tight mb-4">
+                {device.name}
+              </h1>
+
+              <p className="text-sm text-slate-500 mb-6 flex items-center gap-1.5">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                Đã tạo vào lúc {new Date(device.created_at).toLocaleString('vi-VN')}
+              </p>
+
+              {/* Device info fields */}
+              {infoFields.length > 0 && (
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3 mb-6 pb-6 border-b border-slate-100">
+                  {infoFields.map((f) => (
+                    <div key={f.label}>
+                      <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">{f.label}</p>
+                      <p className="text-sm font-semibold text-slate-700 mt-0.5">{f.value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Description */}
+              {device.description && (
+                <div className="mb-6 pb-6 border-b border-slate-100">
+                  <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-1">Ghi chú</p>
+                  <p className="text-sm text-slate-600 whitespace-pre-wrap">{device.description}</p>
+                </div>
+              )}
+
+              {/* QR Section */}
+              <div className="mt-auto bg-slate-50 rounded-2xl p-6 border border-slate-100 flex flex-col sm:flex-row items-center gap-6">
+                <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-100 shrink-0">
+                  <QrcodeDisplay deviceId={device.id} className="w-32 h-32" />
+                </div>
+                <div className="flex-1 text-center sm:text-left">
+                  <h3 className="text-lg font-bold text-slate-800 mb-2">Mã truy cập nhanh</h3>
+                  <p className="text-sm text-slate-500 mb-4 leading-relaxed">
+                    Dán mã QR này lên thiết bị vật lý để quét bằng điện thoại và mở nhanh trang chi tiết công khai.
+                  </p>
+                  <PrintQrcodeButton deviceId={device.id} storeId={device.store_id} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <TransferInfoSection
         transfer={device.transfer_record}
@@ -262,7 +357,7 @@ export default function DeviceDetailPage() {
           <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
           </svg>
-          Tệp đính kèm ({attachments.length})
+          {isSystem ? `Hồ sơ & Tài liệu kỹ thuật (${attachments.length})` : `Tệp đính kèm (${attachments.length})`}
         </h2>
 
         {/* Large primary image preview */}

@@ -14,6 +14,7 @@ import DeviceEditPage from './pages/device-edit-page';
 import PublicDevicePage from './pages/public-device-page';
 import LocationListPage from './pages/location-list-page';
 import AreaListPage from './pages/area-list-page';
+import SystemCategoryListPage from './pages/system-category-list-page';
 import RoomTreePage from './pages/room-tree-page';
 import RoomDeviceCreatePage from './pages/room-device-create-page';
 import RoomDeviceDetailPage from './pages/room-device-detail-page';
@@ -74,6 +75,9 @@ export default function App() {
               </Route>
               <Route element={<PermissionRoute module="areas" action="view" />}>
                 <Route path="/areas" element={<AreaListPage />} />
+              </Route>
+              <Route element={<PermissionRoute module="system_categories" action="view" />}>
+                <Route path="/system-categories" element={<SystemCategoryListPage />} />
               </Route>
               <Route element={<PermissionRoute module="users" action="view" />}>
                 <Route path="/users" element={<UsersListPage />} />

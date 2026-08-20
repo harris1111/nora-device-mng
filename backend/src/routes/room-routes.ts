@@ -642,7 +642,7 @@ router.post('/:roomId/devices', requirePermission('rooms', 'create'), deviceUplo
     if (!room) return res.status(404).json({ error: 'Room not found' });
     if (room._count.children > 0) return res.status(409).json({ error: 'Cannot add device to a room that has child rooms' });
 
-    const { name, store_id, location_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, warranty_period, transfer_to, transfer_date, disposal_date, loss_date } = req.body;
+    const { name, store_id, location_id, area_id, managed_by, owned_by, serial_number, model: deviceModel, manufacturer, description, type, status, system_category, warranty_period, transfer_to, transfer_date, disposal_date, loss_date } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
     if (!location_id?.trim()) return res.status(400).json({ error: 'Location is required' });
@@ -695,6 +695,7 @@ router.post('/:roomId/devices', requirePermission('rooms', 'create'), deviceUplo
           qrcode: new Uint8Array(qrcode),
           type: statusData.type,
           status: statusData.status,
+          systemCategory: statusData.type === 'system' ? (system_category?.trim() || 'Hệ thống Bơm / Cấp thoát nước') : null,
           warrantyPeriod: warranty_period?.trim() || null,
           ownedBy: owned_by?.trim() || '',
           transferTo: transfer_to?.trim() || null,
@@ -718,7 +719,7 @@ router.post('/:roomId/devices', requirePermission('rooms', 'create'), deviceUplo
 
 const DEVICE_CLONE_ALLOWLIST: (keyof typeof prisma.device.fields)[] = [
   'storeId', 'name', 'areaId', 'managedBy', 'serialNumber', 'model',
-  'manufacturer', 'description', 'type', 'status', 'disposalDate', 'lossDate',
+  'manufacturer', 'description', 'type', 'status', 'systemCategory', 'disposalDate', 'lossDate',
   'warrantyPeriod', 'maintenanceStatus', 'inventoryStatus', 'locationId', 'roomId',
 ];
 

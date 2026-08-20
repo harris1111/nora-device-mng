@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { type Area, type Device, type Location } from '../api/device-api';
-import { ALL_STATUSES, DEVICE_TYPES, STATUS_BY_TYPE } from './device/device-constants';
+import { getSystemCategories, type Area, type Device, type Location } from '../api/device-api';
+import { ALL_STATUSES, DEVICE_TYPES, STATUS_BY_TYPE, SYSTEM_CATEGORIES } from './device/device-constants';
 import VnDatePicker from './ui/vn-date-picker';
 
 export interface DeviceFilters {
@@ -56,7 +56,7 @@ export function useDeviceFilter(devices: Device[], filters: DeviceFilters) {
   return useMemo(() => {
     return devices.filter((device) => {
       if (filters.type && device.type !== filters.type) return false;
-      if (filters.systemCategory && device.system_category !== filters.systemCategory) return false;
+      if (filters.systemCategory && device.systemCategory !== filters.systemCategory) return false;
       if (filters.status && device.status !== filters.status) return false;
       if (filters.location && device.location_name !== filters.location) return false;
       if (filters.area && (device.area_name || '') !== filters.area) return false;
@@ -107,6 +107,15 @@ export default function DeviceFilterBar({
 }: Props) {
   const effectiveLocations = locations ?? [];
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [systemCategoryOptions, setSystemCategoryOptions] = useState<{ value: string; label: string }[]>(SYSTEM_CATEGORIES);
+
+  useEffect(() => {
+    getSystemCategories().then(cats => {
+      if (cats.length > 0) {
+        setSystemCategoryOptions(cats.map(c => ({ value: c.name, label: c.name })));
+      }
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (filters.location || filters.area || filters.transferUnit || filters.maintenance || (!isSystemView && filters.inventory) || filters.dateFrom || filters.dateTo) {
@@ -198,10 +207,9 @@ export default function DeviceFilterBar({
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700 transition-shadow focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="">Tất cả loại</option>
-                <option value="Phần cứng">Phần cứng</option>
-                <option value="Phần mềm">Phần mềm</option>
-                <option value="Mạng">Mạng</option>
-                <option value="Khác">Khác</option>
+                {systemCategoryOptions.map(c => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
               </select>
             </label>
           ) : (

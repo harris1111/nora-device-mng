@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import prisma from '../lib/prisma-client.js';
-import { requirePermission } from '../middleware/require-permission.js';
+import { requirePermission, clearPermissionCache } from '../middleware/require-permission.js';
+import { syncPermissionsMatrix } from '../utils/permission-sync.js';
 import { canEditPermissions } from '../utils/tier-guard.js';
 import { logAudit } from '../utils/audit-logger.js';
 import type { UserRole } from '../generated/prisma/enums.js';
@@ -16,6 +17,7 @@ function getClientIp(req: Request): string {
 // GET /api/permissions — full permission matrix
 router.get('/', requirePermission('permissions', 'view'), async (_req: Request, res: Response) => {
   try {
+    await syncPermissionsMatrix();
     const permissions = await prisma.permission.findMany({ orderBy: [{ role: 'asc' }, { module: 'asc' }] });
     const matrix: Record<string, Record<string, { canView: boolean; canCreate: boolean; canUpdate: boolean; canDelete: boolean; canExport: boolean }>> = {};
     for (const p of permissions) {
@@ -61,6 +63,8 @@ router.put('/:role', requirePermission('permissions', 'update'), async (req: Req
         })
       )
     );
+
+    clearPermissionCache();
 
     await logAudit({
       actorUserId: req.user!.id,

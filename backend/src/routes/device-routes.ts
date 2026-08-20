@@ -193,19 +193,7 @@ router.post('/bulk-edit', requirePermission('devices', 'update'), async (req: Re
 
 // Helper: build the Prisma where clause from list query params
 async function buildDeviceListWhere(req: Request): Promise<Record<string, unknown>> {
-  const {
-    type,
-    status,
-    search,
-    location_id,
-    area_id,
-    transfer_unit,
-    maintenance_status,
-    inventory_status,
-    date_from,
-    date_to,
-    systemCategory,
-  } = req.query as {
+  const params = (req.method === 'GET' ? req.query : req.body) as {
     type?: string;
     status?: string;
     search?: string;
@@ -217,12 +205,18 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
     date_from?: string;
     date_to?: string;
     systemCategory?: string;
+    exclude_systems?: string | boolean;
   };
+  const { type, status, search, location_id, area_id, transfer_unit, maintenance_status, inventory_status, date_from, date_to, systemCategory, exclude_systems } = params;
 
   const where: Record<string, unknown> = { roomId: null };
   const andClauses: Record<string, unknown>[] = [];
 
-  if (type) where.type = type;
+  if (type) {
+    where.type = type;
+  } else if (exclude_systems === 'true' || exclude_systems === true) {
+    where.type = { not: 'system' };
+  }
   if (status) where.status = status;
   if (location_id) where.locationId = location_id;
   if (area_id) where.areaId = area_id;
@@ -464,8 +458,9 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
     if (!store_id?.trim()) return res.status(400).json({ error: 'Store ID is required' });
     if (!location_id?.trim()) return res.status(400).json({ error: 'Location is required' });
 
-    if (type && type !== existing.type) {
-      return res.status(400).json({ error: 'Device type cannot be changed after creation' });
+    const targetType = type || existing.type;
+    if (!['tai_san', 'cong_cu_dung_cu', 'system'].includes(targetType)) {
+      return res.status(400).json({ error: `Invalid type: ${targetType}` });
     }
 
     const location = await prisma.location.findUnique({ where: { id: location_id.trim() } });
@@ -483,17 +478,20 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
       }
     }
 
-    const deviceStatus = status || existing.status;
-    const typeErr = validateTypeStatus(existing.type, deviceStatus);
-    if (typeErr) return res.status(400).json({ error: typeErr });
+    let deviceStatus = status || existing.status;
+    const typeErr = validateTypeStatus(targetType, deviceStatus);
+    if (typeErr) {
+      // If status is incompatible with new type (e.g. needs_inventory for system), default to active
+      deviceStatus = 'active';
+    }
 
     let statusData: StatusData = {
-      type: existing.type,
+      type: targetType,
       status: deviceStatus,
       disposalDate: disposal_date ? new Date(disposal_date) : (disposal_date === '' ? null : existing.disposalDate),
       lossDate: loss_date ? new Date(loss_date) : (loss_date === '' ? null : existing.lossDate),
     };
-    statusData = applyDateStatusRules(existing.type, statusData);
+    statusData = applyDateStatusRules(targetType, statusData);
 
     const warrantyPeriod = typeof warranty_period === 'string' && warranty_period.trim() ? warranty_period.trim() : null;
 
@@ -517,7 +515,8 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
       manufacturer: manufacturer?.trim() || '',
       description: description?.trim() || '',
       qrcode,
-      systemCategory: systemCategory?.trim() || null,
+      type: targetType,
+      systemCategory: targetType === 'system' ? (systemCategory?.trim() || existing.systemCategory || 'Khác') : null,
       status: statusData.status,
       disposalDate: statusData.disposalDate,
       lossDate: statusData.lossDate,

@@ -3,7 +3,7 @@ import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import prisma from '../lib/prisma-client.js';
-import { uploadFile, downloadFile, deleteFile, deleteFiles } from '../lib/s3-client.js';
+import { uploadFile, downloadFile, deleteFile, deleteFiles, isS3NotFoundError } from '../lib/s3-client.js';
 import { requirePermission } from '../middleware/require-permission.js';
 import { recomputeDeviceStatus } from '../utils/device-status-sync.js';
 
@@ -289,6 +289,9 @@ router.get('/inventory-attachments/:id/file', requirePermission('inventory_histo
     res.set('Content-Disposition', `inline; filename="${attachment.fileName}"`);
     stream.pipe(res);
   } catch (err) {
+    if (isS3NotFoundError(err)) {
+      return res.status(404).json({ error: 'Attachment file not found in storage' });
+    }
     console.error('Download inventory attachment error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }

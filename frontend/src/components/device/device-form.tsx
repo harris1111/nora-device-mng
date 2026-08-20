@@ -1,8 +1,8 @@
-﻿import { useState, useEffect } from 'react';
-import { getLocations, getAreas, Device, Location, Area, attachmentFileUrl } from '../../api/device-api';
+import { useState, useEffect } from 'react';
+import { getLocations, getAreas, getSystemCategories, Device, Location, Area, attachmentFileUrl } from '../../api/device-api';
 import FormTextInput from '../ui/form-text-input';
 import VnDatePicker from '../ui/vn-date-picker';
-import { DEVICE_TYPES, STATUS_BY_TYPE } from './device-constants';
+import { DEVICE_TYPES, STATUS_BY_TYPE, SYSTEM_CATEGORIES } from './device-constants';
 
 interface Props {
   initialData?: Device | null;
@@ -24,7 +24,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
   const [manufacturer, setManufacturer] = useState(initialData?.manufacturer || '');
   const [description, setDescription] = useState(initialData?.description || '');
   const [type, setType] = useState(initialData?.type || 'tai_san');
-  const [systemCategory, setSystemCategory] = useState(initialData?.systemCategory || 'Phần mềm');
+  const [systemCategory, setSystemCategory] = useState(initialData?.systemCategory || SYSTEM_CATEGORIES[0].value);
   const [status, setStatus] = useState(initialData?.status || 'active');
   const [transferTo, setTransferTo] = useState(initialData?.transfer_to || '');
   const [transferDate, setTransferDate] = useState(initialData?.transfer_date?.split('T')[0] || '');
@@ -33,6 +33,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
   const [warrantyPeriod, setWarrantyPeriod] = useState<string>(initialData?.warranty_period || '');
   const [locations, setLocations] = useState<Location[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
+  const [systemCategoryOptions, setSystemCategoryOptions] = useState<{ value: string; label: string }[]>(SYSTEM_CATEGORIES);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +49,11 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
   useEffect(() => {
     getLocations().then(setLocations).catch(() => setError('Không thể tải danh sách đơn vị trực thuộc.'));
     getAreas().then(setAreas).catch(() => {});
+    getSystemCategories().then(cats => {
+      if (cats.length > 0) {
+        setSystemCategoryOptions(cats.map(c => ({ value: c.name, label: c.name })));
+      }
+    }).catch(() => {});
   }, []);
 
   // Reset status when type changes
@@ -78,7 +84,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
       fd.append('manufacturer', manufacturer.trim());
       fd.append('description', description.trim());
       fd.append('type', isSystem ? 'system' : type);
-      if (isSystem) {
+      if (isSystem || type === 'system') {
         fd.append('systemCategory', systemCategory);
       }
       fd.append('status', status);
@@ -121,10 +127,7 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
                 <div className="relative">
                   <select id="systemCategory" value={systemCategory} onChange={(e) => setSystemCategory(e.target.value)} required
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all appearance-none cursor-pointer">
-                    <option value="Phần mềm">Phần mềm</option>
-                    <option value="Phần cứng">Phần cứng</option>
-                    <option value="Mạng">Mạng</option>
-                    <option value="Khác">Khác</option>
+                    {systemCategoryOptions.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -132,18 +135,34 @@ export default function DeviceForm({ initialData, existingAttachmentCount, onSub
                 </div>
               </div>
             ) : (
-              <div className="space-y-1.5 focus-within:text-indigo-600 transition-all">
-                <label htmlFor="type" className="block text-sm text-slate-700 font-semibold mb-1">Loại thiết bị <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select id="type" value={type} onChange={(e) => setType(e.target.value)} required
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all appearance-none cursor-pointer">
-                    {DEVICE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              <>
+                <div className="space-y-1.5 focus-within:text-indigo-600 transition-all">
+                  <label htmlFor="type" className="block text-sm text-slate-700 font-semibold mb-1">Loại thiết bị <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <select id="type" value={type} onChange={(e) => setType(e.target.value)} required
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all appearance-none cursor-pointer">
+                      {DEVICE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </div>
                   </div>
                 </div>
-              </div>
+                {type === 'system' && (
+                  <div className="space-y-1.5 focus-within:text-indigo-600 transition-all">
+                    <label htmlFor="systemCategory" className="block text-sm text-slate-700 font-semibold mb-1">Loại hệ thống <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <select id="systemCategory" value={systemCategory} onChange={(e) => setSystemCategory(e.target.value)} required
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all appearance-none cursor-pointer">
+                        {systemCategoryOptions.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             <div className="space-y-1.5 focus-within:text-indigo-600 transition-all">

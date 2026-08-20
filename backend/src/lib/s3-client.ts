@@ -51,3 +51,16 @@ export async function deleteFile(key: string): Promise<void> {
 export async function deleteFiles(keys: string[]): Promise<void> {
   await Promise.all(keys.map(k => deleteFile(k)));
 }
+
+export function isS3NotFoundError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as { name?: string; Code?: string; $metadata?: { httpStatusCode?: number } };
+  return (
+    e.name === 'NoSuchKey' ||
+    e.name === 'NotFound' ||
+    e.Code === 'NoSuchKey' ||
+    e.Code === 'NotFound' ||
+    e.$metadata?.httpStatusCode === 404
+  );
+}
+

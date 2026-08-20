@@ -4,10 +4,10 @@ import { useAuth } from '../context/auth-context';
 import { useCan } from '../hooks/use-permission';
 
 const ROLES = ['SADMIN', 'ADMIN', 'USER'] as const;
-const MODULES = ['devices', 'locations', 'areas', 'rooms', 'maintenance', 'maintenance_history', 'inventory', 'inventory_history', 'attachments', 'transfer', 'users', 'permissions'] as const;
+const MODULES = ['devices', 'locations', 'areas', 'system_categories', 'rooms', 'maintenance', 'maintenance_history', 'inventory', 'inventory_history', 'attachments', 'transfer', 'users', 'permissions'] as const;
 const ACTIONS = ['canView', 'canCreate', 'canUpdate', 'canDelete', 'canExport'] as const;
 const actionLabels: Record<string, string> = { canView: 'Xem', canCreate: 'Tạo', canUpdate: 'Sửa', canDelete: 'Xóa', canExport: 'Xuất Excel' };
-const moduleLabels: Record<string, string> = { devices: 'Thiết bị', locations: 'Đơn vị', areas: 'Khu vực', rooms: 'Phòng', maintenance: 'Cài đặt bảo trì', maintenance_history: 'Lịch sử bảo trì', inventory: 'Cài đặt kiểm kê', inventory_history: 'Lịch sử kiểm kê', attachments: 'Tệp đính kèm', transfer: 'Luân chuyển', users: 'Tài khoản', permissions: 'Phân quyền' };
+const moduleLabels: Record<string, string> = { devices: 'Thiết bị', locations: 'Đơn vị', areas: 'Khu vực', system_categories: 'Loại hệ thống', rooms: 'Phòng', maintenance: 'Cài đặt bảo trì', maintenance_history: 'Lịch sử bảo trì', inventory: 'Cài đặt kiểm kê', inventory_history: 'Lịch sử kiểm kê', attachments: 'Tệp đính kèm', transfer: 'Luân chuyển', users: 'Tài khoản', permissions: 'Phân quyền' };
 const roleLabels: Record<string, string> = { SADMIN: 'Super Admin', ADMIN: 'Admin', USER: 'User' };
 
 // Only these modules show the canExport checkbox

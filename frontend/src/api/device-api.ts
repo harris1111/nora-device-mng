@@ -42,6 +42,13 @@ export interface Area {
   created_at: string;
 }
 
+export interface SystemCategory {
+  id: string;
+  name: string;
+  description?: string;
+  created_at: string;
+}
+
 export interface Attachment {
   id: string;
   device_id: string;
@@ -128,6 +135,7 @@ export interface DeviceListParams {
   date_from?: string;
   date_to?: string;
   systemCategory?: string;
+  exclude_systems?: boolean;
 }
 
 export interface PaginatedDevices {
@@ -354,3 +362,10 @@ export const getAreas = (): Promise<Area[]> => api.get('/areas').then(r => r.dat
 export const createArea = (data: { name: string }): Promise<Area> => api.post('/areas', data).then(r => r.data);
 export const updateAreaApi = (id: string, data: { name: string }) => api.put(`/areas/${id}`, data).then(r => r.data);
 export const deleteAreaApi = (id: string) => api.delete(`/areas/${id}`);
+
+// System Category API
+export const getSystemCategories = (): Promise<SystemCategory[]> => api.get('/system-categories').then(r => r.data);
+export const createSystemCategory = (data: { name: string; description?: string }): Promise<SystemCategory> => api.post('/system-categories', data).then(r => r.data);
+export const updateSystemCategory = (id: string, data: { name: string; description?: string }): Promise<SystemCategory> => api.put(`/system-categories/${id}`, data).then(r => r.data);
+export const deleteSystemCategory = (id: string) => api.delete(`/system-categories/${id}`);
+

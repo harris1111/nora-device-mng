@@ -53,6 +53,23 @@ export function getStatusInfo(status: string): StatusInfo {
   return ALL_STATUSES[status] || { label: status, color: 'slate' };
 }
 
+export const SYSTEM_CATEGORIES = [
+  { value: 'Hệ thống Bơm / Cấp thoát nước', label: 'Hệ thống Bơm / Cấp thoát nước' },
+  { value: 'Hệ thống MEP / Kỹ thuật', label: 'Hệ thống MEP / Kỹ thuật' },
+  { value: 'Hệ thống PCCC', label: 'Hệ thống PCCC' },
+  { value: 'Hệ thống HVAC', label: 'Hệ thống HVAC' },
+  { value: 'Hệ thống Điện', label: 'Hệ thống Điện' },
+  { value: 'Phần mềm', label: 'Phần mềm' },
+  { value: 'Phần cứng', label: 'Phần cứng' },
+  { value: 'Mạng', label: 'Mạng' },
+  { value: 'Khác', label: 'Khác' },
+];
+
 export function getTypeName(type: string): string {
   return TYPE_LABELS[type] || type;
+}
+
+export function getSystemCategoryLabel(category: string | null | undefined): string {
+  if (!category) return 'Hệ thống';
+  return SYSTEM_CATEGORIES.find(c => c.value === category)?.label || category;
 }

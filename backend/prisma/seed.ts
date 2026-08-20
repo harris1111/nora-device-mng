@@ -8,7 +8,7 @@ const adapter = new PrismaPg({ connectionString: process.env['DATABASE_URL']! })
 // @ts-expect-error Prisma 7 adapter constructor
 const prisma = new PrismaClient({ adapter });
 
-const MODULES = ['devices', 'locations', 'areas', 'rooms', 'maintenance', 'maintenance_history', 'inventory', 'inventory_history', 'attachments', 'transfer', 'users', 'permissions'] as const;
+const MODULES = ['devices', 'locations', 'areas', 'system_categories', 'rooms', 'maintenance', 'maintenance_history', 'inventory', 'inventory_history', 'attachments', 'transfer', 'users', 'permissions'] as const;
 
 type PermFlags = { canView: boolean; canCreate: boolean; canUpdate: boolean; canDelete: boolean; canExport: boolean };
 const CRUD: PermFlags = { canView: true, canCreate: true, canUpdate: true, canDelete: true, canExport: true };
@@ -17,9 +17,9 @@ const VIEW_UPDATE: PermFlags = { canView: true, canCreate: false, canUpdate: tru
 const NONE: PermFlags = { canView: false, canCreate: false, canUpdate: false, canDelete: false, canExport: false };
 
 const PERMISSION_MATRIX: Record<UserRole, Record<string, PermFlags>> = {
-  SADMIN: { devices: CRUD, locations: CRUD, areas: CRUD, rooms: CRUD, maintenance: CRUD, maintenance_history: CRUD, inventory: CRUD, inventory_history: CRUD, attachments: CRUD, transfer: CRUD, users: CRUD, permissions: VIEW_UPDATE },
-  ADMIN:  { devices: CRUD, locations: CRUD, areas: CRUD, rooms: CRUD, maintenance: CRUD, maintenance_history: CRUD, inventory: CRUD, inventory_history: CRUD, attachments: CRUD, transfer: CRUD, users: CRUD, permissions: VIEW_UPDATE },
-  USER:   { devices: VIEW_ONLY, locations: VIEW_ONLY, areas: VIEW_ONLY, rooms: VIEW_ONLY, maintenance: NONE, maintenance_history: NONE, inventory: NONE, inventory_history: NONE, attachments: NONE, transfer: NONE, users: NONE, permissions: NONE },
+  SADMIN: { devices: CRUD, locations: CRUD, areas: CRUD, system_categories: CRUD, rooms: CRUD, maintenance: CRUD, maintenance_history: CRUD, inventory: CRUD, inventory_history: CRUD, attachments: CRUD, transfer: CRUD, users: CRUD, permissions: VIEW_UPDATE },
+  ADMIN:  { devices: CRUD, locations: CRUD, areas: CRUD, system_categories: CRUD, rooms: CRUD, maintenance: CRUD, maintenance_history: CRUD, inventory: CRUD, inventory_history: CRUD, attachments: CRUD, transfer: CRUD, users: CRUD, permissions: VIEW_UPDATE },
+  USER:   { devices: VIEW_ONLY, locations: VIEW_ONLY, areas: VIEW_ONLY, system_categories: VIEW_ONLY, rooms: VIEW_ONLY, maintenance: NONE, maintenance_history: NONE, inventory: NONE, inventory_history: NONE, attachments: NONE, transfer: NONE, users: NONE, permissions: NONE },
 };
 
 async function seed(): Promise<void> {
@@ -77,6 +77,25 @@ async function seed(): Promise<void> {
     prisma.area.upsert({ where: { name: 'Tầng 2' }, update: {}, create: { name: 'Tầng 2' } }),
   ]);
   console.log(`Created ${areas.length} areas`);
+
+  // --- System Categories ---
+  const defaultCategories = [
+    'Hệ thống Bơm / Cấp thoát nước',
+    'Hệ thống MEP / Kỹ thuật',
+    'Hệ thống PCCC',
+    'Hệ thống HVAC',
+    'Hệ thống Điện',
+    'Phần mềm',
+    'Phần cứng',
+    'Mạng',
+    'Khác',
+  ];
+  const systemCategories = await Promise.all(
+    defaultCategories.map((name) =>
+      prisma.systemCategory.upsert({ where: { name }, update: {}, create: { name } })
+    )
+  );
+  console.log(`Created ${systemCategories.length} system categories`);
 
   // --- Sample devices ---
   const devices = [

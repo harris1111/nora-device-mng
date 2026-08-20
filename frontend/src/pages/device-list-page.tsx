@@ -37,6 +37,7 @@ function readStateFromParams(params: URLSearchParams): { filters: DeviceFilters;
     filters: {
       search: params.get('search') || '',
       type: params.get('type') || '',
+      systemCategory: params.get('system_category') || '',
       status: params.get('status') || '',
       location: params.get('location') || '',
       area: params.get('area') || '',
@@ -55,6 +56,7 @@ function writeStateToParams(filters: DeviceFilters, page: number, limit: number)
   const next = new URLSearchParams();
   if (filters.search) next.set('search', filters.search);
   if (filters.type) next.set('type', filters.type);
+  if (filters.systemCategory) next.set('system_category', filters.systemCategory);
   if (filters.status) next.set('status', filters.status);
   if (filters.location) next.set('location', filters.location);
   if (filters.area) next.set('area', filters.area);
@@ -127,7 +129,7 @@ export default function DeviceListPage() {
 
   // Build the params object sent to the API
   const apiParams: DeviceListParams = useMemo(() => {
-    const p: DeviceListParams = { page, limit };
+    const p: DeviceListParams = { page, limit, exclude_systems: true };
     if (debouncedSearch.trim()) p.search = debouncedSearch.trim();
     if (filters.type) p.type = filters.type;
     if (filters.status) p.status = filters.status;

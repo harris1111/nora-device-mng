@@ -13,6 +13,7 @@ import authRoutes from './routes/auth-routes.js';
 import deviceRoutes from './routes/device-routes.js';
 import locationRoutes from './routes/location-routes.js';
 import areaRoutes from './routes/area-routes.js';
+import systemCategoryRoutes, { ensureDefaultSystemCategories } from './routes/system-category-routes.js';
 import roomRoutes from './routes/room-routes.js';
 import publicRoutes from './routes/public-routes.js';
 import attachmentRoutes from './routes/attachment-routes.js';
@@ -29,6 +30,7 @@ import settingsRoutes from './routes/settings-routes.js';
 import exportRoutes from './routes/export-routes.js';
 import { startMaintenanceScheduler } from './lib/maintenance-scheduler.js';
 import { startInventoryScheduler } from './lib/inventory-scheduler.js';
+import { syncPermissionsMatrix } from './utils/permission-sync.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Load root .env for S3 vars (without overriding backend/.env values like DATABASE_URL)
@@ -75,6 +77,7 @@ app.use('/api/devices/export', requireAuth, exportRoutes);
 app.use('/api/devices', requireAuth, deviceRoutes);
 app.use('/api/locations', requireAuth, locationRoutes);
 app.use('/api/areas', requireAuth, areaRoutes);
+app.use('/api/system-categories', requireAuth, systemCategoryRoutes);
 app.use('/api/rooms', requireAuth, roomRoutes);
 app.use('/api', requireAuth, attachmentRoutes);
 app.use('/api', requireAuth, maintenanceRoutes);
@@ -126,6 +129,8 @@ async function start(): Promise<void> {
   try {
     await prisma.$connect();
     console.log('Connected to PostgreSQL via Prisma');
+    await syncPermissionsMatrix();
+    await ensureDefaultSystemCategories();
 
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
