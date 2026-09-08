@@ -59,7 +59,8 @@ function getPageMeta(path: string): { title: string; eyebrow: string } {
   if (path.startsWith('/audit-logs')) return { title: 'Nhật ký hệ thống', eyebrow: 'Quản trị' };
   if (path.startsWith('/settings')) return { title: 'Cài đặt hệ thống', eyebrow: 'Quản trị' };
   if (path.startsWith('/export')) return { title: 'Xuất Excel', eyebrow: 'Tiện ích' };
-  return { title: 'Nora Device Manager', eyebrow: 'BWP Devices' };
+  if (path.startsWith('/systems')) return { title: 'Hệ thống', eyebrow: 'Quản lý hệ thống' };
+  return { title: 'Quản lý thiết bị', eyebrow: 'BWP Devices - IT Leon' };
 }
 
 export default function AppLayout({ children }: Props) {
