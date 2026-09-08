@@ -20,9 +20,11 @@ export default function DeviceEditPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const isSystem = device?.type === 'system';
+
   const handleSubmit = async (formData: FormData) => {
     await updateDevice(id, formData);
-    navigate(`/devices/${id}`);
+    navigate(isSystem ? `/systems/${id}` : `/devices/${id}`);
   };
 
   if (loading) {
@@ -48,11 +50,11 @@ export default function DeviceEditPage() {
   return (
     <div className="max-w-3xl mx-auto pb-12">
       <div className="mb-6 flex justify-between items-center hidden md:flex">
-         <Link to={`/devices/${id}`} className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors">
+         <Link to={isSystem ? `/systems/${id}` : `/devices/${id}`} className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors">
             <svg className="w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Quay lại Chi tiết
+            Quay lại {isSystem ? 'Hệ thống' : 'Chi tiết'}
          </Link>
       </div>
 
@@ -61,12 +63,12 @@ export default function DeviceEditPage() {
            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
         </div>
         <div>
-           <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Sửa Thiết bị</h1>
+           <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">{isSystem ? 'Sửa Hệ thống' : 'Sửa Thiết bị'}</h1>
            <p className="text-slate-500 text-sm">Cập nhật thông tin cho {device?.name}</p>
         </div>
       </div>
 
-      <DeviceForm initialData={device} existingAttachmentCount={attachmentCount} onSubmit={handleSubmit} submitLabel="Cập nhật Thiết bị" />
+      <DeviceForm initialData={device} existingAttachmentCount={attachmentCount} onSubmit={handleSubmit} submitLabel={isSystem ? 'Cập nhật Hệ thống' : 'Cập nhật Thiết bị'} isSystem={isSystem} />
     </div>
   );
 }

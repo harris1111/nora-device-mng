@@ -3,7 +3,7 @@ export const DEVICE_TYPES: string[] = ['tai_san', 'cong_cu_dung_cu', 'system'];
 export const STATUS_BY_TYPE: Record<string, string[]> = {
   tai_san: ['active', 'under_repair', 'needs_inventory', 'decommissioned'],
   cong_cu_dung_cu: ['active', 'disposed', 'lost'],
-  system: ['active', 'under_repair', 'decommissioned'],
+  system: ['active', 'under_repair', 'needs_inventory', 'decommissioned'],
 };
 
 export const TYPE_LABELS: Record<string, string> = {

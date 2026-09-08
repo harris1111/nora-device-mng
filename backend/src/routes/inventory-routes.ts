@@ -51,7 +51,7 @@ router.post('/devices/:deviceId/inventory', requirePermission('inventory_history
   try {
     const device = await prisma.device.findUnique({ where: { id: req.params.deviceId as string } });
     if (!device) return res.status(404).json({ error: 'Device not found' });
-    if (device.type !== 'tai_san') return res.status(400).json({ error: 'Inventory only for tài sản devices' });
+    if (!['tai_san', 'system'].includes(device.type)) return res.status(400).json({ error: 'Inventory only for tài sản and system items' });
 
     const { date, description, technician, status } = req.body;
     if (!date) return res.status(400).json({ error: 'Date is required' });

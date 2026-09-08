@@ -5,10 +5,10 @@ import prisma from '../lib/prisma-client.js';
 //   maintenance pending → 'under_repair'
 //   else inventory pending → 'needs_inventory'
 //   else if currently in a workflow state → 'active'
-// Skips decommissioned devices and non-tai_san types.
+// Skips decommissioned devices and non-tai_san / non-system types.
 export async function recomputeDeviceStatus(deviceId: string): Promise<void> {
   const device = await prisma.device.findUnique({ where: { id: deviceId } });
-  if (!device || device.type !== 'tai_san') return;
+  if (!device || !['tai_san', 'system'].includes(device.type)) return;
   if (device.status === 'decommissioned') return;
 
   const [pendingMaintenance, pendingInventory] = await Promise.all([

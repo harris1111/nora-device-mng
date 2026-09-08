@@ -86,7 +86,7 @@ router.get('/device/:id', async (req: Request, res: Response) => {
         is_primary: a.isPrimary,
         created_at: a.createdAt.toISOString(),
       })),
-      maintenance_records: device.type === 'tai_san' ? device.maintenanceRecords.map(r => ({
+      maintenance_records: ['tai_san', 'system'].includes(device.type) ? device.maintenanceRecords.map(r => ({
         id: r.id,
         date: r.date.toISOString(),
         description: r.description,
@@ -101,7 +101,7 @@ router.get('/device/:id', async (req: Request, res: Response) => {
           created_at: a.createdAt.toISOString(),
         })),
       })) : undefined,
-      inventory_records: device.type === 'tai_san' ? device.inventoryRecords.map(r => ({
+      inventory_records: ['tai_san', 'system'].includes(device.type) ? device.inventoryRecords.map(r => ({
         id: r.id,
         date: r.date.toISOString(),
         description: r.description,

@@ -121,19 +121,19 @@ export default function RoomDeviceDetailPage() {
         <AttachmentList attachments={attachments} onDelete={handleDeleteAttachment} onSetPrimary={handleSetPrimary} onUpload={handleUploadAttachments} uploading={uploading} maxFiles={10} allowUpload />
       </div>
 
-      {device.type === 'tai_san' && (
+      {['tai_san', 'system'].includes(device.type) && (
         <MaintenanceSection deviceId={device.id} maintenanceStatus={device.maintenance_status} onChange={loadDevice} />
       )}
-      {device.type === 'tai_san' && (
+      {['tai_san', 'system'].includes(device.type) && (
         <div className="card-glass border border-slate-100 shadow-sm p-6 md:p-8 space-y-4">
           <h2 className="text-lg font-bold text-slate-800">Lịch sử sửa chữa ({maintenanceRecords.length})</h2>
           <MaintenanceHistory deviceId={device.id} records={maintenanceRecords} onUpdate={() => { loadMaintenance(); loadDevice(); }} />
         </div>
       )}
-      {device.type === 'tai_san' && (
+      {['tai_san', 'system'].includes(device.type) && (
         <InventorySection deviceId={device.id} inventoryStatus={device.inventory_status} onChange={loadDevice} />
       )}
-      {device.type === 'tai_san' && (
+      {['tai_san', 'system'].includes(device.type) && (
         <div className="card-glass border border-slate-100 shadow-sm p-6 md:p-8 space-y-4">
           <h2 className="text-lg font-bold text-slate-800">Lịch sử kiểm kê ({inventoryRecords.length})</h2>
           <InventoryHistory deviceId={device.id} records={inventoryRecords} onUpdate={() => { loadInventory(); loadDevice(); }} />

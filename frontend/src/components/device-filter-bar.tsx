@@ -118,10 +118,10 @@ export default function DeviceFilterBar({
   }, []);
 
   useEffect(() => {
-    if (filters.location || filters.area || filters.transferUnit || filters.maintenance || (!isSystemView && filters.inventory) || filters.dateFrom || filters.dateTo) {
+    if (filters.location || filters.area || filters.transferUnit || filters.maintenance || filters.inventory || filters.dateFrom || filters.dateTo) {
       setShowAdvanced(true);
     }
-  }, [filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.inventory, filters.dateFrom, filters.dateTo, isSystemView]);
+  }, [filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.inventory, filters.dateFrom, filters.dateTo]);
 
   const set = (patch: Partial<DeviceFilters>) => {
     const next = { ...filters, ...patch };
@@ -136,8 +136,8 @@ export default function DeviceFilterBar({
     ? STATUS_BY_TYPE[filters.type] || []
     : Object.entries(ALL_STATUSES).map(([value, { label }]) => ({ value, label }));
 
-  const activeAdvancedCount = [filters.location, filters.area, filters.transferUnit, filters.maintenance, !isSystemView && filters.inventory, filters.dateFrom, filters.dateTo].filter(Boolean).length;
-  const hasAnyFilter = !!(filters.search || filters.type || filters.systemCategory || filters.status || filters.location || filters.area || filters.transferUnit || filters.maintenance || (!isSystemView && filters.inventory) || filters.dateFrom || filters.dateTo);
+  const activeAdvancedCount = [filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.inventory, filters.dateFrom, filters.dateTo].filter(Boolean).length;
+  const hasAnyFilter = !!(filters.search || filters.type || filters.systemCategory || filters.status || filters.location || filters.area || filters.transferUnit || filters.maintenance || filters.inventory || filters.dateFrom || filters.dateTo);
   const activeFilterLabels = [
     filters.type && !isSystemView && `Loại: ${DEVICE_TYPES.find((item) => item.value === filters.type)?.label || filters.type}`,
     filters.systemCategory && isSystemView && `Loại hệ thống: ${filters.systemCategory}`,
@@ -146,7 +146,7 @@ export default function DeviceFilterBar({
     filters.area && `Khu vực: ${filters.area}`,
     filters.transferUnit && `Chuyển giao: ${filters.transferUnit}`,
     filters.maintenance && `Bảo trì: ${MAINTENANCE_OPTIONS.find((item) => item.value === filters.maintenance)?.label || filters.maintenance}`,
-    !isSystemView && filters.inventory && `Kiểm kê: ${INVENTORY_OPTIONS.find((item) => item.value === filters.inventory)?.label || filters.inventory}`,
+    filters.inventory && `Kiểm kê: ${INVENTORY_OPTIONS.find((item) => item.value === filters.inventory)?.label || filters.inventory}`,
     filters.dateFrom && `Từ ngày: ${filters.dateFrom}`,
     filters.dateTo && `Đến ngày: ${filters.dateTo}`,
   ].filter(Boolean) as string[];
@@ -379,23 +379,21 @@ export default function DeviceFilterBar({
                 </select>
               </label>
 
-              {!isSystemView && (
-                <label className="space-y-1.5">
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Tình trạng kiểm kê</span>
-                  <select
-                    value={filters.inventory}
-                    onChange={(event) => set({ inventory: event.target.value })}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 transition-shadow focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">Tất cả tình trạng kiểm kê</option>
-                    {INVENTORY_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Tình trạng kiểm kê</span>
+                <select
+                  value={filters.inventory}
+                  onChange={(event) => set({ inventory: event.target.value })}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 transition-shadow focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Tất cả tình trạng kiểm kê</option>
+                  {INVENTORY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Từ ngày</span>

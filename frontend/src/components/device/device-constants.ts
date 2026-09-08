@@ -30,6 +30,7 @@ export const STATUS_BY_TYPE: Record<string, StatusOption[]> = {
   system: [
     { value: 'active', label: 'Đang hoạt động', color: 'emerald' },
     { value: 'under_repair', label: 'Đang bảo trì', color: 'amber' },
+    { value: 'needs_inventory', label: 'Cần kiểm kê', color: 'sky' },
     { value: 'decommissioned', label: 'Ngừng hoạt động', color: 'slate' },
   ],
 };

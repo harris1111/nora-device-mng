@@ -42,9 +42,9 @@ export default function DeviceDetailPage() {
     if (!device || !window.confirm(`Xử lý không thể hoàn tác. Bạn chắc chắn muốn xóa "${device.name}"?`)) return;
     try {
       await deleteDevice(id);
-      navigate('/devices');
+      navigate(backUrl);
     } catch {
-      setError('Không thể xóa thiết bị');
+      setError(isSystem ? 'Không thể xóa hệ thống' : 'Không thể xóa thiết bị');
     }
   };
 
@@ -396,8 +396,8 @@ export default function DeviceDetailPage() {
         </div>
       )}
 
-      {/* Inventory (kiểm kê) scheduled + history — only for tai_san */}
-      {device.type === 'tai_san' && (
+      {/* Inventory (kiểm kê) scheduled + history — for tai_san and system */}
+      {['tai_san', 'system'].includes(device.type) && (
         <InventorySection
           deviceId={device.id}
           inventoryStatus={device.inventory_status}
@@ -405,7 +405,7 @@ export default function DeviceDetailPage() {
         />
       )}
 
-      {device.type === 'tai_san' && (
+      {['tai_san', 'system'].includes(device.type) && (
         <div className="card-glass border border-slate-100 shadow-sm p-6 md:p-8 space-y-4">
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <svg className="w-5 h-5 text-sky-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
