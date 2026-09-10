@@ -25,12 +25,17 @@ import PermissionDashboardPage from './pages/permission-dashboard-page';
 import AuditLogPage from './pages/audit-log-page';
 import SettingsPage from './pages/settings-page';
 import ExcelExportPage from './pages/excel-export-page';
+import { InspectionAlertProvider } from './context/inspection-alert-context';
+import InspectionPopupStack from './components/inspection/inspection-popup-stack';
 
 function AdminLayout() {
   return (
-    <AppLayout>
-      <Outlet />
-    </AppLayout>
+    <InspectionAlertProvider>
+      <AppLayout>
+        <Outlet />
+      </AppLayout>
+      <InspectionPopupStack />
+    </InspectionAlertProvider>
   );
 }
 
