@@ -19,12 +19,22 @@ function mapSchedule(s: {
   };
 }
 
-function parseScheduleInput(body: { interval_days?: unknown; notify_days_before?: unknown; last_inventory_at?: unknown }) {
+function parseScheduleInput(
+  body: { interval_days?: unknown; notify_days_before?: unknown; last_inventory_at?: unknown },
+  isSystem = false
+) {
   const interval = Number(body.interval_days);
-  const notify = Number(body.notify_days_before);
   if (!Number.isFinite(interval) || interval < 1) throw new Error('interval_days must be a positive integer');
-  if (!Number.isFinite(notify) || notify < 0) throw new Error('notify_days_before must be a non-negative integer');
-  if (notify > interval) throw new Error('notify_days_before cannot exceed interval_days');
+
+  let notify = 0;
+  if (!isSystem) {
+    notify = body.notify_days_before !== undefined && body.notify_days_before !== null && body.notify_days_before !== ''
+      ? Number(body.notify_days_before)
+      : 7;
+    if (!Number.isFinite(notify) || notify < 0) throw new Error('notify_days_before must be a non-negative integer');
+    if (notify > interval) throw new Error('notify_days_before cannot exceed interval_days');
+  }
+
   let lastInventoryAt: Date | null = null;
   if (body.last_inventory_at !== undefined && body.last_inventory_at !== null && body.last_inventory_at !== '') {
     if (typeof body.last_inventory_at !== 'string') throw new Error('last_inventory_at must be an ISO date string');
@@ -55,15 +65,18 @@ router.put('/devices/:deviceId/inventory-schedule', requirePermission('inventory
     if (!device) return res.status(404).json({ error: 'Device not found' });
 
     let parsed;
-    try { parsed = parseScheduleInput(req.body); }
+    try { parsed = parseScheduleInput(req.body, device.type === 'system'); }
     catch (e) { return res.status(400).json({ error: (e as Error).message }); }
+
+    // For systems, inspections are unannounced: force notifyDaysBefore to 0
+    const effectiveNotifyDays = device.type === 'system' ? 0 : (parsed.notifyDaysBefore ?? 7);
 
     const anchor = parsed.lastInventoryAt ?? device.createdAt;
     const nextDueAt = new Date(anchor);
     nextDueAt.setDate(nextDueAt.getDate() + parsed.intervalDays);
     const data = {
       intervalDays: parsed.intervalDays,
-      notifyDaysBefore: parsed.notifyDaysBefore,
+      notifyDaysBefore: effectiveNotifyDays,
       lastInventoryAt: parsed.lastInventoryAt,
       nextDueAt,
     };

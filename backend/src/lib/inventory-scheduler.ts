@@ -28,6 +28,11 @@ async function runOnce(): Promise<void> {
     });
 
     for (const sched of pendingNotify) {
+      if (sched.device.type === 'system') {
+        // Systems operate strictly on an unannounced cycle: do not send advance notice
+        continue;
+      }
+
       const threshold = new Date(sched.nextDueAt);
       threshold.setDate(threshold.getDate() - sched.notifyDaysBefore);
       if (now < threshold) continue;
