@@ -22,7 +22,7 @@ export default memo(function DeviceCard({ device, selectionControl }: Props) {
           <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 0h20v20H0V0zm10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14zm20 0a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM10 37a7 7 0 1 0 0-14 7 7 0 0 0 0 14zm10-17h20v20H20V20zm10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14z\' fill=\'%23fff\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")' }} />
           <div className="relative flex items-start justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <DeviceStatusBadge status={device.status} />
+              <DeviceStatusBadge status={device.status} type={device.type} />
               <span className="rounded-full bg-white/15 backdrop-blur-sm px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/90 shadow-sm border border-white/10">
                 {getSystemCategoryLabel(device.systemCategory)}
               </span>
@@ -65,7 +65,7 @@ export default memo(function DeviceCard({ device, selectionControl }: Props) {
 
           <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
             <div className="flex flex-wrap items-center gap-2">
-              <DeviceStatusBadge status={device.status} />
+              <DeviceStatusBadge status={device.status} type={device.type} />
               <span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 shadow-sm">
                 {getTypeName(device.type)}
               </span>

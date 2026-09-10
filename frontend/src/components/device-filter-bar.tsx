@@ -41,6 +41,11 @@ const INVENTORY_OPTIONS: { value: string; label: string }[] = [
   { value: 'needs_inventory', label: 'Cần kiểm kê' },
 ];
 
+const SYSTEM_INVENTORY_OPTIONS: { value: string; label: string }[] = [
+  { value: 'in_use', label: 'Đang hoạt động' },
+  { value: 'needs_inventory', label: 'Cần kiểm định' },
+];
+
 interface Props {
   filters: DeviceFilters;
   onChange: (filters: DeviceFilters) => void;
@@ -136,6 +141,7 @@ export default function DeviceFilterBar({
     ? STATUS_BY_TYPE[filters.type] || []
     : Object.entries(ALL_STATUSES).map(([value, { label }]) => ({ value, label }));
 
+  const inventoryOptions = isSystemView ? SYSTEM_INVENTORY_OPTIONS : INVENTORY_OPTIONS;
   const activeAdvancedCount = [filters.location, filters.area, filters.transferUnit, filters.maintenance, filters.inventory, filters.dateFrom, filters.dateTo].filter(Boolean).length;
   const hasAnyFilter = !!(filters.search || filters.type || filters.systemCategory || filters.status || filters.location || filters.area || filters.transferUnit || filters.maintenance || filters.inventory || filters.dateFrom || filters.dateTo);
   const activeFilterLabels = [
@@ -146,7 +152,7 @@ export default function DeviceFilterBar({
     filters.area && `Khu vực: ${filters.area}`,
     filters.transferUnit && `Chuyển giao: ${filters.transferUnit}`,
     filters.maintenance && `Bảo trì: ${MAINTENANCE_OPTIONS.find((item) => item.value === filters.maintenance)?.label || filters.maintenance}`,
-    filters.inventory && `Kiểm kê: ${INVENTORY_OPTIONS.find((item) => item.value === filters.inventory)?.label || filters.inventory}`,
+    filters.inventory && `${isSystemView ? 'Kiểm định' : 'Kiểm kê'}: ${inventoryOptions.find((item) => item.value === filters.inventory)?.label || filters.inventory}`,
     filters.dateFrom && `Từ ngày: ${filters.dateFrom}`,
     filters.dateTo && `Đến ngày: ${filters.dateTo}`,
   ].filter(Boolean) as string[];
@@ -380,14 +386,14 @@ export default function DeviceFilterBar({
               </label>
 
               <label className="space-y-1.5">
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Tình trạng kiểm kê</span>
+                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{isSystemView ? 'Tình trạng kiểm định' : 'Tình trạng kiểm kê'}</span>
                 <select
                   value={filters.inventory}
                   onChange={(event) => set({ inventory: event.target.value })}
                   className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 transition-shadow focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="">Tất cả tình trạng kiểm kê</option>
-                  {INVENTORY_OPTIONS.map((option) => (
+                  <option value="">{isSystemView ? 'Tất cả tình trạng kiểm định' : 'Tất cả tình trạng kiểm kê'}</option>
+                  {inventoryOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>

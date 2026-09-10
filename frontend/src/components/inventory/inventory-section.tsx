@@ -13,9 +13,10 @@ interface Props {
   inventoryStatus?: 'in_use' | 'needs_inventory';
   /** Notify parent when something changed so it can refetch the device. */
   onChange?: () => void;
+  isSystem?: boolean;
 }
 
-export default function InventorySection({ deviceId, inventoryStatus, onChange }: Props) {
+export default function InventorySection({ deviceId, inventoryStatus, onChange, isSystem }: Props) {
   const [schedule, setSchedule] = useState<InventorySchedule | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,10 +44,12 @@ export default function InventorySection({ deviceId, inventoryStatus, onChange }
     e.preventDefault();
     setError(null);
     const interval = Number.parseInt(intervalDays, 10);
-    const notify = Number.parseInt(notifyDaysBefore, 10);
+    const notify = isSystem ? 0 : Number.parseInt(notifyDaysBefore, 10);
     if (!Number.isFinite(interval) || interval < 1) { setError('Chu kỳ phải là số nguyên dương'); return; }
-    if (!Number.isFinite(notify) || notify < 0) { setError('Số ngày báo trước phải >= 0'); return; }
-    if (notify > interval) { setError('Số ngày báo trước không được vượt chu kỳ'); return; }
+    if (!isSystem) {
+      if (!Number.isFinite(notify) || notify < 0) { setError('Số ngày báo trước phải >= 0'); return; }
+      if (notify > interval) { setError('Số ngày báo trước không được vượt chu kỳ'); return; }
+    }
     try {
       const sched = await upsertInventorySchedule(deviceId, {
         interval_days: interval,
@@ -58,26 +61,26 @@ export default function InventorySection({ deviceId, inventoryStatus, onChange }
       onChange?.();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: string } } };
-      setError(axiosErr.response?.data?.error || 'Không thể lưu lịch kiểm kê');
+      setError(axiosErr.response?.data?.error || (isSystem ? 'Không thể lưu lịch kiểm định' : 'Không thể lưu lịch kiểm kê'));
     }
   };
 
   const handleDeleteSchedule = async () => {
-    if (!window.confirm('Xóa lịch kiểm kê này?')) return;
+    if (!window.confirm(isSystem ? 'Xóa lịch kiểm định này?' : 'Xóa lịch kiểm kê này?')) return;
     try {
       await deleteInventorySchedule(deviceId);
       setSchedule(null);
       onChange?.();
-    } catch { setError('Không thể xóa lịch kiểm kê'); }
+    } catch { setError(isSystem ? 'Không thể xóa lịch kiểm định' : 'Không thể xóa lịch kiểm kê'); }
   };
 
   const statusBadge = inventoryStatus === 'needs_inventory' ? (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
-      <span className="w-1.5 h-1.5 bg-sky-500 rounded-full" /> Cần kiểm kê
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+      <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" /> {isSystem ? 'Cần kiểm định' : 'Cần kiểm kê'}
     </span>
   ) : (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /> Đang sử dụng
+      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /> {isSystem ? 'Đang hoạt động' : 'Đang sử dụng'}
     </span>
   );
 
@@ -88,7 +91,7 @@ export default function InventorySection({ deviceId, inventoryStatus, onChange }
           <svg className="w-5 h-5 text-sky-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
           </svg>
-          Cài đặt kiểm kê
+          {isSystem ? 'Cài đặt kiểm định' : 'Cài đặt kiểm kê'}
         </h2>
         {statusBadge}
       </div>
@@ -100,14 +103,22 @@ export default function InventorySection({ deviceId, inventoryStatus, onChange }
       <div className="bg-sky-50/40 rounded-2xl p-4 border border-sky-100">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-xs font-semibold text-sky-700 uppercase tracking-wide">Lịch kiểm kê</p>
+            <p className="text-xs font-semibold text-sky-700 uppercase tracking-wide">
+              {isSystem ? 'Lịch kiểm định' : 'Lịch kiểm kê'}
+            </p>
             {schedule ? (
               <div className="mt-1 text-sm text-slate-700 space-y-0.5">
                 <p>Ngày kế tiếp: <span className="font-semibold">{new Date(schedule.next_due_at).toLocaleDateString('vi-VN')}</span></p>
-                <p>Chu kỳ: <span className="font-semibold">{schedule.interval_days} ngày</span> · Báo trước: <span className="font-semibold">{schedule.notify_days_before} ngày</span></p>
+                {isSystem ? (
+                  <p>Chu kỳ: <span className="font-semibold">{schedule.interval_days} ngày (không báo trước)</span></p>
+                ) : (
+                  <p>Chu kỳ: <span className="font-semibold">{schedule.interval_days} ngày</span> · Báo trước: <span className="font-semibold">{schedule.notify_days_before} ngày</span></p>
+                )}
               </div>
             ) : (
-              <p className="mt-1 text-sm text-slate-500 italic">Chưa thiết lập lịch kiểm kê.</p>
+              <p className="mt-1 text-sm text-slate-500 italic">
+                {isSystem ? 'Chưa thiết lập lịch kiểm định.' : 'Chưa thiết lập lịch kiểm kê.'}
+              </p>
             )}
           </div>
           <div className="flex gap-2">
@@ -131,26 +142,28 @@ export default function InventorySection({ deviceId, inventoryStatus, onChange }
         </div>
 
         {scheduleEditing && (
-          <form onSubmit={handleSaveSchedule} className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <form onSubmit={handleSaveSchedule} className={`mt-4 grid grid-cols-1 ${isSystem ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-3`}>
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-slate-600">Chu kỳ (ngày)</label>
               <input type="number" min={1} value={intervalDays} onChange={e => setIntervalDays(e.target.value)}
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
             </div>
+            {!isSystem && (
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-600">Báo trước (ngày)</label>
+                <input type="number" min={0} value={notifyDaysBefore} onChange={e => setNotifyDaysBefore(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
+              </div>
+            )}
             <div className="space-y-1">
-              <label className="block text-xs font-semibold text-slate-600">Báo trước (ngày)</label>
-              <input type="number" min={0} value={notifyDaysBefore} onChange={e => setNotifyDaysBefore(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-semibold text-slate-600">Ngày kiểm kê gần nhất</label>
+              <label className="block text-xs font-semibold text-slate-600">{isSystem ? 'Ngày kiểm định gần nhất' : 'Ngày kiểm kê gần nhất'}</label>
               <VnDatePicker
                 value={lastInventoryAt}
                 onChange={setLastInventoryAt}
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 text-left flex items-center justify-between gap-2"
               />
             </div>
-            <div className="md:col-span-3 flex gap-2 justify-end">
+            <div className={`${isSystem ? 'md:col-span-2' : 'md:col-span-3'} flex gap-2 justify-end`}>
               <button type="button" onClick={() => setScheduleEditing(false)}
                 className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">
                 Hủy

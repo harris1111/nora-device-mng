@@ -6,6 +6,7 @@ const COLOR_MAP: Record<string, string> = {
   sky: 'bg-sky-50 text-sky-700 border-sky-200',
   slate: 'bg-slate-100 text-slate-600 border-slate-200',
   red: 'bg-red-50 text-red-700 border-red-200',
+  rose: 'bg-rose-50 text-rose-700 border-rose-200',
 };
 
 const DOT_MAP: Record<string, string> = {
@@ -14,15 +15,17 @@ const DOT_MAP: Record<string, string> = {
   sky: 'bg-sky-500',
   slate: 'bg-slate-400',
   red: 'bg-red-500',
+  rose: 'bg-rose-500',
 };
 
 interface Props {
   status: string;
+  type?: string;
   className?: string;
 }
 
-export default function DeviceStatusBadge({ status, className = '' }: Props) {
-  const info = getStatusInfo(status);
+export default function DeviceStatusBadge({ status, type, className = '' }: Props) {
+  const info = getStatusInfo(status, type);
   const colors = COLOR_MAP[info.color] || COLOR_MAP.slate;
   const dot = DOT_MAP[info.color] || DOT_MAP.slate;
 

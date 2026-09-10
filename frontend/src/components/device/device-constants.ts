@@ -30,7 +30,7 @@ export const STATUS_BY_TYPE: Record<string, StatusOption[]> = {
   system: [
     { value: 'active', label: 'Đang hoạt động', color: 'emerald' },
     { value: 'under_repair', label: 'Đang bảo trì', color: 'amber' },
-    { value: 'needs_inventory', label: 'Cần kiểm kê', color: 'sky' },
+    { value: 'needs_inventory', label: 'Cần kiểm định', color: 'rose' },
     { value: 'decommissioned', label: 'Ngừng hoạt động', color: 'slate' },
   ],
 };
@@ -50,7 +50,11 @@ export const TYPE_LABELS: Record<string, string> = {
   system: 'Hệ thống',
 };
 
-export function getStatusInfo(status: string): StatusInfo {
+export function getStatusInfo(status: string, type?: string): StatusInfo {
+  if (type && STATUS_BY_TYPE[type]) {
+    const found = STATUS_BY_TYPE[type].find(s => s.value === status);
+    if (found) return { label: found.label, color: found.color };
+  }
   return ALL_STATUSES[status] || { label: status, color: 'slate' };
 }
 

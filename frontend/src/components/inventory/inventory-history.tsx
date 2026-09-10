@@ -23,9 +23,10 @@ interface Props {
   deviceId: string;
   records: InventoryRecord[];
   onUpdate?: () => void;
+  isSystem?: boolean;
 }
 
-export default function InventoryHistory({ deviceId, records, onUpdate }: Props) {
+export default function InventoryHistory({ deviceId, records, onUpdate, isSystem }: Props) {
   const canUpdate = useCan('inventory_history', 'update');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -63,7 +64,7 @@ export default function InventoryHistory({ deviceId, records, onUpdate }: Props)
   const handleComplete = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!completeTarget) return;
-    if (!completeTechnician.trim()) { setError('Người kiểm kê là bắt buộc'); return; }
+    if (!completeTechnician.trim()) { setError(isSystem ? 'Người kiểm định là bắt buộc' : 'Người kiểm kê là bắt buộc'); return; }
     if (!completeNotes.trim()) { setError('Ghi chú là bắt buộc'); return; }
     setCompleting(true);
     setError(null);
@@ -155,7 +156,7 @@ export default function InventoryHistory({ deviceId, records, onUpdate }: Props)
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Xóa bản ghi kiểm kê này?')) return;
+    if (!window.confirm(isSystem ? 'Xóa bản ghi kiểm định này?' : 'Xóa bản ghi kiểm kê này?')) return;
     try {
       await deleteInventoryRecord(id);
       onUpdate?.();
@@ -238,13 +239,13 @@ export default function InventoryHistory({ deviceId, records, onUpdate }: Props)
           ))}
         </div>
       ) : (
-        !showForm && <p className="text-sm text-slate-400 italic">Chưa có lịch sử kiểm kê.</p>
+        !showForm && <p className="text-sm text-slate-400 italic">{isSystem ? 'Chưa có lịch sử kiểm định.' : 'Chưa có lịch sử kiểm kê.'}</p>
       )}
 
       <button onClick={() => { resetForm(); setShowForm(true); }}
         className="inline-flex items-center gap-2 px-4 py-2 bg-sky-50 text-sky-700 text-sm font-semibold rounded-xl hover:bg-sky-100 active:scale-95 transition-all border border-sky-200">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-        Thêm kiểm kê
+        {isSystem ? 'Ghi nhận kiểm định' : 'Thêm kiểm kê'}
       </button>
 
       {/* Add/Edit modal */}
@@ -253,7 +254,11 @@ export default function InventoryHistory({ deviceId, records, onUpdate }: Props)
           <form onSubmit={handleSubmit} onClick={e => e.stopPropagation()}
             className="w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-xl flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-              <h3 className="text-base font-bold text-slate-800">{editingId ? 'Chỉnh sửa' : 'Thêm'} kiểm kê</h3>
+              <h3 className="text-base font-bold text-slate-800">
+                {editingId
+                  ? (isSystem ? 'Chỉnh sửa kiểm định' : 'Chỉnh sửa kiểm kê')
+                  : (isSystem ? 'Ghi nhận kiểm định hệ thống' : 'Thêm kiểm kê thiết bị')}
+              </h3>
               <button type="button" onClick={resetForm} className="text-slate-400 hover:text-slate-700">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
@@ -273,14 +278,14 @@ export default function InventoryHistory({ deviceId, records, onUpdate }: Props)
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-slate-600">Người kiểm kê</label>
-                  <input type="text" placeholder="Tên người kiểm kê" value={formData.technician} onChange={e => setFormData(p => ({ ...p, technician: e.target.value }))}
+                  <label className="block text-xs font-semibold text-slate-600">{isSystem ? 'Người kiểm định' : 'Người kiểm kê'}</label>
+                  <input type="text" placeholder={isSystem ? 'Tên người kiểm định' : 'Tên người kiểm kê'} value={formData.technician} onChange={e => setFormData(p => ({ ...p, technician: e.target.value }))}
                     className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="block text-xs font-semibold text-slate-600">Mô tả *</label>
-                <textarea placeholder="Mô tả công việc kiểm kê" value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} required rows={3}
+                <textarea placeholder={isSystem ? 'Mô tả công việc kiểm định' : 'Mô tả công việc kiểm kê'} value={formData.description} onChange={e => setFormData(p => ({ ...p, description: e.target.value }))} required rows={3}
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none" />
               </div>
 
@@ -359,7 +364,7 @@ export default function InventoryHistory({ deviceId, records, onUpdate }: Props)
           <form onSubmit={handleComplete} onClick={e => e.stopPropagation()}
             className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-800">Hoàn thành kiểm kê</h3>
+              <h3 className="text-base font-bold text-slate-800">{isSystem ? 'Hoàn thành kiểm định' : 'Hoàn thành kiểm kê'}</h3>
               <button type="button" onClick={closeCompleteModal} className="text-slate-400 hover:text-slate-600">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
@@ -368,7 +373,7 @@ export default function InventoryHistory({ deviceId, records, onUpdate }: Props)
               <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100">{error}</div>
             )}
             <div className="space-y-1">
-              <label className="block text-xs font-semibold text-slate-600">Người kiểm kê *</label>
+              <label className="block text-xs font-semibold text-slate-600">{isSystem ? 'Người kiểm định *' : 'Người kiểm kê *'}</label>
               <input type="text" value={completeTechnician} onChange={e => setCompleteTechnician(e.target.value)} required
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500" />
             </div>
