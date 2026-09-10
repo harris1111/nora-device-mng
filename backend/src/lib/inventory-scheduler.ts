@@ -23,24 +23,21 @@ async function runOnce(): Promise<void> {
 
     // --- 1. Advance-notice notification (single alert per cycle) ---
     const pendingNotify = await prisma.scheduledInventory.findMany({
-      where: { lastNotifiedAt: null },
+      where: {
+        lastNotifiedAt: null,
+        device: { type: { not: 'system' } },
+      },
       include: { device: { select: { id: true, name: true, storeId: true, type: true } } },
     });
 
     for (const sched of pendingNotify) {
-      if (sched.device.type === 'system') {
-        // Systems operate strictly on an unannounced cycle: do not send advance notice
-        continue;
-      }
-
       const threshold = new Date(sched.nextDueAt);
       threshold.setDate(threshold.getDate() - sched.notifyDaysBefore);
       if (now < threshold) continue;
 
       const dueLabel = sched.nextDueAt.toLocaleDateString('vi-VN');
-      const isSystem = sched.device.type === 'system';
-      const title = isSystem ? `Hệ thống cần kiểm kê: ${sched.device.name}` : `Thiết bị cần kiểm kê: ${sched.device.name}`;
-      const link = isSystem ? `/systems/${sched.device.id}` : `/devices/${sched.device.id}`;
+      const title = `Thiết bị cần kiểm kê: ${sched.device.name}`;
+      const link = `/devices/${sched.device.id}`;
 
       await createNotification({
         userId: null, // fan-out to admins

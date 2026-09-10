@@ -441,7 +441,7 @@ export default function DeviceListPage() {
                       </div>
 
                       <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <DeviceStatusBadge status={device.status} />
+                        <DeviceStatusBadge status={device.status} type={device.type} />
                         <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                           {getTypeName(device.type)}
                         </span>

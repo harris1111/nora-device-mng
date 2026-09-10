@@ -15,6 +15,7 @@ export default function InspectionAlertCard({ system, onDismiss }: Props) {
   const navigate = useNavigate();
 
   const handleCardClick = () => {
+    onDismiss(system.id);
     navigate(`/systems/${system.id}`);
   };
 
@@ -33,7 +34,14 @@ export default function InspectionAlertCard({ system, onDismiss }: Props) {
 
   return (
     <div
+      tabIndex={0}
       onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleCardClick();
+        }
+      }}
       className="pointer-events-auto group relative w-full bg-white/95 backdrop-blur-md border-l-4 border-l-amber-500 border border-slate-200/80 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 p-4 cursor-pointer hover:-translate-y-0.5"
       role="alert"
       aria-live="assertive"
