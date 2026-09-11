@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getDevices, type Device } from '../api/device-api';
 
 const STORAGE_KEY = 'dismissed_system_inspections';
@@ -31,23 +32,41 @@ function saveDismissedIds(ids: string[]): void {
 
 export function InspectionAlertProvider({ children }: { children: ReactNode }) {
   const [alerts, setAlerts] = useState<Device[]>([]);
+  const location = useLocation();
 
   const fetchDueSystems = useCallback(async () => {
     try {
-      const res = await getDevices({ type: 'system', inventory_status: 'needs_inventory', limit: 50 });
+      const [byInventory, byStatus] = await Promise.all([
+        getDevices({ type: 'system', inventory_status: 'needs_inventory', limit: 50 }).catch(() => ({ items: [] as Device[] })),
+        getDevices({ type: 'system', status: 'needs_inventory', limit: 50 }).catch(() => ({ items: [] as Device[] })),
+      ]);
       const dismissed = getDismissedIds();
-      const active = (res.items || []).filter(item => !dismissed.includes(item.id));
-      setAlerts(active);
+      const uniqueMap = new Map<string, Device>();
+      [...(byInventory.items || []), ...(byStatus.items || [])].forEach(item => {
+        if (!dismissed.includes(item.id)) {
+          uniqueMap.set(item.id, item);
+        }
+      });
+      setAlerts(Array.from(uniqueMap.values()));
     } catch {
       // Fail silently to prevent disrupting the application
     }
   }, []);
 
+  // Fetch on mount and on route changes
   useEffect(() => {
     void fetchDueSystems();
+  }, [location.pathname, fetchDueSystems]);
+
+  // Periodic polling (every 30s) and window focus refetch
+  useEffect(() => {
     const handleFocus = () => { void fetchDueSystems(); };
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    const interval = setInterval(() => { void fetchDueSystems(); }, 30_000);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
   }, [fetchDueSystems]);
 
   const dismissAlert = useCallback((id: string) => {

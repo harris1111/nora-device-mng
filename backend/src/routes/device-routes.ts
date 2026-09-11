@@ -222,7 +222,16 @@ async function buildDeviceListWhere(req: Request): Promise<Record<string, unknow
   if (area_id) where.areaId = area_id;
   if (transfer_unit) where.ownedBy = transfer_unit;
   if (maintenance_status) where.maintenanceStatus = maintenance_status;
-  if (inventory_status) where.inventoryStatus = inventory_status;
+  if (inventory_status === 'needs_inventory') {
+    andClauses.push({
+      OR: [
+        { inventoryStatus: 'needs_inventory' },
+        { status: 'needs_inventory' },
+      ],
+    });
+  } else if (inventory_status) {
+    where.inventoryStatus = inventory_status;
+  }
   if (systemCategory) where.systemCategory = systemCategory;
 
   if (search && search.trim()) {
@@ -401,6 +410,7 @@ router.post('/', requirePermission('devices', 'create'), deviceUpload, async (re
           type: statusData.type,
           systemCategory: systemCategory?.trim() || null,
           status: statusData.status,
+          inventoryStatus: statusData.status === 'needs_inventory' ? 'needs_inventory' : 'in_use',
           disposalDate: statusData.disposalDate,
           lossDate: statusData.lossDate,
           transferTo: transferSummary.transferTo,
@@ -518,6 +528,7 @@ router.put('/:id', requirePermission('devices', 'update'), deviceUpload, async (
       type: targetType,
       systemCategory: targetType === 'system' ? (systemCategory?.trim() || existing.systemCategory || 'Khác') : null,
       status: statusData.status,
+      inventoryStatus: statusData.status === 'needs_inventory' ? 'needs_inventory' : (statusData.status === 'active' ? 'in_use' : existing.inventoryStatus),
       disposalDate: statusData.disposalDate,
       lossDate: statusData.lossDate,
       transferTo: transferSummary.transferTo,

@@ -18,7 +18,7 @@ export async function recomputeDeviceStatus(deviceId: string): Promise<void> {
 
   let target: string;
   if (pendingMaintenance > 0) target = 'under_repair';
-  else if (pendingInventory > 0) target = 'needs_inventory';
+  else if (pendingInventory > 0 || device.inventoryStatus === 'needs_inventory') target = 'needs_inventory';
   else target = 'active';
 
   // Only auto-flip when device is currently in (or transitioning between) workflow states.

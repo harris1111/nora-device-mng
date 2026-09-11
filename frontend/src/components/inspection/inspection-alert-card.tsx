@@ -15,7 +15,6 @@ export default function InspectionAlertCard({ system, onDismiss }: Props) {
   const navigate = useNavigate();
 
   const handleCardClick = () => {
-    onDismiss(system.id);
     navigate(`/systems/${system.id}`);
   };
 
