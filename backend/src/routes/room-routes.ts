@@ -8,6 +8,7 @@ import { getEffectiveBaseUrl } from '../lib/settings.js';
 import { syncDeviceTransferRecord } from '../utils/transfer-records.js';
 import { validateTypeStatus, applyDateStatusRules, type StatusData } from '../utils/device-status-rules.js';
 import { requirePermission } from '../middleware/require-permission.js';
+import { deleteFiles } from '../lib/s3-client.js';
 
 const router: ReturnType<typeof Router> = Router();
 
@@ -621,12 +622,64 @@ router.get('/:roomId/devices', requirePermission('rooms', 'view'), async (req: R
         area: true,
         attachments: { where: { isPrimary: true }, select: { id: true, isPrimary: true }, take: 1 },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { storeId: 'asc' },
     });
 
     res.json(devices.map(mapDevice));
   } catch (err) {
     console.error('List room devices error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/rooms/:roomId/devices/bulk-delete — delete multiple devices within a room
+router.post('/:roomId/devices/bulk-delete', requirePermission('rooms', 'delete'), async (req: Request, res: Response) => {
+  try {
+    const roomId = req.params.roomId as string;
+    const room = await prisma.roomNode.findUnique({ where: { id: roomId }, select: { id: true } });
+    if (!room) return res.status(404).json({ error: 'Room not found' });
+
+    const { ids } = req.body as { ids?: string[] };
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array is required' });
+    if (ids.length > 100) return res.status(400).json({ error: 'Maximum 100 devices per bulk delete' });
+
+    const where: Record<string, unknown> = { id: { in: ids }, roomId };
+    const allowedLocations = await getUserLocationIds(req);
+    if (allowedLocations) where.locationId = { in: allowedLocations };
+
+    const devices = await prisma.device.findMany({
+      where,
+      include: {
+        attachments: { select: { fileKey: true } },
+        transferRecord: { include: { attachments: { select: { fileKey: true } } } },
+        maintenanceRecords: { include: { attachments: { select: { fileKey: true } } } },
+        inventoryRecords: { include: { attachments: { select: { fileKey: true } } } },
+      },
+    });
+
+    if (devices.length === 0) {
+      return res.json({ deleted: 0 });
+    }
+
+    const deviceIdsToDelete = devices.map(d => d.id);
+    const s3Keys = devices.flatMap(d => [
+      ...d.attachments.map((a: { fileKey: string }) => a.fileKey),
+      ...(d.transferRecord?.attachments.map((a: { fileKey: string }) => a.fileKey) || []),
+      ...d.maintenanceRecords.flatMap((r: { attachments: { fileKey: string }[] }) => r.attachments.map((a: { fileKey: string }) => a.fileKey)),
+      ...d.inventoryRecords.flatMap((r: { attachments: { fileKey: string }[] }) => r.attachments.map((a: { fileKey: string }) => a.fileKey)),
+    ]);
+
+    const result = await prisma.device.deleteMany({
+      where: { id: { in: deviceIdsToDelete } },
+    });
+
+    if (s3Keys.length > 0) {
+      try { await deleteFiles(s3Keys); } catch (e: unknown) { console.warn('S3 bulk cleanup warning:', (e as Error).message); }
+    }
+
+    res.json({ deleted: result.count });
+  } catch (err) {
+    console.error('Bulk delete room devices error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -740,20 +793,57 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
       return res.status(400).json({ error: 'Chỉ phòng con cuối cùng (lá) mới có thể nhân bản. Phòng này có phòng con.' });
     }
 
-    const { prefix = '', start, end, list, mode = 'range' } = req.body as {
+    const {
+      prefix = '',
+      start,
+      end,
+      list,
+      mode = 'single',
+      name,
+      target_parent_id,
+    } = req.body as {
       prefix?: string;
       start?: number;
       end?: number;
       list?: string;
-      mode?: 'range' | 'list';
+      mode?: 'single' | 'range' | 'list';
+      name?: string;
+      target_parent_id?: string;
     };
 
-    // Build suffixes from either range or list mode
-    let suffixes: string[] = [];
-    if (mode === 'list' && list) {
-      suffixes = list.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+    const targetParentId = target_parent_id?.trim() || source.parentId;
+    if (!targetParentId) {
+      return res.status(400).json({ error: 'Phòng cha đích là bắt buộc' });
+    }
+
+    if (targetParentId !== source.parentId) {
+      const targetParent = await prisma.roomNode.findUnique({
+        where: { id: targetParentId },
+        include: { _count: { select: { devices: true } } },
+      });
+      if (!targetParent) return res.status(404).json({ error: 'Không tìm thấy phòng cha đích' });
+
+      const violation = await validateParentLeafInvariant(targetParentId);
+      if (violation) {
+        return res.status(409).json({ error: 'Phòng cha đích hiện đang có thiết bị trực tiếp, không thể làm phòng cha' });
+      }
+
+      if (await wouldCreateCycle(source.id, targetParentId)) {
+        return res.status(409).json({ error: 'Phòng cha đích không thể là phòng con hoặc hậu duệ của phòng này' });
+      }
+    }
+
+    // Build room names based on mode
+    let roomNames: string[] = [];
+    if (mode === 'single' || name) {
+      const singleName = (name || source.name).trim();
+      if (!singleName) return res.status(400).json({ error: 'Tên phòng mới là bắt buộc' });
+      roomNames.push(singleName);
+    } else if (mode === 'list' && list) {
+      const suffixes = list.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
       if (suffixes.length === 0) return res.status(400).json({ error: 'Danh sách phòng không hợp lệ' });
       if (suffixes.length > 50) return res.status(400).json({ error: 'Tối đa 50 phòng mỗi lần nhân bản' });
+      roomNames = suffixes.map(suffix => prefix ? `${prefix}${suffix}` : suffix);
     } else {
       const s = start ?? 1;
       const e = end ?? 1;
@@ -761,7 +851,8 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
         return res.status(400).json({ error: 'Invalid range (1–50)' });
       }
       for (let i = s; i <= e; i++) {
-        suffixes.push(i.toString().padStart(String(e).length, '0'));
+        const suffix = i.toString().padStart(String(e).length, '0');
+        roomNames.push(prefix ? `${prefix}${suffix}` : suffix);
       }
     }
 
@@ -789,14 +880,13 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
     let totalRooms = 0;
     let totalDevices = 0;
 
-    for (const suffix of suffixes) {
+    for (const roomName of roomNames) {
       await prisma.$transaction(async (tx) => {
         const idMap = new Map<string, string>();
 
         for (const entry of subtree) {
           const newId = uuidv4();
-          // Format: "[prefix]suffix" — prefix attaches directly without space
-          const newName = prefix ? `${prefix}${suffix}` : suffix;
+          const newName = entry.node.id === source.id ? roomName : entry.node.name;
 
           await tx.roomNode.create({
             data: {
@@ -827,8 +917,8 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
               await tx.roomNode.update({ where: { id: newNodeId }, data: { parentId: mappedParent } });
             }
           } else if (entry.node.id === source.id) {
-            // Root of the subtree keeps the source's parent
-            await tx.roomNode.update({ where: { id: newNodeId }, data: { parentId: source.parentId } });
+            // Root of the subtree connects to targetParentId
+            await tx.roomNode.update({ where: { id: newNodeId }, data: { parentId: targetParentId } });
           }
         }
 
@@ -864,6 +954,115 @@ router.post('/:id/duplicate', requirePermission('rooms', 'create'), async (req: 
     const msg = (err as Error).message;
     if (msg.includes('Chỉ phòng con')) return res.status(400).json({ error: msg });
     console.error('Duplicate room error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/rooms/:id/duplicate-to-node — clone child rooms (and their devices) to a target parent node
+router.post('/:id/duplicate-to-node', requirePermission('rooms', 'create'), async (req: Request, res: Response) => {
+  try {
+    const sourceId = req.params.id as string;
+    const { target_parent_id, prefix = '', suffix = '', replace_from, replace_to = '' } = req.body as {
+      target_parent_id?: string;
+      prefix?: string;
+      suffix?: string;
+      replace_from?: string;
+      replace_to?: string;
+    };
+
+    if (!target_parent_id) {
+      return res.status(400).json({ error: 'Phòng cha đích (target_parent_id) là bắt buộc' });
+    }
+
+    const source = await prisma.roomNode.findUnique({
+      where: { id: sourceId },
+      include: { _count: { select: { children: true } } },
+    });
+    if (!source) return res.status(404).json({ error: 'Không tìm thấy phòng nguồn' });
+
+    if (source.id === target_parent_id) {
+      return res.status(400).json({ error: 'Phòng đích không thể trùng với phòng nguồn' });
+    }
+
+    const targetParent = await prisma.roomNode.findUnique({
+      where: { id: target_parent_id },
+      include: { _count: { select: { devices: true } } },
+    });
+    if (!targetParent) return res.status(404).json({ error: 'Không tìm thấy phòng đích' });
+
+    const violation = await validateParentLeafInvariant(target_parent_id);
+    if (violation) {
+      return res.status(409).json({ error: 'Phòng đích hiện đang có thiết bị trực tiếp, không thể làm phòng cha' });
+    }
+
+    if (await wouldCreateCycle(source.id, target_parent_id)) {
+      return res.status(409).json({ error: 'Phòng đích không thể là phòng con hoặc hậu duệ của phòng nguồn' });
+    }
+
+    // Direct Level 3 children of source node
+    const childRooms = await prisma.roomNode.findMany({
+      where: { parentId: source.id },
+      include: { devices: true },
+    });
+
+    if (childRooms.length === 0) {
+      return res.status(400).json({ error: 'Phòng nguồn không có phòng con nào để nhân bản' });
+    }
+
+    let totalRooms = 0;
+    let totalDevices = 0;
+    const baseUrl = await getEffectiveBaseUrl();
+
+    await prisma.$transaction(async (tx) => {
+      for (const child of childRooms) {
+        let newName = child.name;
+        if (replace_from) {
+          newName = newName.split(replace_from).join(replace_to);
+        }
+        if (prefix || suffix) {
+          newName = `${prefix}${newName}${suffix}`;
+        }
+
+        const newRoomId = uuidv4();
+        await tx.roomNode.create({
+          data: {
+            id: newRoomId,
+            name: newName,
+            parentId: targetParent.id,
+            createdById: req.user!.id,
+          },
+        });
+        totalRooms += 1;
+
+        const clonedBreadcrumb = await buildBreadcrumbForRoom(newRoomId, tx);
+        const clonedAreaId = await resolveAreaForRoomBreadcrumb(clonedBreadcrumb, tx);
+
+        for (const d of child.devices) {
+          const newDeviceId = uuidv4();
+          const qrcode = await generateQrCode(newDeviceId, baseUrl);
+          const cloneData: Record<string, unknown> = {
+            id: newDeviceId,
+            createdById: req.user!.id,
+            qrcode: new Uint8Array(qrcode),
+          };
+          for (const field of DEVICE_CLONE_ALLOWLIST) {
+            if (field === 'roomId') {
+              cloneData.roomId = newRoomId;
+            } else if (field === 'areaId') {
+              cloneData.areaId = clonedAreaId;
+            } else {
+              cloneData[field] = (d as Record<string, unknown>)[field];
+            }
+          }
+          await tx.device.create({ data: cloneData as Parameters<typeof tx.device.create>[0]['data'] });
+          totalDevices += 1;
+        }
+      }
+    });
+
+    res.status(201).json({ rooms_created: totalRooms, devices_cloned: totalDevices });
+  } catch (err: unknown) {
+    console.error('Duplicate room to node error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
